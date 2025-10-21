@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import "../../views/dashboard/dataFormManifest.css";
+import "../../views/dashboard/DataFormManifest.css";
 import { Link, useNavigate } from "react-router-dom";
 
 const LS_KEY = "manifest_submissions";
