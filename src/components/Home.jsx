@@ -63,6 +63,22 @@ export default function Home() {
                     <p className="card-desc">Isi data manifest kapal</p>
                   </div>
                 </Link>
+
+                <Link className="card" to="/notifikasiteriminal">
+                  <div className="icon bubble bell-ico" aria-hidden>🚌</div>
+                  <div className="info">
+                    <h3 className="card-title">Notifikasi Terminal</h3>
+                    <p className="card-desc">Lihat & kelola notifikasi terminal</p>
+                  </div>
+                </Link>
+
+                <Link className="card" to="/notifikasi-berkas">
+                  <div className="icon bubble bell-ico" aria-hidden>📋</div>
+                  <div className="info">
+                    <h3 className="card-title">Notifikasi Berkas</h3>
+                    <p className="card-desc">Lihat & kelola notifikasi berkas</p>
+                  </div>
+                </Link>
               </nav>
             </div>
 

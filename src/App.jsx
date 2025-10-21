@@ -22,6 +22,11 @@ import FormManifest from "./pages/home/FormManifest.jsx";
 import RkJadwal from "./pages/dashboard/RkJadwal.jsx";
 import Settings from "./pages/dashboard/Settings.jsx";
 
+/* === Terminal Dashboard (NEW) === */
+import Terminal from "./components/dashboard/terminal.jsx";
+import NotifikasiTerminal from "./components/dashboard/NotifikasiTerminal.jsx";
+import NotifikasiBerkas from "./components/dashboard/NotifikasiBerkas.jsx";
+
 export default function App() {
   return (
     <HashRouter>
@@ -37,6 +42,8 @@ export default function App() {
         <Route path="/crm" element={<CRMForm />} />
         {/* === MANIFEST === */}
         <Route path="/manifest" element={<FormManifest />} />
+        <Route path="notifikasi-berkas" element={<NotifikasiBerkas />} />
+        <Route path="/notifikasiteriminal" element={<NotifikasiTerminal />} />
 
         {/* === Area Admin (hanya email esga) === */}
         <Route element={<ProtectedRoute allowEmails={["esga@gmail.com"]} />}>
@@ -60,6 +67,10 @@ export default function App() {
             {/* === PENGATURAN === */}
             <Route path="settings" element={<Settings />} />
           </Route>
+        </Route>
+
+        <Route element={<ProtectedRoute allowEmails={["terminal@gmail.com"]} />}>
+          <Route path="/dashboard/terminal" element={<Terminal />} />
         </Route>
 
         {/* === Fallback 404 → Home === */}

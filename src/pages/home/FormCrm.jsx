@@ -28,9 +28,9 @@ async function filesToDataUrls(fileList, max = 5) {
 
 function KawaiiNavbar({
   active = "Form CRM",
-  onBack,               
+  onBack,
   backLabel = "Kembali",
-  canBack = true        
+  canBack = true
 }) {
   const links = [
     { to: "/", label: "Home", icon: "🏡" },
@@ -293,6 +293,21 @@ function SuccessPopup({ show, onClose }) {
   );
 }
 
+// === ambil data IWKBU dari localStorage
+const getIwkbuRows = () => {
+  try { return JSON.parse(localStorage.getItem("iwkbu:rows") || "[]"); }
+  catch { return []; }
+};
+
+// === cari berdasarkan nopol (normalize ke UPPER biar konsisten)
+const findIwkbuByNopol = (nopol) => {
+  const key = String(nopol || "").replace(/\s+/g," ").trim().toUpperCase();
+  return getIwkbuRows().find(r => String(r.nopol).toUpperCase() === key) || null;
+};
+
+// formatter rupiah (kalau belum punya)
+const idr = (n) => (Number(n)||0).toLocaleString("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0});
+
 /* ------------------------ Halaman CRM ------------------------ */
 export default function CRMForm() {
   const steps = useMemo(
@@ -321,7 +336,12 @@ export default function CRMForm() {
     telp: "",
   });
 
-  const [armada, setArmada] = useState([{ id: 1, nopol: "", status: "", os: "" }]);
+  // tambahkan osAmount & files per armada
+  const [armada, setArmada] = useState([{ id: 1, nopol: "", status: "", os: "", osAmount: "", files: null }]);
+
+  // helper untuk update armada minimal perubahan
+  const updateArmada = (id, patch) =>
+    setArmada(list => list.map(it => it.id === id ? { ...it, ...patch } : it));
 
   const [f3, setF3] = useState({
     foto: null,
@@ -413,6 +433,17 @@ export default function CRMForm() {
       return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
 
+    // rincian armada + lampiran & osAmount
+    const rincianArmada = await Promise.all(
+      armada.map(async a => ({
+        nopol: a.nopol || "-",
+        status: a.status || "-",
+        osAmount: a.osAmount || "-",
+        attachments: await filesToDataUrls(a.files, 5), // [{name,url}]
+        tindakLanjut: a.status?.toLowerCase().includes("bayar") ? "Bersedia membayar" : "-",
+      }))
+    );
+
     const row = {
       id: nextId(),
       step1: {
@@ -420,12 +451,11 @@ export default function CRMForm() {
         loket: f1.loket || "-",
         petugasDepan: f1.petugasDepan || "-",
         petugasBelakang: f1.petugasBelakang || "-",
-        kunjunganKePemilik: Boolean(f1.perusahaan || f1.pemilik), // heuristik sederhana
+        perusahaan: f1.perusahaan || "-",
         jenisAngkutan: f1.jenis || "-",
-        namaPemilik: f1.pemilik || f1.perusahaan || "-",
+        namaPemilik: f1.pemilik || "-",
         alamat: f1.alamat || "-",
         telepon: f1.telp || "-",
-        jabatan: "-", // tidak ada di form — isi default
       },
       step2: {
         dataKendaraan: firstStatus === "-" ? "—" : `Armada ${firstStatus.toLowerCase()}`,
@@ -436,11 +466,7 @@ export default function CRMForm() {
         janjiBayar: f3.janjiBayar ? fmtDT(f3.janjiBayar) : "-",
         rekomendasi: f3.janjiBayar ? "Monitor janji bayar" : "-",
         tunggakan: 0,
-        rincianArmada: armada.map(a => ({
-          nopol: a.nopol || "-",
-          status: a.status || "-",
-          tindakLanjut: a.status?.toLowerCase().includes("bayar") ? "Bersedia membayar" : "-",
-        })),
+        rincianArmada,
       },
       step3: {
         fotoKunjungan: fotoKunjungan.map(x => x.url), // galeri butuh src langsung
@@ -702,11 +728,26 @@ export default function CRMForm() {
                       <input
                         placeholder="BM 1234 CD"
                         value={a.nopol}
-                        onChange={(e) =>
-                          setArmada((list) =>
-                            list.map((it) => (it.id === a.id ? { ...it, nopol: e.target.value } : it))
-                          )
-                        }
+                        onChange={(e) => {
+                          const nopol = e.target.value;
+                          // simpan teks yang diketik
+                          updateArmada(a.id, { nopol });
+
+                          // cek di IWKBU
+                          const hit = findIwkbuByNopol(nopol);
+                          if (hit) {
+                            // simpan tarif/nominal ke field yang kamu mau pakai di UI
+                            // (contoh: pakai 'os' untuk tarif, dan 'osAmount' biarin buat input pembayaran)
+                            updateArmada(a.id, {
+                              os: hit.tarif,                // ← tarif dari IWKBU
+                              // opsional kalau mau ikut tampilkan nominal IWKBU:
+                              // osAmount: hit.nominal || ""
+                            });
+                          } else {
+                            // kalau gak ketemu, kosongkan info OS biar jelas
+                            updateArmada(a.id, { os: "" });
+                          }
+                        }}
                       />
                     </div>
 
@@ -714,11 +755,7 @@ export default function CRMForm() {
                       <label>Status Kendaraan</label>
                       <select
                         value={a.status}
-                        onChange={(e) =>
-                          setArmada((list) =>
-                            list.map((it) => (it.id === a.id ? { ...it, status: e.target.value } : it))
-                          )
-                        }
+                        onChange={(e) => updateArmada(a.id, { status: e.target.value })}
                       >
                         <option value="">— Pilih Status —</option>
                         <option>Beroperasi + Bayar</option>
@@ -733,9 +770,53 @@ export default function CRMForm() {
                       </select>
                     </div>
 
+                    {/* === KONDISIONAL BERDASARKAN STATUS === */}
+                    {a.status === "Beroperasi + Bayar" && (
+                      <div className="field">
+                        <label>Jumlah Pembayaran OS</label>
+                        <input
+                          inputMode="numeric"
+                          placeholder="cth: 1.250.000"
+                          value={a.osAmount}
+                          onChange={(e) => updateArmada(a.id, { osAmount: e.target.value })}
+                        />
+                        <div className="muted" style={{ marginTop: 4 }}>
+                          Pembayaran boleh lebih dari nilai nominal OS.
+                        </div>
+                      </div>
+                    )}
+
+                    {["Dijual", "Ubah Sifat", "Ubah Bentuk", "Rusak Sementara", "Rusak Selamanya"].includes(a.status) && (
+                      <div className="field">
+                        <label>Upload Dokumen Pendukung (maks 5 file)</label>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,application/pdf"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []).slice(0, 5);
+                            updateArmada(a.id, { files });
+                          }}
+                        />
+                        <div className="muted" style={{ marginTop: 4 }}>
+                          Format yang disarankan: PDF/JPG/PNG. Maks 5 file.
+                        </div>
+                      </div>
+                    )}
+
                     <div className="field">
                       <label>Informasi OS</label>
-                      <div className="muted">Nominal OS akan tampil di sini…</div>
+                      {a.nopol ? (
+                        a.os !== "" && a.os != null ? (
+                          <div className="muted">
+                            Tarif IWKBU: <strong>{idr(a.os)}</strong>
+                          </div>
+                        ) : (
+                          <div className="muted">Nopol belum ada di data IWKBU.</div>
+                        )
+                      ) : (
+                        <div className="muted">Isi Nopol dulu ya…</div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -743,7 +824,7 @@ export default function CRMForm() {
                 <button
                   type="button"
                   className="btn add"
-                  onClick={() => setArmada((l) => [...l, { id: Date.now(), nopol: "", status: "", os: "" }])}
+                  onClick={() => setArmada((l) => [...l, { id: Date.now(), nopol: "", status: "", os: "", osAmount: "", files: null }])}
                 >
                   + Tambah Kendaraan
                 </button>
@@ -796,7 +877,6 @@ export default function CRMForm() {
 
                 <h3><span className="dot" /> Penilaian Lapangan</h3>
 
-                
                 <div className="field">
                   <label>Respon Pemilik / Pengelola</label>
                   <Stars value={f3.respon} onChange={(v) => setF3({ ...f3, respon: v })} />

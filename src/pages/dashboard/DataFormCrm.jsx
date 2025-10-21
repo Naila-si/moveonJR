@@ -12,6 +12,40 @@ function loadCrmLs() {
   }
 }
 
+const saveCrmLs = (rows) => localStorage.setItem(LS_KEY, JSON.stringify(rows));
+
+// ==== Notifikasi verifikasi (local only) ====
+const NOTIF_KEY = "crm:notif";
+function loadNotif() {
+  try { return JSON.parse(localStorage.getItem(NOTIF_KEY) || "[]"); }
+  catch { return []; }
+}
+function saveNotif(rows) {
+  localStorage.setItem(NOTIF_KEY, JSON.stringify(rows));
+}
+function addVerificationNotificationLocal({ reportId, status, note, waktuValidasi }) {
+  // pakai ISO biar aman diparse Date
+  const iso = waktuValidasi
+    ? new Date(waktuValidasi).toISOString()
+    : new Date().toISOString();
+
+  const all = loadNotif();
+  const item = {
+    id: `notif-${Date.now()}`,            // unik
+    kind: "verification",
+    title: "Laporan diverifikasi",
+    message: `ID ${reportId} → ${status}${note ? ` — ${note}` : ""}`,
+    ts: iso,                              // <-- ISO string
+    read: false,
+    meta: { reportId, status, note }
+  };
+  const next = [item, ...all].slice(0, 200);
+  saveNotif(next);
+
+  // beri tahu halaman yang sama tab (storage event hanya cross-tab)
+  window.dispatchEvent(new Event("crm:notif:update"));
+}
+
 export default function DataFormCrm({ data = [] }) {
   const [query, setQuery] = useState("");
   const [filterJenis, setFilterJenis] = useState("Semua");
@@ -28,6 +62,57 @@ export default function DataFormCrm({ data = [] }) {
   const isDown = useRef(false);
   const startX = useRef(0);
   const scrollLeftStart = useRef(0);
+
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifyNote, setVerifyNote] = useState("");
+
+  useEffect(() => {
+    if (!selected) return;
+    setVerifyOpen(false);
+    setVerifyNote(selected?.step4?.catatanValidasi || "");
+  }, [selected]);
+
+  const handleSaveVerification = () => {
+    if (!selected) return;
+    const all = loadCrmLs();
+    const idx = all.findIndex(r => r.id === selected.id);
+    if (idx >= 0) {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      const ts = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+      all[idx] = {
+        ...all[idx],
+        step4: {
+          ...(all[idx].step4 || {}),
+          validasiOleh: "Petugas",
+          // NOTE: pakai "Tervalidasi" supaya konsisten dgn filter & badge di tabel kamu
+          statusValidasi: "Tervalidasi",
+          catatanValidasi: verifyNote || "",
+          waktuValidasi: ts,
+        },
+      };
+      saveCrmLs(all);
+      // sinkronkan tabel & modal
+      setRows(prev => {
+        // update juga di state rows yang sedang dipakai tabel
+        const j = prev.findIndex(r => r.id === selected.id);
+        if (j < 0) return prev;
+        const copy = [...prev];
+        copy[j] = all[idx];
+        return copy;
+      });
+      setSelected(all[idx]);
+      addVerificationNotificationLocal({
+        reportId: all[idx].id,
+        status: all[idx].step4.statusValidasi,      // "Tervalidasi"
+        note: all[idx].step4.catatanValidasi || "",
+        waktuValidasi: all[idx].step4.waktuValidasi // supaya timestamp konsisten
+      });
+
+    }
+    setVerifyOpen(false);
+  };
 
   function handleWheel(e) {
     const el = wrapRef.current;
@@ -89,7 +174,7 @@ export default function DataFormCrm({ data = [] }) {
       const text = `${d?.id ?? ""} ${s1.tanggalWaktu ?? ""} ${s1.loket ?? ""} ${
         s1.petugasDepan ?? ""
       } ${s1.petugasBelakang ?? ""} ${s1.jenisAngkutan ?? ""} ${
-        s1.namaPemilik ?? ""
+        s1.namaPemilik ?? ""} ${s1.perusahaan ?? ""
       } ${s2.nopolAtauNamaKapal ?? ""} ${s2.statusKendaraan ?? ""} ${
         s2.janjiBayar ?? ""
       } ${s4.statusValidasi ?? ""}`
@@ -141,11 +226,7 @@ export default function DataFormCrm({ data = [] }) {
         "Nama Petugas",
         `${row.step1.petugasDepan} ${row.step1.petugasBelakang}`,
       ],
-      ["Jabatan", row.step1.jabatan || "-"],
-      [
-        "Kunjungan ke Pemilik/Operator",
-        row.step1.kunjunganKePemilik ? "Ya" : "Tidak",
-      ],
+      ["Nama Perusahaan (PT/CV)", row.step1.perusahaan],
       ["Jenis Angkutan", row.step1.jenisAngkutan],
       ["Nama Pemilik/Pengelola", row.step1.namaPemilik],
       ["Alamat", row.step1.alamat],
@@ -164,7 +245,7 @@ export default function DataFormCrm({ data = [] }) {
     // STEP 2
     doc.setFont("helvetica", "bold");
     doc.setTextColor(2, 132, 199);
-    doc.text("2) Data Kendaraan & Hasil Kunjungan", pad, y);
+    doc.text("2) Armada", pad, y);
     y += 10;
     const armadaRows = (row.step2.rincianArmada || []).map((r) => [
       r.nopol,
@@ -397,8 +478,14 @@ export default function DataFormCrm({ data = [] }) {
           <div className="dfc-modal-card">
             <div className="dfc-modal-head">
               <div className="dfc-drawer-title">
-                <KawaiiCloud />
-                <h2>Detail Laporan — {selected.id}</h2>
+                <h2>
+                  Detail Laporan — {selected.id}
+                  {selected.step4?.statusValidasi && (
+                    <span className="badge" style={{ marginLeft: 8 }}>
+                      {selected.step4.statusValidasi}
+                    </span>
+                  )}
+                </h2>
               </div>
               <div className="dfc-modal-actions">
                 <button
@@ -407,6 +494,9 @@ export default function DataFormCrm({ data = [] }) {
                 >
                   Download PDF
                 </button>
+                <button className="btn success" onClick={() => setVerifyOpen(v => !v)}>
+                  {verifyOpen ? "Tutup Verifikasi" : "Verifikasi"}
+                </button>
                 <button className="btn" onClick={() => setSelected(null)}>
                   Tutup
                 </button>
@@ -414,11 +504,31 @@ export default function DataFormCrm({ data = [] }) {
             </div>
 
             <div className="dfc-modal-body">
+              {verifyOpen && (
+                <Section title="Verifikasi">
+                  <div className="field" style={{gridColumn: "1 / -1"}}>
+                    <label>Catatan Verifikasi (opsional)</label>
+                    <textarea
+                      rows={3}
+                      placeholder="Boleh dikosongkan…"
+                      value={verifyNote}
+                      onChange={(e) => setVerifyNote(e.target.value)}
+                    />
+                    <small className="muted">
+                      Menyimpan akan mengubah status menjadi <b>Tervalidasi</b>.
+                    </small>
+                  </div>
+                  <div className="dfc-modal-actions" style={{marginTop: 8}}>
+                    <button className="btn ghost" onClick={() => setVerifyOpen(false)}>Batal</button>
+                    <button className="btn primary" onClick={handleSaveVerification}>Simpan Verifikasi</button>
+                  </div>
+                </Section>
+              )}
               {/* Step 1 */}
-              <Section title="1) Tanggal, Petugas & Pemilik">
+              <Section title="1) Data Kunjungan">
                 <dl className="grid-2">
                   <Item
-                    label="Tanggal & Waktu"
+                    label="Tanggal & Waktu Kunjungan"
                     value={selected.step1.tanggalWaktu}
                   />
                   <Item label="Loket" value={selected.step1.loket} />
@@ -426,11 +536,7 @@ export default function DataFormCrm({ data = [] }) {
                     label="Nama Petugas"
                     value={`${selected.step1.petugasDepan} ${selected.step1.petugasBelakang}`}
                   />
-                  <Item label="Jabatan" value={selected.step1.jabatan} />
-                  <Item
-                    label="Kunjungan ke Pemilik/Operator?"
-                    value={selected.step1.kunjunganKePemilik ? "Ya" : "Tidak"}
-                  />
+                  <Item label="Nama Perusahaan (PT/CV)" value={selected.step1.perusahaan} />
                   <Item
                     label="Jenis Angkutan"
                     value={selected.step1.jenisAngkutan}
@@ -445,12 +551,8 @@ export default function DataFormCrm({ data = [] }) {
               </Section>
 
               {/* Step 2 */}
-              <Section title="2) Data Kendaraan & Hasil Kunjungan">
+              <Section title="2) Armada">
                 <dl className="grid-2">
-                  <Item
-                    label="Data Kendaraan"
-                    value={selected.step2.dataKendaraan}
-                  />
                   <Item
                     label="Nopol/Nama Kapal"
                     value={selected.step2.nopolAtauNamaKapal}
@@ -462,10 +564,6 @@ export default function DataFormCrm({ data = [] }) {
                   <Item
                     label="Hasil Kunjungan"
                     value={selected.step2.hasilKunjungan}
-                  />
-                  <Item
-                    label="Penjelasan"
-                    value={selected.step2.penjelasanHasil}
                   />
                   <Item
                     label="Jumlah Tunggakan"
@@ -530,38 +628,11 @@ export default function DataFormCrm({ data = [] }) {
                     label="Keramaian Penumpang"
                     value={`${selected.step3.keramaianPenumpang}/5`}
                   />
-                  <Rating
-                    label="Ketaatan Uji KIR/Sertifikat"
-                    value={`${selected.step3.ketaatanUjiKir}/5`}
-                  />
                 </div>
               </Section>
 
               {/* Step 4 */}
-              <Section title="4) Validasi">
-                <dl className="grid-2">
-                  <Item
-                    label="Validasi Oleh"
-                    value={selected.step4.validasiOleh}
-                  />
-                  <Item
-                    label="Status Validasi"
-                    value={selected.step4.statusValidasi}
-                  />
-                  <Item
-                    label="Waktu Validasi"
-                    value={selected.step4.waktuValidasi}
-                  />
-                  <Item label="Wilayah" value={selected.step4.wilayah} />
-                  <Item
-                    label="Catatan"
-                    value={selected.step4.catatanValidasi}
-                  />
-                </dl>
-              </Section>
-
-              {/* Step 5 */}
-              <Section title="5) Pesan & Saran">
+              <Section title="4) Pesan & Saran">
                 <div className="notes">
                   <Note label="Pesan" text={selected.step5.pesan} />
                   <Note label="Saran" text={selected.step5.saran} />
@@ -573,155 +644,180 @@ export default function DataFormCrm({ data = [] }) {
       )}
 
       <style>{`
-  :root{
-    --sky-50:#f0f9ff; --sky-100:#e0f2fe; --sky-200:#bae6fd; --sky-300:#93c5fd; --sky-400:#60a5fa; --sky-500:#3b82f6;
-    --pink-200:#fbcfe8; --yellow-200:#fef08a; --mint-200:#bbf7d0; --text:#0f172a; --muted:#475569; --border:#cbd5e1;
-    --card:#ffffff; --ring:#93c5fd; --shadow:0 10px 40px rgba(147,197,253,.35);
-  }
+      :root{
+        --sky-50:#f0f9ff; --sky-100:#e0f2fe; --sky-200:#bae6fd; --sky-300:#93c5fd; --sky-400:#60a5fa; --sky-500:#3b82f6;
+        --pink-200:#fbcfe8; --yellow-200:#fef08a; --mint-200:#bbf7d0; --text:#0f172a; --muted:#475569; --border:#cbd5e1;
+        --card:#ffffff; --ring:#93c5fd; --shadow:0 10px 40px rgba(147,197,253,.35);
+      }
 
-  .kawaii{ background:linear-gradient(180deg, var(--sky-50), var(--sky-100)); min-height:100vh; }
-  .dfc-container{ color:var(--text); padding:24px; width:100%; box-sizing:border-box; max-width:900px; margin:0 auto; }
-  .dfc-header{ display:flex; flex-direction:column; gap:6px; margin-bottom:18px; }
-  .dfc-title{ display:flex; align-items:center; gap:10px; }
-  .dfc-title h1{ font-size:26px; margin:0; }
-  .dfc-subtitle{ margin:0; color:var(--muted); }
+      .kawaii{ background:linear-gradient(180deg, var(--sky-50), var(--sky-100)); min-height:100vh; }
+      .dfc-container{ color:var(--text); padding:24px; width:100%; box-sizing:border-box; max-width:900px; margin:0 auto; }
+      .dfc-header{ display:flex; flex-direction:column; gap:6px; margin-bottom:18px; }
+      .dfc-title{ display:flex; align-items:center; gap:10px; }
+      .dfc-title h1{ font-size:26px; margin:0; }
+      .dfc-subtitle{ margin:0; color:var(--muted); }
 
-  .dfc-controls{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; margin:16px 0 10px; }
-  .dfc-search{ flex:1 1 420px; display:flex; align-items:center; gap:8px; background:var(--card); border:2px solid var(--sky-200); border-radius:16px; padding:10px 12px; box-shadow:var(--shadow); }
-  .dfc-search input{ flex:1; background:transparent; color:var(--text); border:none; outline:none; font-size:14px; }
-  .dfc-filters{ display:flex; gap:12px; }
-  .dfc-filters label{ display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--muted); }
-  .dfc-filters select{ background:var(--card); color:var(--text); border:2px solid var(--sky-200); border-radius:14px; padding:8px 10px; box-shadow:var(--shadow); }
+      .dfc-controls{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; margin:16px 0 10px; }
+      .dfc-search{ flex:1 1 420px; display:flex; align-items:center; gap:8px; background:var(--card); border:2px solid var(--sky-200); border-radius:16px; padding:10px 12px; box-shadow:var(--shadow); }
+      .dfc-search input{ flex:1; background:transparent; color:var(--text); border:none; outline:none; font-size:14px; }
+      .dfc-filters{ display:flex; gap:12px; }
+      .dfc-filters label{ display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--muted); }
+      .dfc-filters select{ background:var(--card); color:var(--text); border:2px solid var(--sky-200); border-radius:14px; padding:8px 10px; box-shadow:var(--shadow); }
 
-  /* ====== TABLE SCROLL AREA (satu definisi saja) ====== */
-  .dfc-table-wrap{
-    max-width:100%;
-    width:100%;
-    overflow-x:auto;
-    overflow-y:auto;         /* vertikal aktif */
-    max-height:60vh;         /* batasi tinggi area tabel */
-    position:relative;
-    border:2px solid var(--sky-200);
-    border-radius:18px;
-    background:var(--card);
-    box-shadow:var(--shadow);
-    cursor:grab;
-  }
-  .dfc-table-wrap.dragging{ cursor:grabbing; }
-  .dfc-table-wrap::-webkit-scrollbar{ height:10px; }
-  .dfc-table-wrap::-webkit-scrollbar-thumb{ background:var(--sky-300); border-radius:999px; }
-  .dfc-table-wrap::-webkit-scrollbar-track{ background:var(--sky-100); border-radius:999px; }
-  .dfc-table-wrap::after{
-    content:""; position:absolute; top:0; right:0; width:32px; height:100%;
-    pointer-events:none; background:linear-gradient(to left, rgba(147,197,253,.45), transparent);
-    opacity:.6; transition:opacity .2s;
-  }
-  .dfc-table-wrap:hover::after{ opacity:0; }
+      /* ====== TABLE SCROLL AREA (satu definisi saja) ====== */
+      .dfc-table-wrap{
+        max-width:100%;
+        width:100%;
+        overflow-x:auto;
+        overflow-y:auto;         /* vertikal aktif */
+        max-height:60vh;         /* batasi tinggi area tabel */
+        position:relative;
+        border:2px solid var(--sky-200);
+        border-radius:18px;
+        background:var(--card);
+        box-shadow:var(--shadow);
+        cursor:grab;
+      }
+      .dfc-table-wrap.dragging{ cursor:grabbing; }
+      .dfc-table-wrap::-webkit-scrollbar{ height:10px; }
+      .dfc-table-wrap::-webkit-scrollbar-thumb{ background:var(--sky-300); border-radius:999px; }
+      .dfc-table-wrap::-webkit-scrollbar-track{ background:var(--sky-100); border-radius:999px; }
+      .dfc-table-wrap::after{
+        content:""; position:absolute; top:0; right:0; width:32px; height:100%;
+        pointer-events:none; background:linear-gradient(to left, rgba(147,197,253,.45), transparent);
+        opacity:.6; transition:opacity .2s;
+      }
+      .dfc-table-wrap:hover::after{ opacity:0; }
 
-  table.dfc-table{
-    width:100%;
-    min-width:1000px;         /* boleh discroll kalau sempit */
-    border-collapse:separate; border-spacing:0; table-layout:fixed;
-  }
-  .dfc-table thead th{
-    position:sticky; top:0;
-    background:linear-gradient(180deg, var(--sky-100), var(--sky-50));
-    color:#0ea5e9; font-weight:700; text-align:left;
-    padding:10px 12px; border-bottom:2px solid var(--sky-200);
-    font-size:12px; letter-spacing:.2px; white-space:nowrap;
-  }
-  .dfc-table tbody td{
-    padding:10px 12px; line-height:1.45; border-bottom:1px dashed var(--border);
-    font-size:12px; color:var(--text); vertical-align:top; word-break:break-word; white-space:normal;
-  }
-  .dfc-table tbody tr:hover{ background:var(--sky-50); }
-  .dfc-empty{ text-align:center; padding:24px; color:var(--muted); }
+      table.dfc-table{
+        width:100%;
+        min-width:1000px;         /* boleh discroll kalau sempit */
+        border-collapse:separate; border-spacing:0; table-layout:fixed;
+      }
+      .dfc-table thead th{
+        position:sticky; top:0;
+        background:linear-gradient(180deg, var(--sky-100), var(--sky-50));
+        color:#0ea5e9; font-weight:700; text-align:left;
+        padding:10px 12px; border-bottom:2px solid var(--sky-200);
+        font-size:12px; letter-spacing:.2px; white-space:nowrap;
+      }
+      .dfc-table tbody td{
+        padding:10px 12px; line-height:1.45; border-bottom:1px dashed var(--border);
+        font-size:12px; color:var(--text); vertical-align:top; word-break:break-word; white-space:normal;
+      }
+      .dfc-table tbody tr:hover{ background:var(--sky-50); }
+      .dfc-empty{ text-align:center; padding:24px; color:var(--muted); }
 
-  /* column widths */
-  .dfc-table th:nth-child(1),  .dfc-table td:nth-child(1){ width:110px; white-space:nowrap; }
-  .dfc-table th:nth-child(2),  .dfc-table td:nth-child(2){ width:190px; }
-  .dfc-table th:nth-child(3),  .dfc-table td:nth-child(3){ width:130px; white-space:nowrap; }
-  .dfc-table th:nth-child(4),  .dfc-table td:nth-child(4){ width:170px; }
-  .dfc-table th:nth-child(5),  .dfc-table td:nth-child(5){ width:180px; }
-  .dfc-table th:nth-child(6),  .dfc-table td:nth-child(6){ width:210px; }
-  .dfc-table th:nth-child(7),  .dfc-table td:nth-child(7){ width:180px; }
-  .dfc-table th:nth-child(8),  .dfc-table td:nth-child(8){ width:140px; white-space:nowrap; }
-  .dfc-table th:nth-child(9),  .dfc-table td:nth-child(9){ width:170px; }
-  .dfc-table th:nth-child(10), .dfc-table td:nth-child(10){ width:200px; }
-  .dfc-table th:nth-child(11), .dfc-table td:nth-child(11){ width:130px; white-space:nowrap; }
-  .dfc-table th:nth-child(12), .dfc-table td:nth-child(12){ width:90px; white-space:nowrap; text-align:right; }
-  @media (max-width:1024px){ table.dfc-table{ min-width:1100px; } }
+      /* column widths */
+      .dfc-table th:nth-child(1),  .dfc-table td:nth-child(1){ width:110px; white-space:nowrap; }
+      .dfc-table th:nth-child(2),  .dfc-table td:nth-child(2){ width:190px; }
+      .dfc-table th:nth-child(3),  .dfc-table td:nth-child(3){ width:130px; white-space:nowrap; }
+      .dfc-table th:nth-child(4),  .dfc-table td:nth-child(4){ width:170px; }
+      .dfc-table th:nth-child(5),  .dfc-table td:nth-child(5){ width:180px; }
+      .dfc-table th:nth-child(6),  .dfc-table td:nth-child(6){ width:210px; }
+      .dfc-table th:nth-child(7),  .dfc-table td:nth-child(7){ width:180px; }
+      .dfc-table th:nth-child(8),  .dfc-table td:nth-child(8){ width:140px; white-space:nowrap; }
+      .dfc-table th:nth-child(9),  .dfc-table td:nth-child(9){ width:170px; }
+      .dfc-table th:nth-child(10), .dfc-table td:nth-child(10){ width:200px; }
+      .dfc-table th:nth-child(11), .dfc-table td:nth-child(11){ width:130px; white-space:nowrap; }
+      .dfc-table th:nth-child(12), .dfc-table td:nth-child(12){ width:90px; white-space:nowrap; text-align:right; }
+      @media (max-width:1024px){ table.dfc-table{ min-width:1100px; } }
 
-  .btn{ background:var(--sky-400); color:#fff; border:none; padding:9px 14px; border-radius:999px; cursor:pointer; font-weight:700; box-shadow:var(--shadow); transition:transform .06s ease, filter .15s ease; }
-  .btn:hover{ filter:brightness(1.05); transform:translateY(-1px); }
-  .btn-detail::after{ content:"★"; margin-left:6px; }
-  .btn-soft{ background:#fff; color:#0284c7; border:2px solid var(--sky-300); }
+      .btn{ background:var(--sky-400); color:#fff; border:none; padding:9px 14px; border-radius:999px; cursor:pointer; font-weight:700; box-shadow:var(--shadow); transition:transform .06s ease, filter .15s ease; }
+      .btn:hover{ filter:brightness(1.05); transform:translateY(-1px); }
+      .btn-detail::after{ content:"★"; margin-left:6px; }
+      .btn-soft{ background:#fff; color:#0284c7; border:2px solid var(--sky-300); }
 
-  .badge{ display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:6px 10px; border-radius:999px; border:2px solid var(--sky-200); background:var(--sky-50); }
-  .badge.dot::before{ content:""; width:8px; height:8px; border-radius:50%; display:inline-block; }
-  .badge.green.dot::before{ background:#22c55e; }
-  .badge.gray.dot::before{ background:#94a3b8; }
-  .badge.amber.dot::before{ background:#f59e0b; }
-  .badge.red.dot::before{ background:#ef4444; }
+      .badge{ display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:6px 10px; border-radius:999px; border:2px solid var(--sky-200); background:var(--sky-50); }
+      .badge.dot::before{ content:""; width:8px; height:8px; border-radius:50%; display:inline-block; }
+      .badge.green.dot::before{ background:#22c55e; }
+      .badge.gray.dot::before{ background:#94a3b8; }
+      .badge.amber.dot::before{ background:#f59e0b; }
+      .badge.red.dot::before{ background:#ef4444; }
 
-  /* ====== MODAL (satu definisi card, scroll di body) ====== */
-  .dfc-modal{
-    position:fixed; inset:0; background:rgba(14,165,233,.18); backdrop-filter:blur(2px);
-    display:flex; align-items:center; justify-content:center; padding:18px; z-index:50; animation:fadeIn .15s ease-out; overscroll-behavior: contain;
-  }
-  .dfc-modal-card{
-    width:min(980px, 100%);
-    max-height:92vh;
-    display:flex; flex-direction:column;
-    overflow:hidden;                   /* penting: jangan scroll di card */
-    background:var(--card);
-    border:2px solid var(--sky-200);
-    border-radius:24px;
-    box-shadow:0 30px 120px rgba(2,132,199,.35);
-  }
-  .dfc-modal-head{
-    position:sticky; top:0; z-index:1;
-    display:flex; justify-content:space-between; align-items:center; gap:12px; padding:16px;
-    background:linear-gradient(180deg, var(--sky-50), rgba(255,255,255,.9)); border-bottom:2px solid var(--sky-200);
-    will-change: transform;transform: translateZ(0);
-  }
-  .dfc-modal-actions{ display:flex; gap:10px; }
-  .dfc-modal-body{
-    flex:1 1 auto;
-    min-height:0;                      
-    overflow:auto;                     
-    -webkit-overflow-scrolling:touch;
-    padding-bottom:12px;
-    overscroll-behavior: contain;
-    touch-action: pan-y;
-  }
-  .dfc-modal-body img{ max-width:100%; height:auto; display:block; }
+      /* ====== MODAL (satu definisi card, scroll di body) ====== */
+      .dfc-modal{
+        position:fixed; inset:0; background:rgba(14,165,233,.18); backdrop-filter:blur(2px);
+        display:flex; align-items:center; justify-content:center; padding:18px; z-index:50; animation:fadeIn .15s ease-out; overscroll-behavior: contain;
+      }
+      .dfc-modal-card{
+        width:min(980px, 100%);
+        max-height:92vh;
+        display:flex; flex-direction:column;
+        overflow:hidden;                   /* penting: jangan scroll di card */
+        background:var(--card);
+        border:2px solid var(--sky-200);
+        border-radius:24px;
+        box-shadow:0 30px 120px rgba(2,132,199,.35);
+      }
+      .dfc-modal-head{
+        position:sticky; top:0; z-index:1;
+        display:flex; justify-content:space-between; align-items:center; gap:12px; padding:16px;
+        background:linear-gradient(180deg, var(--sky-50), rgba(255,255,255,.9)); border-bottom:2px solid var(--sky-200);
+        will-change: transform;transform: translateZ(0);
+      }
+      .dfc-modal-actions{ display:flex; gap:10px; }
+      .dfc-modal-body{
+        flex:1 1 auto;
+        min-height:0;                      
+        overflow:auto;                     
+        -webkit-overflow-scrolling:touch;
+        padding-bottom:12px;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
+      }
+      .dfc-modal-body img{ max-width:100%; height:auto; display:block; }
 
-  .section{ padding:16px; border-bottom:1px dashed var(--border); }
-  .section h3{ margin:0 0 10px; font-size:16px; color:#0284c7; display:flex; align-items:center; gap:8px; }
-  .grid-2{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px 16px; }
-  @media (max-width:720px){ .grid-2{ grid-template-columns:1fr; } }
-  .item{ display:flex; flex-direction:column; gap:4px; background:var(--sky-50); border:2px dashed var(--sky-200); border-radius:16px; padding:10px; }
-  .item label{ color:var(--muted); font-size:11px; }
-  .item .value{ font-size:13px; }
+      .section{ padding:16px; border-bottom:1px dashed var(--border); }
+      .section h3{ margin:0 0 10px; font-size:16px; color:#0284c7; display:flex; align-items:center; gap:8px; }
+      .grid-2{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px 16px; }
+      @media (max-width:720px){ .grid-2{ grid-template-columns:1fr; } }
+      .item{ display:flex; flex-direction:column; gap:4px; background:var(--sky-50); border:2px dashed var(--sky-200); border-radius:16px; padding:10px; }
+      .item label{ color:var(--muted); font-size:11px; }
+      .item .value{ font-size:13px; }
 
-  .gallery{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
-  .thumb{ width:140px; height:88px; border-radius:14px; overflow:hidden; border:2px solid var(--sky-200); display:block; box-shadow:var(--shadow); }
-  .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+      .gallery{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+      .thumb{ width:140px; height:88px; border-radius:14px; overflow:hidden; border:2px solid var(--sky-200); display:block; box-shadow:var(--shadow); }
+      .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
 
-  .files{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
-  .file-pill{ display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border:2px solid var(--sky-200); border-radius:999px; text-decoration:none; color:var(--text); background:var(--sky-50); }
+      .files{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+      .file-pill{ display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border:2px solid var(--sky-200); border-radius:999px; text-decoration:none; color:var(--text); background:var(--sky-50); }
 
-  .ratings{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
-  @media (max-width:720px){ .ratings{ grid-template-columns:1fr; } }
-  .rating{ background:var(--sky-50); border:2px dashed var(--sky-200); border-radius:16px; padding:10px; display:flex; justify-content:space-between; align-items:center; }
-  .stars{ display:flex; gap:4px; }
+      .ratings{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
+      @media (max-width:720px){ .ratings{ grid-template-columns:1fr; } }
+      .rating{ background:var(--sky-50); border:2px dashed var(--sky-200); border-radius:16px; padding:10px; display:flex; justify-content:space-between; align-items:center; }
 
-  .notes{ display:grid; grid-template-columns:1fr; gap:12px; }
-  .note{ background:linear-gradient(180deg, var(--pink-200), var(--yellow-200)); border:2px solid var(--sky-200); border-radius:16px; padding:12px; }
-  .note strong{ display:block; color:#0ea5e9; font-size:12px; margin-bottom:6px; }
+      .notes{ display:grid; grid-template-columns:1fr; gap:12px; }
+      .note{ background:linear-gradient(180deg, var(--pink-200), var(--yellow-200)); border:2px solid var(--sky-200); border-radius:16px; padding:12px; }
+      .note strong{ display:block; color:#0ea5e9; font-size:12px; margin-bottom:6px; }
 
-  @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
+      @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
+      .dfc-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+
+      .dfc-modal-card {
+        background: white;
+        width: 90%;
+        max-width: 800px;
+        max-height: 90vh; /* batas tinggi modal */
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .dfc-modal-body {
+        padding: 1rem 1.5rem;
+        overflow-y: auto; /* scroll isi */
+        flex: 1; /* biar isi bisa fleksibel */
+      }
 `}</style>
     </div>
   );
@@ -754,21 +850,6 @@ function Rating({ label, value }) {
     if (typeof value === "number") return value;
     return null;
   })();
-
-  return (
-    <div className="rating">
-      <span>{label}</span>
-      {numeric !== null ? (
-        <div className="stars" aria-label={`${numeric} dari 5`}>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star key={i} filled={i < numeric} />
-          ))}
-        </div>
-      ) : (
-        <strong>{String(value)}</strong>
-      )}
-    </div>
-  );
 }
 
 function Note({ label, text }) {

@@ -5,7 +5,8 @@ import "../../views/home/Login.css";
 /* === Dummy Admins (DEV ONLY) === */
 const DEFAULT_ADMINS = [
   { name: "Esga",  email: "esga@gmail.com",    password: "moveonesga",  role: "admin" },
-  { name: "Dumai", email: "dumaigo@gmail.com", password: "moveondumai", role: "admin" },
+  { name: "Dumai", email: "dumaigo@gmail.com", password: "moveondumai", role: "admin" }, //wilayah
+  { name: "Terminal", email: "terminal@gmail.com",  password: "moveonterminal",  role: "admin" },
 ];
 
 // util kecil untuk ambil/simpan admin di localStorage
@@ -13,10 +14,25 @@ const ADMIN_KEY = "admins";
 const SESSION_KEY = "session";
 
 function seedAdmins() {
-  if (!localStorage.getItem(ADMIN_KEY)) {
+  try {
+    const raw = localStorage.getItem(ADMIN_KEY);
+    if (!raw) {
+      localStorage.setItem(ADMIN_KEY, JSON.stringify(DEFAULT_ADMINS));
+      return;
+    }
+    // merge by email (tambahkan yang belum ada)
+    const current = JSON.parse(raw);
+    const byEmail = new Map(current.map(u => [u.email.toLowerCase(), u]));
+    DEFAULT_ADMINS.forEach(u => {
+      const key = u.email.toLowerCase();
+      if (!byEmail.has(key)) byEmail.set(key, u);
+    });
+    localStorage.setItem(ADMIN_KEY, JSON.stringify(Array.from(byEmail.values())));
+  } catch {
     localStorage.setItem(ADMIN_KEY, JSON.stringify(DEFAULT_ADMINS));
   }
 }
+
 function getAdmins() {
   try {
     const raw = localStorage.getItem(ADMIN_KEY);
@@ -150,6 +166,8 @@ export default function Login() {
       navigate("/dashboard/admin", { replace: true });
     } else if (email === "dumaigo@gmail.com") {
       navigate("/dashboard/dumai", { replace: true });
+    } else if (email === "terminal@gmail.com") {            // NEW
+      navigate("/dashboard/terminal", { replace: true });    // sesuaikan rute yang kamu punya
     } else {
       navigate("/login", { replace: true });
     }
