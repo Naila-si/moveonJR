@@ -1,0 +1,624 @@
+:root{
+  /* brand */
+  --sky-50:#f2f8ff; --sky-100:#e7f4ff; --sky-200:#d3ebff;
+  --sun-50:#fffbea; --sun-100:#fff5cc;
+
+  --ink:#1f2a44;          /* kontrast */
+  --muted:#64748b;
+
+  /* candy colors */
+  --primary:#5aa5f7; --primary-8:rgba(90,165,247,.08); --primary-12:rgba(90,165,247,.12);
+  --accent:#ffd86b; --accent-12:rgba(255,216,107,.12);
+  --pink:#ff9ccf; --mint:#8fe6c0; --lav:#c6b8ff;
+
+  --surface: rgba(255,255,255,.9);
+  --glass: blur(14px);
+  --radius: 18px;
+  --shadow: 0 10px 28px rgba(42,84,159,.12);
+
+  --footer-h: 72px; /* sticky footer height */
+  --nav-h: 64px;    /* fixed navbar height */
+
+  /* iOS safe area */
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+*{ box-sizing:border-box; }
+html, body, #root{ height:100%; width:100%; }
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+  color:var(--ink);
+  background:
+    radial-gradient(1200px 1200px at 8% -10%, var(--sun-100), transparent 65%),
+    radial-gradient(1200px 1200px at 110% 0%, var(--sky-100), transparent 60%),
+    linear-gradient(180deg, var(--sky-50), #ffffff 40%);
+  overflow-x:hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ------- Root layout ------- */
+.crm.kawaii{
+  min-height:100dvh; width:100%; display:flex; justify-content:center; align-items:flex-start;
+  position:relative; overflow-x:hidden; padding: calc(var(--nav-h) + 12px) 0 calc(var(--footer-h) + 28px);
+}
+
+/* soft background decorations */
+.crm-bg{ position:absolute; inset:0; pointer-events:none; }
+.crm-bg.sky .cloud{
+  position:absolute; width:180px; height:85px; background:var(--sky-200);
+  opacity:.32; border-radius:999px; filter:blur(6px); animation: cloudFloat 18s ease-in-out infinite;
+}
+.crm-bg.sky .cc1{ top:6%; left:6%; transform:scale(1.1); animation-delay:-2s;}
+.crm-bg.sky .cc2{ top:14%; right:10%; width:220px; animation-delay:-6s;}
+.crm-bg.sky .cc3{ top:36%; left:12%; animation-delay:-10s;}
+.crm-bg.sky .cc4{ top:62%; right:8%; width:210px; animation-delay:-4s;}
+.crm-bg.sky .cc5{ top:78%; left:20%; animation-delay:-8s;}
+.crm-bg.sky .cc6{ top:84%; right:18%; width:170px; animation-delay:-12s;}
+@keyframes cloudFloat{ 0%,100%{ transform:translateY(0) scale(1) } 50%{ transform:translateY(-6px) scale(1.02) } }
+.crm-bg.blobs .blob{ position:absolute; border-radius:50%; filter:blur(30px); opacity:.32; }
+.crm-bg.blobs .b1{ width:280px; height:280px; background:var(--accent); left:-80px; top:40%; }
+.crm-bg.blobs .b2{ width:340px; height:340px; background:var(--primary); right:-120px; top:10%; }
+
+/* confetti */
+.confetti-wrap{ position:fixed; inset:0; pointer-events:none; z-index:40; }
+.confetti{ position:fixed; top:-20px; font-size:20px; animation-name: confFall, confSpin; animation-timing-function: linear; }
+@keyframes confFall{ to { transform: translateY(105vh); opacity:.2; } }
+@keyframes confSpin{ 0%{filter:hue-rotate(0deg);} 100%{filter:hue-rotate(90deg);} }
+
+/* ------- Container ------- */
+.crm-container{ position:relative; z-index:2; width:100%; max-width:1200px; margin-inline:auto; padding-inline:clamp(16px, 3vw, 48px); }
+
+/* header */
+.crm-header{ text-align:center; margin-bottom:12px; }
+.crm-header h1{
+  margin:0 0 6px; font-size:clamp(22px, 4vw, 36px);
+  background: linear-gradient(90deg, var(--primary), var(--pink), var(--accent));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.crm-header p{ margin:0; color:var(--muted); font-size:clamp(14px, 1.6vw, 15px); }
+
+/* ------- Stepper (pill tabs) ------- */
+.crm-steps {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  background: var(--surface);
+  -webkit-backdrop-filter: var(--glass);
+  backdrop-filter: var(--glass);
+  border: 1px solid rgba(0,0,0,.05);
+  border-radius: calc(var(--radius) + 2px);
+  box-shadow: var(--shadow);
+
+  /* ini bagian penting */
+  display: inline-flex;               /* shrink ke isi */
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+
+  padding: 10px;
+  margin: 14px auto 16px;             /* auto buat center horizontal */
+  overflow-x: visible;                /* no scroll di desktop */
+  scroll-snap-type: x proximity;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  max-width: min(100%, 960px);        
+}
+.crm-steps::-webkit-scrollbar{ display:none; }
+.crm-steps .progress{
+  position:absolute; left:10px; right:10px; bottom:6px; height:4px;
+  background: linear-gradient(90deg, var(--primary), var(--lav), var(--pink), var(--accent), var(--mint));
+  background-size: 200% 100%; animation: shimmer 3s linear infinite; border-radius:999px; transition:width .3s ease;
+  box-shadow:0 2px 8px rgba(90,165,247,.22); pointer-events:none;
+}
+@keyframes shimmer{ 0%{background-position:0 0} 100%{background-position:200% 0} }
+
+.step{
+  position:relative; flex:0 0 auto; scroll-snap-align:start; display:flex; align-items:center; gap:10px;
+  padding:10px 14px; border-radius:999px; border:0; cursor:pointer;
+  background:linear-gradient(180deg, #fff, #f9fbff);
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.05);
+  color:var(--ink); transition: transform .18s ease, box-shadow .18s ease, background .18s; font-weight:700;
+}
+.step:hover{ transform:translateY(-1px) scale(1.02); }
+.step:active{ transform:translateY(0) scale(.99); }
+.step .badge{ width:30px; height:30px; display:grid; place-items:center; background:conic-gradient(from 120deg, var(--primary-12), var(--accent-12)); border-radius:999px; font-size:16px; box-shadow: inset 0 0 0 2px #fff; transition: transform .18s ease; }
+.step:hover .badge{ transform: rotate(-8deg) scale(1.06); }
+.step .label{ white-space:nowrap; font-size:14px; }
+.step.active{
+  outline:2px solid transparent; border:2px solid transparent;
+  background: linear-gradient(#ffffff, #f3f9ff) padding-box, linear-gradient(90deg, var(--primary), var(--accent)) border-box;
+  box-shadow:0 4px 14px rgba(90,165,247,.18);
+}
+.step.done{
+  outline:2px solid transparent; border:2px solid transparent;
+  background: linear-gradient(#fff, #fff8ee) padding-box, linear-gradient(90deg, var(--accent), #ffdca1) border-box;
+  box-shadow:0 4px 14px rgba(255,216,107,.18);
+}
+
+/* ------- Panels (cute gradient border) ------- */
+.crm-panels{
+  position:relative; overflow:visible; background: linear-gradient(180deg, #fffefe, #fafdff);
+  -webkit-backdrop-filter:var(--glass); backdrop-filter:var(--glass);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; max-height:none;
+  padding-bottom: calc(var(--footer-h) + 40px);
+  --_g: conic-gradient(from 180deg at 50% 50%, var(--primary), var(--lav), var(--pink), var(--accent), var(--mint), var(--primary));
+  border: 2px solid transparent; background-image: linear-gradient(#fff, #fff), var(--_g);
+  background-origin: border-box; background-clip: padding-box, border-box; animation: panelGlow 7s ease-in-out infinite alternate;
+}
+@keyframes panelGlow{ 0%{ box-shadow: var(--shadow), 0 0 0 rgba(255,216,107,0) } 100%{ box-shadow: var(--shadow), 0 0 22px rgba(255,216,107,.16) } }
+
+.panel h3{ margin:8px 0 14px; font-size:18px; display:flex; align-items:center; gap:10px; position:relative; }
+.dot{ width:12px; height:12px; border-radius:999px; background: radial-gradient(circle at 30% 30%, #fff, var(--primary) 60%); box-shadow:0 0 0 3px var(--primary-12); }
+.panel h3::after{ content:"✨"; position:relative; top:-1px; margin-left:6px; filter:saturate(1.2); animation: pop 1.2s ease-in-out infinite; }
+@keyframes pop{ 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-2px) scale(1.06)} }
+
+.divider{ height:1px; background:rgba(0,0,0,.06); margin:16px 0; }
+
+.grid.two{ display:grid; gap:14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.field{ display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+.field label{ font-weight:700; font-size:13px; color:var(--ink); }
+.field .muted{ color:var(--muted); font-size:13px; }
+
+/* inputs */
+input[type="text"], input[type="datetime-local"], input:not([type]), textarea, select{
+  appearance:none; border:1px solid rgba(51,85,171,.18); border-radius:16px; padding:12px 14px; width:100%;
+  background:#fff; outline:none; font-size:14px; transition:border-color .2s, box-shadow .2s, transform .08s;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,.03), 0 0 0 0 rgba(90,165,247,0); min-height:44px;
+}
+textarea{ resize:vertical; line-height:1.35; }
+input:focus, textarea:focus, select:focus{ border-color: var(--primary); box-shadow: 0 2px 20px var(--primary-12), 0 0 0 4px var(--primary-12); transform: translateY(-1px); }
+input[type="checkbox"]{ accent-color: var(--primary); }
+
+/* cards */
+.card{ background:#ffffffcc; border:1px solid rgba(0,0,0,.05); border-radius:18px; padding:14px; margin-bottom:12px; box-shadow:var(--shadow); }
+
+/* buttons */
+.btn{ --bg:#fff; --txt:var(--ink); --br:#e7ecf8; background:var(--bg); color:var(--txt); border:1px solid var(--br);
+  border-radius:16px; padding:10px 16px; font-weight:800; cursor:pointer; box-shadow:0 6px 14px rgba(0,0,0,.06);
+  transition:transform .12s, box-shadow .12s, filter .12s, background .2s; min-height:44px; }
+.btn:hover{ transform:translateY(-1px); box-shadow:0 10px 18px rgba(0,0,0,.08); }
+.btn:active{ transform:translateY(1px) scale(.99); }
+.btn:disabled{ opacity:.55; cursor:not-allowed; }
+.btn.ghost{ background:transparent; }
+.btn.primary{ --bg:linear-gradient(180deg, #f4faff,#dff0ff); --br:#b6d8ff; text-shadow:0 1px 0 #fff; }
+.btn.primary:hover{ transform: translateY(-2px); box-shadow: 0 8px 18px rgba(90,165,247,.25); filter: brightness(1.03); }
+.btn.success{ --bg:linear-gradient(180deg, #fffdf2,#fff3c7); --br:#ffe28f; }
+.btn.success:hover{ animation: btnBounce .28s ease; box-shadow: 0 8px 18px rgba(255,216,107,.28); }
+@keyframes btnBounce{ 0%,100%{ transform: translateY(-1px) } 50%{ transform: translateY(-4px) } }
+.btn.danger{ --bg:linear-gradient(180deg, #fff5f6,#ffe6e8); --br:#ffd0d5; color:#c82333; }
+.btn.add{ --bg:linear-gradient(180deg, #f9fef4,#e9fbdb); --br:#c8f0a7; color:#2e7d32; }
+.btn.xs{ padding:6px 10px; font-size:12px; }
+
+/* stars */
+.stars{ display:flex; gap:6px; }
+.star{ font-size:22px; line-height:1; border:0; background:transparent; cursor:pointer; color:#c7d3ea; text-shadow:0 1px 0 #fff; transition: transform .08s ease, color .1s ease; }
+.star:hover{ transform: scale(1.12) rotate(-6deg); }
+.star.active{ color:#ffb72b; }
+
+/* success note */
+.success-note{ background:linear-gradient(180deg, #fffef6, #fff8de); border:1px solid #ffe39b; color:#7a5a00; padding:12px 14px; border-radius:16px; margin-top:12px; font-weight:700; }
+
+/* ------- Sticky footer ------- */
+.crm-actions{
+  position:sticky; bottom:8px; z-index:6; display:flex; justify-content:space-between; gap:10px;
+  padding:10px 12px calc(10px + var(--safe-b)); margin-top:14px; border-radius:16px;
+  background:linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.72));
+  -webkit-backdrop-filter:var(--glass); backdrop-filter:var(--glass);
+  border:1px solid rgba(0,0,0,.06); box-shadow:var(--shadow); min-height: var(--footer-h);
+}
+.crm-actions .btn{ flex:1 1 auto; }
+.crm-actions .btn.ghost{ flex:0 0 auto; }
+
+/* -------- Mobile tweaks -------- */
+@media (max-width: 820px){
+  :root{ --nav-h: 72px; }
+  .crm-container{ padding-inline:16px; }
+  .crm-header h1{ font-size: clamp(20px, 6vw, 28px); }
+  .crm-header p{ font-size: 14px; }
+}
+@media (max-width: 768px){ .crm-panels{ padding-bottom: calc(var(--footer-h) + 44px); } .grid.two{ grid-template-columns: 1fr; } .card{ padding: 12px; } }
+@media (max-width: 640px){
+  .crm-steps{ justify-content:flex-start; flex-wrap: nowrap; overflow-x:auto; max-width:100%; }
+  .crm-steps .progress{ height:3px; bottom:4px; }
+  .step .label{ display:none; }
+  .crm-bg.sky .cloud{ opacity:.22; filter:blur(8px); }
+  .crm-bg.blobs .b1, .crm-bg.blobs .b2{ opacity:.24; transform: scale(.9); }
+}
+
+/* -------------------------------------------
+   NAVBAR KAWAII — FIXED, CLEAN BACK BUTTON (TEXT PILL)
+--------------------------------------------*/
+.nav-kawaii-fixed { position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  background: linear-gradient(90deg, #fff, #fff, #f7fbff);
+  animation: navSlideDown 0.6s cubic-bezier(.2,.8,.2,1);
+  box-shadow: 0 6px 22px rgba(150, 170, 255, 0.12);
+}
+@keyframes navSlideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.nav-glow { height: 14px; width: 100%; background: radial-gradient(circle at 50% 0%, rgba(255,180,220,.24), rgba(130,150,255,.22), transparent 70%); filter: blur(12px); pointer-events:none; position:relative; z-index:0; }
+
+.nav-inner{ max-width:1100px; margin:0 auto; padding:10px 24px; display:grid; grid-template-columns:auto 1fr auto; grid-template-areas:"back brand menu"; align-items:center; column-gap:12px; position:relative; z-index:1; }
+.nav-inner > .nav-back-icon{ grid-area:back; }
+.nav-inner > .nav-brand{ grid-area:brand; justify-self:center; }
+.nav-inner > .nav-menu{ grid-area:menu; justify-self:end; }
+
+/* Back button — text pill */
+.nav-back-icon{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:8px 16px; border-radius:999px; border:1px solid rgba(0,0,0,.08);
+  background: rgba(255,255,255,.78); color:#1f2a44; font-weight:700; font-size:14px; line-height:1;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: background .2s ease, transform .15s ease, box-shadow .2s ease; cursor:pointer; z-index:2;
+}
+.nav-back-icon:hover{ background: rgba(0,0,0,.06); transform: translateY(-1px); }
+.nav-back-icon[disabled]{ opacity:.55; cursor:not-allowed; transform:none; }
+.nav-back-txt{ letter-spacing:.2px; }
+
+/* Brand */
+.nav-brand { font-weight:700; font-size:1rem; color:#4e705c; display:flex; align-items:center; gap:6px; }
+.sparkle { filter: drop-shadow(0 2px 8px rgba(255, 170, 220, 0.6)); animation: sparkleFloat 4s ease-in-out infinite; }
+.sparkle.twin { animation-delay:.8s; }
+@keyframes sparkleFloat { 0%,100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-2px) rotate(6deg); } }
+
+/* Menu */
+.nav-menu { display:flex; gap:10px; }
+.nav-item{ display:flex; align-items:center; gap:6px; text-decoration:none; font-weight:600; color:#444;
+  padding:8px 16px; border-radius:999px; background: rgba(255,255,255,.85);
+  border:1px solid rgba(255,255,255,.7); box-shadow:0 4px 12px rgba(0,0,0,.06); transition: all .25s ease; }
+.nav-item:hover{ background:#fff; transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,.08); }
+.nav-item.active{ background: linear-gradient(180deg, #fff, #f3f4ff); border-color: rgba(160, 180, 255, .4); color:#3e37b9; box-shadow: 0 10px 25px rgba(120, 130, 255, .25); animation: pulseKawaii 2.5s ease-in-out infinite; }
+@keyframes pulseKawaii { 0%,100% { transform: translateY(0); box-shadow: 0 10px 25px rgba(120,130,255,.25);} 50% { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(120,130,255,.3);} }
+.nav-item .emoji{ font-size:18px; }
+
+/* Responsive navbar stacks */
+@media (max-width: 820px){ .nav-inner{ grid-template-columns:auto 1fr auto; } }
+@media (max-width: 560px){
+  .nav-inner{ grid-template-areas: "back brand brand" "menu menu menu"; row-gap:8px; }
+  .nav-menu{ justify-content:center; flex-wrap:wrap; }
+}
+
+/* -------------------------------------------
+   ACCESSIBILITY & PREFERS-REDUCED-MOTION
+--------------------------------------------*/
+:focus-visible{ outline-color: rgba(90,165,247,.45); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce){ *{ animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; } }
+
+/* -------------------------------------------
+   DECORATIVE ACCENT
+--------------------------------------------*/
+body::after{ content:"✨"; position: fixed; right: 18px; bottom: 16px; font-size: 24px; opacity: .18; pointer-events: none; filter: drop-shadow(0 2px 4px rgba(0,0,0,.08)); }
+
+/* spacing from fixed navbar */
+.crm.kawaii{ padding-top: calc(var(--nav-h) + 12px); }
+
+/* Footer tap target */
+.crm-actions .btn{ min-height:44px; }
+
+@media (min-width: 1280px){
+  .crm-container{ padding-inline: clamp(24px, 4vw, 64px); }
+  .crm-steps{ gap: 12px; }
+  .step{ padding: 12px 16px; }
+}
+
+/* LG / Tablet landscape: rapatkan spacing agar muat */
+@media (max-width: 1024px){
+  .crm-steps{ gap: 8px; }
+  .step{ padding: 9px 12px; }
+  .crm-panels{ padding: 18px; }
+  .nav-item{ padding: 7px 12px; }
+  .crm-bg.blobs .b1, .crm-bg.blobs .b2{ opacity:.26; transform: scale(.95); }
+}
+
+/* MD: kompak tapi tetap cantik */
+@media (max-width: 820px){
+  :root{ --nav-h: 72px; }
+  .crm-header h1{ font-size: clamp(20px, 5.2vw, 28px); }
+  .crm-steps{ justify-content: center; }
+}
+
+/* SM: step scrollable kiri-kanan + label disembunyikan */
+@media (max-width: 640px){
+  .crm-steps{ justify-content:flex-start; overflow-x:auto; }
+  .step{ padding: 9px 11px; }
+  .step .label{ display:none; }
+  .crm-panels{ padding:16px; }
+  .nav-item{ padding: 7px 10px; }
+  .confetti{ font-size:18px; }
+}
+
+/* Very small / landscape height-constrained: kurangi tinggi sticky + padding */
+@media (max-height: 700px){
+  .crm-actions{ min-height: 56px; }
+  .crm-panels{ padding-bottom: calc(56px + 28px); }
+  .confetti{ font-size:16px; }
+}
+
+/* Smartphone landscape super pendek */
+@media (orientation: landscape) and (max-height: 480px){
+  :root{ --nav-h: 56px; --footer-h: 56px; }
+  .crm.kawaii{ padding-top: calc(var(--nav-h) + 8px); }
+  .crm-actions{ bottom: 6px; }
+  .crm-steps{ top:6px; }
+}
+
+/* Reduce-Data / battery saver friendly decorations */
+@media (prefers-reduced-motion: reduce){
+  .crm-bg.sky .cloud{ animation: none; }
+  .crm-steps .progress{ animation: none; }
+}
+
+@media (min-width: 641px){
+  .crm-steps{
+    display: inline-flex;              /* shrink-to-content */
+    justify-content: center;
+    align-items: center;
+    margin-inline: auto;               /* center container */
+    overflow-x: visible;               /* no scroll strip */
+    max-width: min(100%, 960px);       /* biar nggak kepanjangan */
+  }
+}
+
+@media (max-width: 640px){
+  .crm-steps{
+    display: flex;                     /* kembali full-width */
+    width: 100%;
+    justify-content: flex-start;       /* mulai dari kiri */
+    overflow-x: auto;                  /* scrollable */
+    -webkit-overflow-scrolling: touch; /* momentum scroll iOS */
+    scroll-padding: 8px;               /* nyaman saat snap */
+  }
+}
+
+/* Sedikit rapihin chip step tanpa ubah look */
+.step{ flex: 0 0 auto; }
+@media (min-width: 641px){ .step{ padding-inline: 14px; } }
+@media (max-width: 640px){ .step{ padding-inline: 10px; } }
+
+/* Progress bar: pastikan posisinya rapi di kedua mode */
+.crm-steps{ position: sticky; }
+.crm-steps .progress{ left: 8px; right: 8px; bottom: 6px; }
+
+/* Navbar spacing micro-tweak biar nggak nunjuk kuat ke kiri saat 700–900px */
+@media (min-width: 700px) and (max-width: 900px){
+  .nav-inner{ padding-inline: 18px; }
+  .nav-menu{ gap: 8px; }
+}
+/* ==== SAFETY PATCH: klik jangan ketahan dekorasi & atur stacking tegas ==== */
+
+/* 1) Semua dekorasi benar2 non-interaktif */
+.crm-bg,
+.crm-bg *,
+.confetti-wrap,
+.confetti,
+.nav-glow {
+  pointer-events: none !important;
+}
+
+/* 2) Peta z-index yang jelas */
+.nav-kawaii-fixed { z-index: 1000 !important; } /* navbar selalu di atas */
+.crm-steps        { z-index: 20 !important; }   /* stepper nempel di atas konten */
+.crm-panels       { z-index: 15 !important; }   /* panel form di bawah stepper saja */
+.crm-actions      { z-index: 30 !important; }   /* sticky footer di atas panel */
+
+/* 3) Pastikan area input berada dalam stacking context di atas dekorasi */
+.crm-container,
+.panel,
+.field input,
+.field textarea,
+.field select {
+  position: relative; /* buat stacking context */
+}
+
+/* 4) Progress bar stepper jangan nangkep klik */
+.crm-steps .progress {
+  pointer-events: none !important;
+}
+
+/* 5) Beri ruang konten dari navbar fixed (kalau definisi ganda, yang ini menang) */
+main.crm.kawaii {
+  padding-top: calc(var(--nav-h) + 12px) !important;
+}
+
+/* 6) iOS Safari: backdrop-filter kadang 'aneh' dengan hit testing.
+      Paksa latar panel solid + clip agar input tetap fokus normal. */
+.crm-panels {
+  background: linear-gradient(180deg, #fffefe, #fafdff) !important;
+  -webkit-backdrop-filter: none !important; /* jika ingin efek kaca, boleh aktifkan lagi setelah tes */
+  backdrop-filter: none !important;
+}
+
+/* 7) Hindari overlay tak sengaja dari element fixed penuh layar */
+body::after {
+  pointer-events: none !important;
+}
+
+/* 8) Micro-fix tombol dalam step/pernah overlap kecil saat scroll ketat */
+.step {
+  z-index: 1;
+}
+/* --- Guards biar input selalu bisa di-klik --- */
+.crm-container, .crm-panels, .panel { position: relative; z-index: 10 !important; }
+.crm-bg, .crm-bg *, .confetti-wrap, .confetti, .crm-steps .progress, body::after { pointer-events: none !important; }
+
+/* pastikan elemen form menerima event pointer */
+input, textarea, select, .field, .card {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 11; /* di atas dekorasi apa pun */
+}
+
+/* stepper & footer tetap di atas tapi tidak menutupi area di bawahnya */
+.crm-steps { z-index: 20 !important; }
+.crm-actions { z-index: 30 !important; }
+
+/* matikan efek kaca di panel (kadang bikin hit-testing aneh di Safari) */
+.crm-panels {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* ==== FIX OVERLAY PUTIH MENUTUP TEKS ==== */
+
+/* Bikin panel/form menang dari stepper saat overlap */
+.crm-panels { z-index: 12 !important; position: relative; }
+.crm-steps  { z-index: 4  !important; }  /* tadinya 5/20, turunin */
+
+.crm-actions { z-index: 30 !important; } /* footer tetap paling atas */
+
+/* Pastikan control form benar2 di atas */
+.panel,
+.field,
+.field input,
+.field textarea,
+.field select {
+  position: relative;
+  z-index: 13 !important;
+}
+
+/* Progress bar di stepper jangan nangkep hit / overlay */
+.crm-steps .progress { pointer-events: none !important; }
+
+/* (sudah kamu set) dekor dan confetti non-interaktif */
+.crm-bg, .crm-bg *, .confetti-wrap, .confetti, body::after { pointer-events: none !important; }
+/* === FIX: pastikan teks input tidak putih === */
+
+/* warna teks & caret di semua form controls */
+input, textarea, select {
+  color: var(--ink) !important;              /* teks gelap */
+  -webkit-text-fill-color: var(--ink);       /* Safari/Chrome WebKit */
+  caret-color: var(--ink);
+  background-color: #fff;                    /* latar putih bersih */
+}
+
+/* placeholder biar beda, bukan putih */
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: .9;
+}
+
+/* tipe khusus yang suka ngeyel */
+input[type="datetime-local"]::-webkit-date-and-time-value {
+  color: var(--ink);
+}
+input[type="file"] {
+  color: var(--ink);
+}
+
+/* autofill (kuning/hijau) kadang bikin teks keliatan putih/kontras rendah */
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink) !important;
+  box-shadow: 0 0 0 1000px #fff inset !important; /* timpa background autofill */
+  transition: background-color 9999s ease-in-out 0s; /* trik biar nggak balik warna */
+}
+
+/* state disabled tetap terbaca */
+input:disabled, textarea:disabled, select:disabled {
+  color: #7a8699;
+  -webkit-text-fill-color: #7a8699;
+}
+/* --- STEP 3: rating & signature fixes --- */
+
+/* pastikan bintang menerima klik */
+.stars, .star {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 5;
+}
+
+/* tata letak rating: label di atas, bintang di bawah */
+.field .stars { margin-top: 6px; }
+
+/* grid rapi walau jumlah item ganjil */
+.grid.two { align-items: start; }
+
+/* signature pad */
+.sig-wrap {
+  display: grid;
+  gap: 10px;
+}
+.sig-canvas {
+  width: 100%;
+  height: 180px;
+  border: 1px dashed rgba(0,0,0,.2);
+  border-radius: 12px;
+  background: #fff;
+  touch-action: none;              /* penting untuk mobile */
+}
+.sig-actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+.sig-actions .btn { min-height: 36px; }
+.sig-note { color: var(--muted); font-size: 12px; }
+/* === spacing bintang review (step 3) === */
+.field .stars {
+  margin-top: 8px;       /* jarak antara label dan bintang */
+}
+
+.field {
+  margin-bottom: 20px;   /* jarak antar field */
+}
+
+/* kalau mau lebih rapat antar baris bintang */
+.stars {
+  gap: 8px;               /* jarak antar bintang */
+}
+/* === Cute Success Popup === */
+.popup-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.3);
+  backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  animation: fadeIn .3s ease;
+}
+
+.popup-card {
+  background: linear-gradient(180deg, #fff, #f9fbff);
+  border: 2px solid rgba(90,165,247,.2);
+  border-radius: 20px;
+  box-shadow: 0 10px 28px rgba(42,84,159,.15);
+  max-width: 380px;
+  width: 90%;
+  padding: 28px 24px 24px;
+  text-align: center;
+  animation: popIn .4s cubic-bezier(.2,1.2,.3,1);
+}
+
+.popup-emoji {
+  font-size: 48px;
+  margin-bottom: 8px;
+  animation: bounce 1.2s ease infinite;
+}
+
+.popup-card h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.popup-card p {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0 0 18px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes popIn {
+  0% { transform: scale(.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes bounce {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}

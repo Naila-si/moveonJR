@@ -1,0 +1,318 @@
+:root{
+  --blue-pastel:#d8ecff;
+  --yellow-pastel:#fff3b0;
+
+  --ink:#1e2b44;
+  --brand:#5a97ff;
+  --brand-600:#346ff7;
+
+  --pastel-pink:#ffd1e6;
+  --pastel-mint:#d6ffe5;
+  --pastel-lilac:#ead8ff;
+  --pastel-peach:#ffe6c7;
+  --pastel-blue:#eaf2ff;
+}
+
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{
+  margin:0; color:var(--ink);
+  font-family:Poppins,Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+  overflow-x:hidden;
+}
+
+html{
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(255,255,255,.55) 0, transparent 60%),
+    radial-gradient(1000px 480px at 90% 105%, rgba(255,255,255,.4) 0, transparent 60%),
+    linear-gradient(145deg, var(--blue-pastel), var(--yellow-pastel));
+  background-attachment: fixed;
+  background-size: cover;
+  min-height: 100%;
+}
+body{ background: transparent; }
+
+.topbar{
+  position:sticky; top:0; z-index:50;
+  background:rgba(255,255,255,.82);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(0,0,0,.05);
+}
+.topbar .container{
+  max-width:1100px; margin:0 auto; padding:10px 20px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.brand-wrap{display:flex; align-items:center; gap:10px}
+.jr-logo{height:36px}
+.brand-text{display:flex; flex-direction:column; line-height:1}
+.brand-text .sub{font-size:11px; opacity:.65}
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:10px 18px; border-radius:999px; text-decoration:none;
+  border:2px solid var(--brand-600); font-weight:700; transition:.2s;
+}
+.btn.small{padding:8px 14px}
+.btn.ghost{background:#fff; color:var(--brand-600)}
+.btn.ghost:hover{box-shadow:0 0 0 4px rgba(52,111,247,.12)}
+.btn.solid{
+  background:#eaf2ff; color:var(--brand-600);
+  border:2px solid var(--brand-600);
+  box-shadow:0 8px 18px rgba(52,111,247,.12);
+}
+.btn.solid:hover{background:#d8ecff}
+
+.center-wrap{
+  min-height:calc(100vh - 64px);
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+  padding:24px 24px 8px;
+}
+@supports (height:100svh){ .center-wrap{ min-height:calc(100svh - 64px); } }
+
+.hero{
+  display:grid; grid-template-columns:1.05fr .95fr;
+  gap:40px; align-items:center;
+  width:min(1080px, 100%);
+  margin-top:8px;
+}
+.panel{
+  position:relative; overflow:hidden;
+  background:#fff; border-radius:28px; padding:36px;
+  border:1px solid #eef2ff;
+  box-shadow:0 18px 40px rgba(24,35,74,.10);
+}
+.panel::before{
+  content:""; position:absolute; inset:0; border-radius:inherit; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(520px 220px at -10% -10%, var(--pastel-peach) 0 40%, transparent 45%),
+    radial-gradient(380px 220px at 110% -20%, var(--pastel-blue) 0 38%, transparent 45%);
+  opacity:.55;
+}
+.panel.right::before{
+  background:
+    radial-gradient(520px 220px at -10% -10%, var(--pastel-mint) 0 40%, transparent 45%),
+    radial-gradient(380px 220px at 110% -20%, var(--pastel-lilac) 0 38%, transparent 45%);
+  opacity:.55;
+}
+.panel > *{position:relative; z-index:1}
+
+.left .title{ font-size:clamp(32px,5vw,60px); margin:0 0 12px; letter-spacing:.2px; }
+.left .title .brand{ color:var(--brand-600); }
+.subtitle{opacity:.85; margin-bottom:20px; color:#4b5a7a}
+
+/* === FEATURE CARDS === */
+.cards{
+  --card-min: 240px;                 /* batas min kolom agar tidak mepet */
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--card-min), 1fr));
+  gap:16px;                          /* jarak antarkartu */
+  align-items:stretch;                /* tinggi seragam */
+  margin-top:18px;
+}
+.card{
+  display:flex; align-items:center; gap:14px;
+  background:#fff; border-radius:18px; padding:18px 16px;
+  text-decoration:none; color:var(--ink);
+  border:1px solid #e8eefc;
+  box-shadow:0 6px 14px rgba(0,0,0,.04);
+  transition:transform .2s, box-shadow .2s, border-color .2s;
+  height:100%;
+}
+.card:hover{transform:translateY(-3px); box-shadow:0 16px 38px rgba(0,0,0,.08)}
+.card:focus-visible{outline:3px solid rgba(52,111,247,.35); outline-offset:3px}
+
+.icon.bubble{
+  flex:0 0 56px; width:56px; height:56px; border-radius:50%;
+  display:grid; place-items:center; font-size:24px;
+  background:linear-gradient(145deg,#f8fbff,#fff);
+}
+.car-ico{background:linear-gradient(145deg,#e8f3ff,#fff)}
+.ship-ico{background:linear-gradient(145deg,#fff6cc,#fff)}
+
+.info{flex:1 1 auto; min-width:0}
+.card-title{margin:0 0 6px; font-size:16px; line-height:1.25}
+.card-desc{margin:0; font-size:13px; line-height:1.35; color:#53617f; opacity:.9;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+
+/* Right panel */
+.right{text-align:center}
+.logo{font-size:clamp(26px,4.5vw,40px); margin:6px 0 6px; color:var(--brand-600)}
+.tagline{font-size:12px; opacity:.65; color:#6b7280}
+.cta{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:8px}
+
+/* Clouds */
+.bg.sky{position:absolute; inset:0; pointer-events:none}
+.cloud{
+  position:absolute; width:140px; height:60px;
+  background:linear-gradient(180deg,#fff,#f6faff);
+  border-radius:50px; opacity:.9; filter:blur(.2px);
+  animation:cloudMove 60s linear infinite;
+}
+.cloud::before,.cloud::after{content:""; position:absolute; background:inherit; border-radius:50px}
+.cloud::before{width:80px; height:50px; left:-20px; top:10px}
+.cloud::after {width:100px; height:50px; right:-25px; top:8px}
+@keyframes cloudMove{from{transform:translateX(-20vw)} to{transform:translateX(120vw)}}
+.c1{top:10%; animation-delay:0s}
+.c2{top:26%; animation-delay:10s}
+.c3{top:42%; animation-delay:22s}
+.c4{top:58%; animation-delay:5s}
+.c5{top:72%; animation-delay:15s}
+.c6{top:80%; animation-delay:28s}
+
+/* Blobs */
+.bg.blobs{position:absolute; inset:0; pointer-events:none; overflow:hidden}
+.blob{position:absolute; border-radius:50%; filter:blur(60px); opacity:.5; animation:floaty 12s ease-in-out infinite}
+.blob.yellow{background:var(--yellow-pastel); width:520px; height:520px; top:-160px; left:-140px}
+.blob.blue  {background:var(--blue-pastel);   width:500px; height:500px; bottom:-180px; right:-140px}
+@keyframes floaty{0%,100%{transform:translateY(0)} 50%{transform:translateY(-16px)}}
+
+/* Mascot / Bus */
+.mascot{position:relative; animation:busFloat 6s ease-in-out infinite}
+@keyframes busFloat{0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)}}
+.bus-svg{
+  width:min(380px,60vw); height:auto; filter: drop-shadow(0 4px 10px rgba(0,0,0,.06));
+  animation:busDrive 10s ease-in-out infinite; transform-origin:center; display:block;
+}
+@keyframes busDrive{
+  0%{ transform:translateX(-6px) rotate(-0.25deg) }
+  25%{ transform:translateX( 6px) rotate( 0.25deg) }
+  50%{ transform:translateX(-5px) rotate(-0.2deg) }
+  75%{ transform:translateX( 5px) rotate( 0.2deg) }
+  100%{ transform:translateX(-6px) rotate(-0.25deg) }
+}
+.wheel{animation:spin 3s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.eye{animation:blink 6s ease-in-out infinite; transform-origin:center}
+@keyframes blink{0%,96%,100%{transform:scaleY(1)} 98%{transform:scaleY(.1)}}
+.road{stroke-dasharray:14 12; animation:roadMove 2.4s linear infinite}
+@keyframes roadMove{to{stroke-dashoffset:-52}}
+.light{opacity:.3; animation:headBlink 1.6s steps(1,end) infinite}
+.l-right{animation-delay:.4s}
+@keyframes headBlink{0%,40%{opacity:.2} 41%,60%{opacity:.9} 61%,100%{opacity:.3}}
+
+/* Responsive */
+@media (max-width:900px){
+  .hero{grid-template-columns:1fr; gap:24px}
+  .panel{padding:28px}
+}
+@media (max-width:640px){
+  .btn{width:100%; text-align:center}
+  .cards{ --card-min: 200px; gap:12px }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .cloud,.blob,.bus-svg,.wheel,.eye,.road,.light,.rainbow-arc,.mascot{animation:none!important;opacity:1}
+}
+/* ==== 1) Perbaiki animasi awan: start langsung, halus, hemat GPU ==== */
+
+/* pakai will-change biar halus */
+.cloud { will-change: transform; }
+
+/* NEGATIVE delay = animasi langsung jalan (seolah-olah sudah dimulai) */
+.c1{ top:10%;  animation-delay: -0s;  }
+.c2{ top:26%;  animation-delay: -10s; }
+.c3{ top:42%;  animation-delay: -22s; }
+.c4{ top:58%;  animation-delay: -5s;  }
+.c5{ top:72%;  animation-delay: -15s; }
+.c6{ top:80%;  animation-delay: -28s; }
+
+/* opsional: kasih sedikit variasi durasi biar nggak sync bareng */
+.c1,.c4{ animation-duration: 56s; }
+.c2,.c5{ animation-duration: 60s; }
+.c3,.c6{ animation-duration: 64s; }
+
+/* ==== 2) Samakan tinggi panel kanan & kiri (panel.right) ==== */
+/* Grid item dibuat stretch agar kolom punya tinggi yang sama */
+.hero{ align-items: stretch; }
+
+/* Biarkan panel mengisi tinggi grid cell */
+.panel{ height: 100%; display: flex; flex-direction: column; }
+
+/* Konten kanan tetap rapi di tengah vertikal */
+.panel.right{ justify-content: center; }
+
+/* Kalau di mobile, balikkan ke layout semula biar tidak kepanjangan */
+@media (max-width:900px){
+  .hero{ align-items: start; }
+  .panel{ height: auto; }
+}
+/* ===== Make right panel feel fuller (tanpa ubah JSX) ===== */
+.panel.right{
+  /* susun vertikal & isi ruang */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;   /* header/top — mascot — CTA di bawah */
+  gap: 12px;
+
+  /* pattern lembut biar gak sepi */
+  background-image:
+    radial-gradient(90px 90px at 85% 18%, rgba(90,151,255,.08), transparent 62%),
+    radial-gradient(120px 120px at 15% 88%, rgba(234,242,255,.65), transparent 62%);
+  background-repeat: no-repeat;
+}
+
+/* logo & tagline lebih “isi” tapi tetap kalem */
+.panel.right .logo{
+  margin-top: 2px;
+  letter-spacing: .3px;
+}
+.panel.right .tagline{
+  max-width: 36ch;          /* kolom teks pendek biar rapi */
+  margin: 0 auto 4px;
+  line-height: 1.35;
+}
+
+/* maskot (bus) sedikit lebih besar + halo lembut */
+.bus-svg{
+  width: min(440px, 62vw);  /* perbesar dikit */
+  margin: 4px auto 8px;
+  filter: drop-shadow(0 8px 24px rgba(0,0,0,.06));
+}
+.mascot::after{
+  content: "";
+  position: absolute;
+  inset: auto 10% -6px 10%;
+  height: 14px;
+  border-radius: 999px;
+  background: radial-gradient(closest-side, rgba(0,0,0,.08), rgba(0,0,0,0));
+  pointer-events: none;
+}
+
+/* CTA lebih “berisi” & stay di bawah */
+.panel.right .cta{
+  margin-top: 8px;          /* ada ruang dari maskot */
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+@media (min-width: 901px){
+  .panel.right .cta .btn{
+    min-width: 160px;       /* tombol terasa lebih padat */
+  }
+}
+
+/* ===== Cloud animation tweak: semuanya gerak halus (gak ada yang diam) ===== */
+.cloud{ will-change: transform; }
+.c1{ top:10%; animation-delay: -0s;  animation-duration: 58s; }
+.c2{ top:26%; animation-delay: -10s; animation-duration: 60s; }
+.c3{ top:42%; animation-delay: -22s; animation-duration: 64s; }
+.c4{ top:58%; animation-delay: -5s;  animation-duration: 56s; }
+.c5{ top:72%; animation-delay: -15s; animation-duration: 62s; }
+.c6{ top:80%; animation-delay: -28s; animation-duration: 66s; }
+/* Chatbot floating */
+.chatbot-float{
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1300;           /* di atas awan/panel */
+}
+
+/* kalau nutup CTA di mobile, agak naik & rapetin ke tepi */
+@media (max-width: 640px){
+  .chatbot-float{ right: 14px; bottom: 14px; }
+}
+
+/* pastikan dekor di belakang */
+.bg.sky, .bg.blobs{ z-index: 0; }

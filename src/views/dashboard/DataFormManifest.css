@@ -1,0 +1,75 @@
+:root{
+  --blue:#9ecbff;
+  --blue2:#bfe0ff;
+  --yellow:#ffd24f66;
+  --ink:#243b53;
+  --bg:#f7fbff;
+  --white:#fff;
+  --line:#e3f0ff;
+  --shadow: 0 10px 24px rgba(36,59,83,.12), 0 6px 12px rgba(36,59,83,.06);
+}
+
+*{ box-sizing:border-box; }
+body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-serif; }
+
+.df-list-wrap{ position:relative; min-height:100dvh; padding:20px; background:linear-gradient(180deg, var(--bg), #eef6ff); }
+.df-clouds{
+  position:absolute; inset:0; pointer-events:none; opacity:.35; filter:blur(12px);
+  background:
+    radial-gradient(120px 60px at 10% 8%, var(--blue) 15%, transparent 60%),
+    radial-gradient(160px 70px at 80% 12%, var(--yellow) 20%, transparent 62%),
+    radial-gradient(180px 80px at 25% 85%, var(--yellow) 25%, transparent 65%),
+    radial-gradient(200px 100px at 85% 80%, var(--blue) 22%, transparent 66%);
+}
+
+.df-head{ position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.df-head .left{ display:flex; align-items:center; gap:8px; }
+.df-head .emoji{ font-size:28px; }
+.df-head h1{ margin:0; color:var(--ink); font-size:22px; }
+
+.df-head .right{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.search{
+  border:2px solid var(--blue); border-radius:14px; padding:10px 12px; width:280px; background:#fff;
+  box-shadow: inset 0 -3px 0 #00000008, 0 2px 0 #00000006;
+}
+
+.btn{ border:2px solid var(--blue); background:#fff; color:#1f2d3d; padding:10px 14px; border-radius:14px; font-weight:700; cursor:pointer; box-shadow:0 4px 0 #00000010; }
+.btn:hover{ box-shadow:0 6px 0 #00000010; }
+.btn:active{ transform: translateY(1px); }
+.btn.primary{ background: linear-gradient(0deg, var(--blue), var(--blue2)); }
+.btn.ghost{ background:#fff; }
+.btn.danger{ border-color:#ff9c9c; background:#ffeaea; }
+
+.df-card{
+  position:relative; z-index:1;
+  background:linear-gradient(180deg, var(--white), #fffaf2);
+  border:2px solid var(--blue); border-radius:18px; box-shadow:var(--shadow);
+  padding:12px;
+}
+
+.table-scroll{ overflow:auto; }
+.df-table{ border-collapse:separate; border-spacing:0; width:max(1100px,100%); font-size:13px; }
+.df-table thead th{
+  position:sticky; top:0; background:#eef6ff; z-index:2;
+  border-bottom:2px solid var(--blue); color:#0b273b; text-align:left; padding:10px;
+}
+.df-table tbody td{ padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
+.df-table tbody tr:nth-child(odd){ background:#ffffff; }
+.df-table tbody tr:nth-child(even){ background:#fcfeff; }
+.df-table .num{ text-align:right; }
+.df-table .strong{ font-weight:800; }
+.df-table .thumb-link{ display:inline-block; padding:4px 8px; border:2px dashed var(--blue); border-radius:10px; text-decoration:none; }
+
+.empty{ text-align:center; color:#677; padding:18px; }
+
+.df-summary{
+  display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+  margin-top:10px; background:#f0f7ff; border:2px solid var(--blue); padding:10px 12px; border-radius:14px;
+}
+
+.pager{ display:flex; justify-content:flex-end; align-items:center; gap:10px; padding:10px 6px 0; }
+.page-info{ font-weight:700; color:#415a77; }
+
+@media (max-width: 980px){
+  .search{ width: 190px; }
+}

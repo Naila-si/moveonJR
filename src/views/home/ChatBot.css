@@ -1,0 +1,234 @@
+/* ======================================
+   ChatBot — Kawaii Pastel (Blue x Yellow)
+   (Clean, Flex, Bigger-but-not-huge)
+   ====================================== */
+
+/* Vars */
+:root{
+  --cb-brand: var(--brand, #5a97ff);
+  --cb-brand-600: var(--brand-600, #346ff7);
+  --cb-ink: var(--ink, #1e2b44);
+  --cb-blue: var(--blue-pastel, #d8ecff);
+  --cb-yellow: var(--yellow-pastel, #fff3b0);
+  --cb-glass: var(--glass, rgba(255,255,255,.78));
+  --cb-outline: rgba(52,111,247,.22);
+
+  /* compact, tapi lebih lega sedikit */
+  --cb-quickH: 40px;   /* 36 -> 40 */
+  --cb-inputH: 54px;   /* 48 -> 54 */
+}
+
+/* ========== FAB ========== */
+.chat-fab{
+  position: fixed; right: 18px; bottom: 18px;
+  width: 50px; height: 50px;          /* 44 -> 50 */
+  border-radius: 12px;
+  color:#2f55d4; background:#eaf2ff; border:1px solid #dbe3f2;
+  display:grid; place-items:center; cursor:pointer;
+  box-shadow:0 10px 26px rgba(47,85,212,.2);
+  z-index:160;
+  transition: transform .15s, box-shadow .2s, background .2s;
+}
+.chat-fab:hover{ transform:translateY(-1px); box-shadow:0 14px 30px rgba(47,85,212,.24); }
+.chat-fab svg{ display:block; }
+.chat-fab .badge{
+  position:absolute; right:7px; top:7px;
+  width:9px; height:9px; border-radius:50%;
+  background:#22c55e; color:transparent; box-shadow:0 0 0 2px #fff;
+}
+
+/* ========== Panel (flex column) ========== */
+.chat-panel{
+  position: fixed; right: 18px; bottom: 78px;
+  width: 420px;                 /* 320 -> 420 */
+  max-width: 94vw;
+  max-height: 66vh;             /* 48 -> 66 (masih tidak memenuhi layar) */
+  background: var(--cb-glass);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border:1px solid rgba(255,255,255,.7);
+  border-radius:18px;
+  box-shadow:0 20px 50px rgba(24,35,74,.18);
+  z-index:160;
+
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.chat-panel::before{
+  content:""; position:absolute; inset:-20% -10% auto -10%; height:60%;
+  background:
+    radial-gradient(420px 200px at 0% 0%, var(--cb-yellow) 0 45%, transparent 50%),
+    radial-gradient(380px 180px at 100% 10%, var(--cb-blue) 0 42%, transparent 48%);
+  opacity:.45; pointer-events:none;
+}
+
+/* ========== Header ========== */
+.chat-header{
+  display:flex; align-items:center; gap:8px; padding:12px 14px;
+  background: linear-gradient(180deg,rgba(255,255,255,.95),rgba(255,255,255,.82));
+  position:relative; flex:0 0 auto;
+}
+.chat-header .bot-avatar{
+  width:28px; height:28px; display:grid; place-items:center;
+  border-radius:8px; background:#eaf2ff; box-shadow:0 6px 14px rgba(0,0,0,.06);
+}
+.chat-header .title{ display:flex; flex-direction:column; line-height:1 }
+.chat-header .title strong{ color:var(--cb-ink); font-size:16px; }  /* 14 -> 16 */
+.chat-header .title .muted{ opacity:.6; font-size:12px }
+.chat-header .close{
+  margin-left:auto; background:none; border:none; font-size:18px;
+  cursor:pointer; opacity:.6; border-radius:8px; padding:4px;
+}
+.chat-header .close:hover{ opacity:1; background:#f4f6ff }
+
+/* ========== Body (only this scrolls) ========== */
+.chat-body{
+  flex:1 1 auto; overflow:auto; max-height:none;
+  padding:12px 12px;
+  scroll-behavior:smooth;
+  background:
+    radial-gradient(760px 280px at 20% -120px, #fff7d688, transparent),
+    radial-gradient(640px 240px at 120% -100px, #d8ecff88, transparent);
+}
+.chat-body::-webkit-scrollbar{ width:8px }
+.chat-body::-webkit-scrollbar-track{ background:transparent }
+.chat-body::-webkit-scrollbar-thumb{
+  background: linear-gradient(180deg, var(--cb-blue), var(--cb-yellow));
+  border-radius:999px; border:2px solid transparent; background-clip: padding-box;
+}
+
+/* Messages */
+.msg{ display:flex; gap:8px; margin:10px 0 }
+.msg.bot .avatar{ width:22px }
+.msg .bubble{
+  max-width:84%;                     /* 78 -> 84 agar teks tidak cepat wrap */
+  padding:10px 12px; border-radius:14px;
+  background:#fff; border:1px solid #eef2ff; box-shadow:0 8px 18px rgba(0,0,0,.06);
+  font-size:14px; line-height:1.45; color:var(--cb-ink); /* 13 -> 14 */
+}
+.msg.bot .bubble{ border-top-left-radius:9px }
+.msg.user{ justify-content:flex-end }
+.msg.user .bubble{
+  background: linear-gradient(135deg, var(--cb-brand), var(--cb-brand-600));
+  color:#fff; border-color:transparent; border-top-right-radius:9px;
+  box-shadow:0 10px 22px rgba(52,111,247,.22);
+}
+
+/* Links */
+.msg .bubble a{ color:var(--cb-brand-600); text-decoration:none; border-bottom:2px dashed rgba(52,111,247,.35); padding-bottom:1px }
+.msg .bubble a:hover{ border-bottom-style:solid; filter:brightness(1.05) }
+.msg .bubble a[href*="wa.me"]{ color:#128C7E; border-color:rgba(18,140,126,.35) }
+.msg .bubble a[href*="wa.me"]::before{ content:"💬 " }
+
+/* ========== Quick chips (docked) ========== */
+.quick{
+  height: var(--cb-quickH);
+  display:flex; align-items:center; gap:8px;
+  padding:6px 10px;
+  white-space:nowrap;
+  overflow-x:auto; overflow-y:hidden;
+  background: linear-gradient(180deg,#ffffffee,#ffffffff);
+  border-top:1px solid #eef2ff;
+  box-shadow: 0 -4px 14px rgba(24,35,74,.05) inset;
+  flex:0 0 var(--cb-quickH);
+}
+.quick::-webkit-scrollbar{ height:6px }
+.quick::-webkit-scrollbar-thumb{ background:#e3e8ff; border-radius:999px }
+.chip{
+  display:inline-flex; align-items:center;
+  border:1px solid #eef2ff; background:#fff; color:var(--cb-ink);
+  border-radius:999px; padding:6px 11px; font-size:12.5px; cursor:pointer;
+  transition:transform .15s, box-shadow .2s, background .2s;
+  box-shadow:0 5px 12px rgba(0,0,0,.06);
+}
+.chip:hover{ transform:translateY(-1px); box-shadow:0 9px 16px rgba(0,0,0,.08); background:#ffffffcc }
+.chip:focus-visible{ outline:3px solid var(--cb-outline); outline-offset:2px }
+.chip.danger{ border-color:#fecaca; color:#ef4444; background:#fff }
+.chip.danger:hover{ background:#fee2e2 }
+
+/* ========== Input (docked) ========== */
+.chat-input{
+  display:flex; gap:8px; align-items:center;
+  padding:10px; height: var(--cb-inputH);
+  border-top:1px solid rgba(0,0,0,.05);
+  background: linear-gradient(180deg,#ffffff,#ffffffcc);
+  flex:0 0 var(--cb-inputH);
+}
+.chat-input input{
+  flex:1; height:38px; border:1px solid #e6ecff; border-radius:999px;
+  padding:0 12px; font-size:14px; outline:none; background:#fff;
+}
+.chat-input input::placeholder{ color:#98a2b3 }
+.chat-input input:focus{ border-color:var(--cb-brand); box-shadow:0 0 0 3px rgba(90,151,255,.22) }
+.chat-input .send{
+  height:38px; padding:0 16px; border:none; background:var(--cb-brand);
+  color:#fff; border-radius:999px; font-weight:700; cursor:pointer;
+  box-shadow:0 10px 22px rgba(53,111,247,.22);
+  transition: transform .15s, background .2s, box-shadow .2s;
+}
+.chat-input .send:hover{ background:var(--cb-brand-600); transform:translateY(-1px); box-shadow:0 14px 26px rgba(53,111,247,.28) }
+.chat-input .send:focus-visible{ outline:3px solid var(--cb-outline); outline-offset:2px }
+
+/* iOS safe area */
+@supports (padding: max(0px)){
+  .chat-input{ padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+}
+
+/* ========== Responsif ========== */
+@media (max-width:640px){
+  .chat-fab{ right:12px; bottom:12px; width:50px; height:50px; }
+  .chat-panel{
+    right: 10px; bottom: 72px;
+    width: calc(100vw - 20px);
+    max-height: 72vh;              /* lebih tinggi di mobile, tetap tidak full */
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .chat-fab, .chip, .chat-input .send { transition:none }
+}
+
+/* Pastikan dekor halaman di belakang chatbot */
+.bg.sky, .bg.blobs { z-index: 0; }
+
+:root{
+  --cb-inputH: 54px;                 /* cukup buat input + tombol */
+}
+
+/* jangan geser keluar panel & pastikan stacking rapi */
+.chat-panel{
+  overflow: hidden;                  /* SEBELUMNYA sempat visible -> bikin “tenggelam” */
+}
+
+/* form input: jangan menyusut, tingginya mengikuti var */
+.chat-input{
+  flex: 0 0 auto;                    /* fix shrink */
+  min-height: var(--cb-inputH);      /* tinggi minimum, bukan fixed */
+  height: auto;                      /* biar isi tidak mendorong keluar */
+  box-sizing: border-box;
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 10px max(10px, env(safe-area-inset-bottom));
+  position: relative; z-index: 1;    /* selalu di atas body */
+}
+
+/* field & tombol tidak “ngegedein” bar, tapi tetap nyaman dipakai */
+.chat-input input{
+  min-width: 0;                      /* biar nggak nabrak tombol */
+  height: 38px; line-height: 38px;
+}
+
+.chat-input .send{
+  flex: 0 0 auto;                    /* ukuran tombol stabil */
+  display: inline-flex; align-items:center; justify-content:center;
+  min-width: 88px;                   /* biar tidak gepeng */
+  height: 38px; line-height: 38px;
+}
+
+/* pastikan area chat terakhir tidak ketutup input saat banyak pesan */
+.chat-body{
+  padding-bottom: calc(var(--cb-inputH) + 12px);  /* ruang ekstra di bawah */
+}
+
+/* mobile tambahkan sedikit ruang panel supaya input aman */
+@media (max-width:640px){
+  .chat-panel{ max-height: 72vh; }
+}

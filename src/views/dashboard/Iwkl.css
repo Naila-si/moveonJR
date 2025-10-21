@@ -1,0 +1,229 @@
+/* =========================================================
+   Base tokens
+   ========================================================= */
+:root{
+  --blue:#9ecbff;
+  --yellow:#ffd24f66;
+  --ink:#243b53;
+  --bg:#f7fbff;
+  --white:#fff;
+  --line:#e3f0ff;
+  --shadow: 0 10px 24px rgba(36,59,83,.12), 0 6px 12px rgba(36,59,83,.06);
+
+  /* Ring control tokens */
+  --ring-gap: 8px;      /* jarak ring dari tepi pill label */
+  --orbit-gap: 28px;    /* jarak orbit chip dari tepi pill label */
+  --ring-size: 32px;    /* diameter tombol ring */
+}
+
+*{ box-sizing:border-box; }
+body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-serif; }
+
+/* =========================================================
+   Layout (page shell, header, card, buttons)
+   ========================================================= */
+.iwkl-wrap{
+  position:relative; min-height:100dvh; padding:16px;
+  background:linear-gradient(180deg, var(--bg), #eef6ff);
+  max-width:900px; margin:0 auto;
+}
+.iwkl-bg{
+  position:absolute; inset:0; pointer-events:none; opacity:.35; filter:blur(12px);
+  background:
+    radial-gradient(120px 60px at 10% 8%, var(--blue) 15%, transparent 60%),
+    radial-gradient(160px 70px at 80% 12%, var(--yellow) 20%, transparent 62%),
+    radial-gradient(180px 80px at 25% 85%, var(--yellow) 25%, transparent 65%),
+    radial-gradient(200px 100px at 85% 80%, var(--blue) 22%, transparent 66%);
+}
+
+.iwkl-header{ position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.iwkl-header .title{ display:flex; align-items:center; gap:8px; }
+.iwkl-header .emoji{ font-size:26px; }
+.iwkl-header h1{ margin:0; color:var(--ink); font-size:22px; }
+
+.actions{ display:flex; align-items:center; gap:10px; }
+.search{
+  border:2px solid var(--blue); border-radius:14px; padding:10px 12px; width:280px; background:#fff;
+  box-shadow: inset 0 -3px 0 #00000008, 0 2px 0 #00000006;
+}
+
+.btn{
+  border:2px solid var(--blue); background:#fff; color:#1f2d3d;
+  padding:10px 14px; border-radius:14px; font-weight:700; cursor:pointer; box-shadow:0 4px 0 #00000010;
+  transition: box-shadow .08s ease, transform .08s ease;
+}
+.btn:hover{ box-shadow:0 6px 0 #00000010; }
+.btn:active{ transform: translateY(1px); }
+.btn.primary{ background:linear-gradient(0deg, var(--blue), #bfe0ff); }
+.btn.ghost{ background:#fff; }
+
+.card{
+  position:relative; z-index:1;
+  width:100%;
+  background:linear-gradient(180deg, var(--white), #fffaf2);
+  border:2px solid var(--blue); border-radius:18px; box-shadow:var(--shadow);
+  padding:12px;
+}
+
+@media (max-width: 980px){
+  .search{ width:190px; }
+}
+
+/* =========================================================
+   Table (scroll container, table, form controls)
+   ========================================================= */
+.table-scroll{
+  width:100%; max-width:100%; max-height:65vh; overflow:auto;
+  border:2px solid #bae6fd; border-radius:16px; background:#fff;
+  box-shadow: 0 10px 40px rgba(147,197,253,.25);
+}
+.table-scroll::-webkit-scrollbar{ height:10px; width:10px; }
+.table-scroll::-webkit-scrollbar-thumb{ background:#93c5fd; border-radius:999px; }
+.table-scroll::-webkit-scrollbar-track{ background:#e0f2fe; border-radius:999px; }
+
+.kawaii-table{
+  width:100%; min-width:1100px; border-collapse:separate; border-spacing:0; table-layout:fixed;
+  font-size:13px;
+}
+.kawaii-table thead th{
+  position:sticky; top:0; z-index:5;
+  background:linear-gradient(180deg,#e0f2fe,#f0f9ff);
+  padding:10px; text-align:left; border-bottom:2px solid var(--blue);
+  color:#0a1e2f; font-weight:800;          /* darker & bolder once */
+}
+.kawaii-table th, .kawaii-table td{
+  padding:8px 10px; font-size:12px; vertical-align:top; word-break:break-word; white-space:normal;
+  border-bottom:1px dashed #cbd5e1;
+}
+.kawaii-table tbody tr:nth-child(odd){ background:#ffffff; }
+.kawaii-table tbody tr:nth-child(even){ background:#fcfeff; }
+
+/* No column */
+.kawaii-table th:nth-child(1),
+.kawaii-table td:nth-child(1){ width:56px; text-align:center; }
+
+/* Inputs */
+.kawaii-table input[type="text"],
+.kawaii-table input[type="tel"],
+.kawaii-table input[type="date"],
+.kawaii-table select{
+  width:100%; max-width:220px; /* lebih compact di sel */
+  border:2px solid var(--blue); border-radius:10px; padding:8px 10px; background:#fff; outline:none;
+  box-shadow: inset 0 -3px 0 #00000008;
+}
+.kawaii-table input:focus, .kawaii-table select:focus{ box-shadow:0 0 0 4px var(--yellow); }
+
+.empty{ text-align:center; color:#677; padding:18px; }
+
+/* =========================================================
+   Modal
+   ========================================================= */
+.modal-backdrop{
+  position:fixed; inset:0; background:rgba(7,14,30,.35);
+  display:flex; align-items:center; justify-content:center; z-index:30;
+}
+.modal-card{
+  width:min(540px,92%); background:#fff; border:2px solid var(--blue); border-radius:16px; padding:16px; box-shadow:var(--shadow);
+}
+.modal-card h3{ margin:0 0 8px; color:#0b273b; }
+.modal-card .stack{ display:flex; flex-direction:column; gap:6px; font-weight:600; color:#415a77; margin-top:8px; }
+.modal-card input{
+  border:2px solid var(--blue); border-radius:12px; padding:10px; outline:none; background:#fff;
+  box-shadow: inset 0 -3px 0 #00000008;
+}
+.modal-actions{ margin-top:14px; display:flex; justify-content:flex-end; gap:10px; }
+
+/* =========================================================
+   Header controls (label pill, inline rename)
+   ========================================================= */
+.th-hasmenu{ position:relative; display:inline-flex; align-items:center; gap:6px; }
+.th-toggle{
+  appearance:none; background:#fff; color:#0a1e2f;
+  border:2px solid var(--blue); border-radius:10px; padding:6px 10px;
+  font-weight:800; cursor:pointer; box-shadow:0 2px 0 #00000012;
+  transition: transform .08s ease, box-shadow .08s ease, background .2s ease;
+  position:relative; z-index:2;
+}
+.th-toggle:hover{ box-shadow:0 4px 0 #00000012; }
+.th-toggle:active{ transform:translateY(1px); }
+.th-toggle[aria-expanded="true"]{ background:linear-gradient(0deg, #e6f2ff, #fff); }
+
+.th-rename input{
+  border:2px solid var(--blue); border-radius:10px; padding:6px 8px; background:#fff;
+  box-shadow: inset 0 -2px 0 #00000008; font-weight:700; min-width:140px;
+}
+
+/* =========================================================
+   Ring control (around pill)
+   ========================================================= */
+/* area ring menutup ketat di sekeliling pill */
+.th-ring.pretty{
+  position:absolute;
+  left: calc(-1 * var(--ring-gap));
+  top:  calc(-1 * var(--ring-gap));
+  right: calc(-1 * var(--ring-gap));
+  bottom: calc(-1 * var(--ring-gap));
+  pointer-events:none; z-index:1; display:block;
+}
+/* aura lembut */
+.th-ring.pretty .ring-aura{
+  position:absolute; inset:6px; border-radius:999px; pointer-events:none;
+  background: radial-gradient(60% 60% at 50% 50%, rgba(147,197,253,.35), transparent 70%);
+  box-shadow: 0 0 0 6px rgba(191,225,255,.45) inset, 0 10px 30px rgba(30,64,175,.15);
+}
+
+.th-ring.pretty, .th-orbit{ will-change: transform; }
+
+.th-ring.pretty,
+.th-orbit{ pointer-events: auto; }
+.th-ring.pretty .ring-aura{ pointer-events: none; }
+
+/* tombol arah glassy */
+.ring-btn{
+  pointer-events:auto; width:var(--ring-size); height:var(--ring-size);
+  display:grid; place-items:center;
+  border-radius:999px; border:1.5px solid #bae6fd;
+  background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.65));
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 20px rgba(30,58,138,.18), inset 0 -4px 10px rgba(59,130,246,.08);
+  font-weight:800; color:#0a1e2f; cursor:pointer;
+  transition: transform .1s ease, box-shadow .15s ease, background .2s ease;
+}
+.ring-btn:hover{ transform:translateY(-1px); box-shadow:0 10px 28px rgba(30,58,138,.22); }
+.ring-btn:active{ transform:translateY(0); box-shadow:0 6px 18px rgba(30,58,138,.2) inset; }
+
+/* posisi empat kuadran—rapat ke tepi pill */
+.ring-left  { position:absolute; top:50%; left:0;   transform: translate(calc(-50% - var(--ring-gap)), -50%); }
+.ring-right { position:absolute; top:50%; right:0;  transform: translate(calc( 50% + var(--ring-gap)), -50%); }
+.ring-top   { position:absolute; left:50%; top:0;   transform: translate(-50%, calc(-50% - var(--ring-gap))); }
+.ring-bottom{ position:absolute; left:50%; bottom:0;transform: translate(-50%, calc( 50% + var(--ring-gap))); }
+
+/* orbit luar untuk chip Ubah/Hapus */
+.th-orbit{
+  position:absolute;
+  left: calc(-1 * var(--orbit-gap));
+  top:  calc(-1 * var(--orbit-gap));
+  right: calc(-1 * var(--orbit-gap));
+  bottom: calc(-1 * var(--orbit-gap));
+  pointer-events:none; z-index:0;
+}
+.ring-chip{
+  position:absolute; pointer-events:auto;
+  padding:8px 12px; border-radius:999px;
+  border:1.5px solid #a5d8ff; background:linear-gradient(180deg,#ffffff,#f8fbff);
+  box-shadow: 0 10px 24px rgba(36,59,83,.14);
+  font-weight:800; font-size:12px; color:#0a1e2f; cursor:pointer;
+  transition: transform .1s ease, box-shadow .15s ease, background .2s ease;
+}
+.ring-chip:hover{ transform: translateY(-1px); box-shadow:0 14px 30px rgba(36,59,83,.2); }
+.ring-rename{
+  left: 0;
+  bottom: 0;
+  transform: translate(-50%, 50%);
+}
+.ring-delete{
+  right: 0;
+  bottom: 0;
+  transform: translate(50%, 50%);
+}
+.ring-delete:hover{ background:#fff1f0; }

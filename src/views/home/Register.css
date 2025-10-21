@@ -1,0 +1,334 @@
+/* Pastel Sky — Blue × Yellow — kawaii + many animations */
+:root{
+  /* tinta & netral */
+  --ink:#0f172a;
+  --muted:#5b6b86;
+
+  /* biru pastel */
+  --b10:#f6fbff; --b25:#f0f7ff; --b50:#e9f4ff; --b100:#d5ecff; --b200:#bfe2ff;
+  --b300:#a9d7ff; --b500:#6eb2ff; --b600:#3c8cf7;
+
+  /* kuning pastel */
+  --y25:#fff9ec; --y50:#fff5d1; --y100:#ffefad; --y200:#ffe27b; --y300:#ffd24f;
+
+  /* efek kaca & ring */
+  --card: rgba(255,255,255,.92);
+  --glass: rgba(255,255,255,.78);
+  --border: rgba(255,255,255,.70);
+  --shadow: 0 30px 70px rgba(31,38,135,.14);
+  --ring: rgba(60, 140, 247, .20);
+}
+
+/* ===== Canvas Sky ===== */
+.sky-login{
+  min-height:100vh; width:100%;
+  position:relative; overflow:hidden;
+  background:
+    radial-gradient(1200px 500px at -10% -10%, var(--b25), transparent 60%),
+    radial-gradient(1100px 480px at 110% 110%, var(--y25), transparent 62%),
+    linear-gradient(180deg, var(--b10), #ffffff 40%, var(--y25));
+  display:flex; align-items:center; padding:28px;
+}
+
+/* Sun pulse */
+.sun{
+  position:absolute; top:8vh; right:8vw; width:120px; height:120px; border-radius:50%;
+  background: radial-gradient(circle at 40% 35%, #fff6b8, #ffe27b 55%, #ffd24f 75%, #ffcc3a 100%);
+  box-shadow: 0 0 0 10px #fff1, 0 0 60px 20px #ffd54a66, 0 0 120px 40px #ffe27b33;
+  animation: sunPulse 6s ease-in-out infinite;
+  z-index:0;
+}
+@keyframes sunPulse{ 0%,100%{ transform:scale(1) } 50%{ transform:scale(1.06) } }
+
+/* Clouds parallax */
+.cloud{
+  position:absolute; width:180px; height:70px; border-radius:50px; filter: blur(.4px);
+  background: linear-gradient(180deg, #fff, #f6fbff);
+  box-shadow: inset -10px -10px 30px #eaf4ff;
+  opacity:.92;
+  animation: cloudDrift 48s linear infinite;
+  z-index:0;
+}
+.cloud::before,.cloud::after{
+  content:""; position:absolute; background:inherit; border-radius:50px;
+}
+.cloud::before{ width:110px; height:60px; left:-26px; top:6px }
+.cloud::after{ width:120px; height:60px; right:-28px; top:10px }
+.c1{ top:18vh; left:-20vw; animation-delay:0s }
+.c2{ top:36vh; left:-40vw; animation-delay:8s; transform:scale(1.2) }
+.c3{ top:58vh; left:-30vw; animation-delay:16s; transform:scale(.9) }
+@keyframes cloudDrift{ from{ transform:translateX(0)} to{ transform:translateX(160vw)} }
+
+/* Twinkling stars (daytime spark) */
+.stars{ position:absolute; inset:0; pointer-events:none; z-index:0 }
+.stars i{
+  position:absolute; width:3px; height:3px; background:#fff; border-radius:50%;
+  left: calc(2% + 96% * var(--rand, .5));
+  top: calc(10% + 80% * var(--rand, .5));
+  opacity:.0; animation: twinkle 3.4s ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+  box-shadow: 0 0 10px #fff8, 0 0 20px #ffd24f66;
+}
+@keyframes twinkle{ 0%,100%{opacity:0} 50%{opacity:.9; transform:scale(1.2)} }
+
+/* Birds */
+.birds .b{
+  position:absolute; font-size:28px; color:#9ecbff; opacity:.6;
+  animation: birdFly 18s linear infinite;
+}
+.b1{ left:-10vw; top:22vh; animation-delay:0s }
+.b2{ left:-18vw; top:32vh; animation-delay:4s; transform:scale(1.2) }
+.b3{ left:-14vw; top:42vh; animation-delay:8s; transform:scale(.9) }
+@keyframes birdFly{ from{ transform:translateX(0) } to{ transform:translateX(140vw) } }
+
+/* Balloons float */
+.balloon{
+  position:absolute; font-size:30px; filter: drop-shadow(0 8px 14px rgba(0,0,0,.12));
+  animation: balloon 12s ease-in-out infinite;
+}
+.bl1{ left:6vw; bottom:-6vh; animation-delay:.6s }
+.bl2{ right:14vw; bottom:-8vh; animation-delay:1.8s }
+@keyframes balloon{
+  0%{ transform:translateY(10vh) }
+  50%{ transform:translateY(-10vh) }
+  100%{ transform:translateY(10vh) }
+}
+
+/* ===== Grid ===== */
+.grid{
+  width:100%; max-width:1180px; margin:0 auto;
+  display:grid; grid-template-columns:1fr; gap:28px; align-items:stretch; position:relative; z-index:1;
+}
+@media (min-width:980px){ .grid{ grid-template-columns: 1.05fr .95fr; gap:34px } }
+
+/* ===== Left Hero ===== */
+.left-hero{
+  background: var(--glass); border:1px solid var(--border); border-radius:28px;
+  backdrop-filter: blur(18px); box-shadow:var(--shadow);
+  padding:28px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+}
+.hero-badge{
+  position:absolute; left:22px; top:22px;
+  background:linear-gradient(90deg, var(--b600), var(--y300));
+  color:#fff; font-weight:900; font-size:12px; padding:8px 12px; border-radius:999px; letter-spacing:.6px;
+  box-shadow:0 12px 26px rgba(60,140,247,.22), 0 10px 20px rgba(255,210,79,.18);
+  animation: badgeFloat 3.2s ease-in-out infinite;
+}
+@keyframes badgeFloat{ 0%,100%{ transform:translateY(0)} 50%{ transform:translateY(-4px)} }
+
+.hero-title{ margin:10px 0 6px; font-size: clamp(30px,3.8vw,48px); font-weight:900; color:var(--ink) }
+.hero-sub{ color:var(--muted); max-width:46ch }
+
+/* Mascot sizing + colors */
+.mascot-wrap{
+  position:relative; width: clamp(360px, 45vw, 640px); margin: 6px auto 10px;
+  filter: drop-shadow(0 24px 42px rgba(60,140,247,.18));
+}
+.mascot-wrap::after{
+  content:""; position:absolute; inset:0; border-radius:30px;
+  background:
+    radial-gradient(320px 180px at 18% 30%, #ffe89d66, transparent 60%),
+    radial-gradient(340px 200px at 82% 12%, #dff1ffb3, transparent 60%);
+  filter: blur(16px); z-index:-1;
+}
+.mascot-svg{ width:100%; height:auto; animation:float 3.6s ease-in-out infinite }
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.wave-bg{ fill:#f2f8ff }
+.wave-fg{ fill:none; stroke:var(--y300); stroke-width:6; stroke-dasharray:8 8; animation:wave 2.6s ease-in-out infinite alternate }
+@keyframes wave{ from{ stroke-dashoffset:66 } to{ stroke-dashoffset:0 } }
+
+.sparkle{ position:absolute; font-size:22px; opacity:.9; animation:spark 3.4s ease-in-out infinite }
+.s1{ left:-10px; top:-6px; color:#ffd166; animation-delay:.1s }
+.s2{ left:14px; bottom:-12px; color:#7ec8ff; transform:rotate(-8deg); animation-delay:.8s }
+.s3{ right:-12px; top:-10px; color:#ffe28f; animation-delay:1.4s }
+@keyframes spark{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.08)}}
+
+/* ===== Paper Plane Mascot (baru) ===== */
+.plane-trail{
+  fill:none;
+  stroke: var(--b500);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 8 10;
+  animation: wave 2.4s ease-in-out infinite alternate;
+  opacity: .8;
+  filter: drop-shadow(0 2px 8px rgba(110,178,255,.35));
+}
+.plane-top{ fill:#ffffff; stroke:#eaf2ff; stroke-width:2; filter: drop-shadow(0 10px 24px rgba(60,140,247,.22)) }
+.plane-bottom{ fill:#e8f2ff; stroke:#dfe9ff; stroke-width:2 }
+.plane-fold{ stroke:#bcd8ff; stroke-width:2; fill:none; stroke-linecap:round }
+.plane-face circle{ fill: var(--ink) }
+.plane-face path{ stroke: var(--ink) }
+
+/* ===== Right Ticket (Perforated Card) ===== */
+.right-card{ display:flex; align-items:center; justify-content:center }
+.ticket{
+  width:min(600px, 100%); background:var(--card); border:1px solid var(--border);
+  border-radius:28px; overflow:hidden; box-shadow:var(--shadow); backdrop-filter:blur(18px);
+  position:relative; transform: translateZ(0);
+  animation: ticketPop .65s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes ticketPop{ from{ opacity:0; transform:translateY(10px) scale(.98)} to{opacity:1; transform:translateY(0) scale(1)} }
+
+/* perforasi */
+.perforation{
+  position:absolute; top:14px; bottom:14px; left:-6px; width:12px; z-index:2;
+  background:
+    radial-gradient(circle at 6px 12px, #fff 6px, transparent 7px) 0 0/12px 24px repeat-y,
+    radial-gradient(circle at 6px 0px, #fff 6px, transparent 7px) 0 12px/12px 24px repeat-y;
+}
+
+/* head */
+.ticket-head{
+  display:flex; align-items:center; gap:10px; padding:12px 16px;
+  background:linear-gradient(180deg,#ffffffee,#ffffff);
+  border-bottom:1px solid #eef2ff;
+}
+.ticket-tag{
+  padding:6px 12px; border-radius:999px; font-weight:900; font-size:12px; letter-spacing:.2px; color:#fff;
+  background:linear-gradient(90deg, var(--b600), var(--y300));
+  box-shadow:0 8px 18px rgba(60,140,247,.20), 0 8px 18px rgba(255,210,79,.18);
+}
+.ticket-dot{
+  margin-left:auto; width:10px; height:10px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 2px #fff;
+}
+
+/* body */
+.ticket-body{ padding:22px 22px 16px }
+.card-head{ display:flex; align-items:center; gap:12px; margin:6px 0 16px }
+.avatar{ display:inline-flex; width:48px; height:48px; border-radius:16px; background:var(--b100); align-items:center; justify-content:center; box-shadow:0 12px 24px rgba(60,140,247,.18) }
+.avatar-face{ width:28px; height:28px; fill:var(--ink); stroke:var(--ink) }
+.card-title{ font-size:22px; font-weight:900 }
+.card-sub{ color:var(--muted); font-size:14px }
+.vstack{ display:grid; gap:14px }
+
+/* fields */
+.field{ display:block }
+.field-label{ font-size:13px; color:#506078 }
+.field-input{
+  margin-top:6px; width:100%; padding:13px 16px; border-radius:18px;
+  border:1px solid #dfe7f2; background:#ffffffcc; color:var(--ink);
+  outline:none; box-shadow:0 1px 0 rgba(0,0,0,.02); transition:.2s;
+}
+.field-input:focus{
+  box-shadow:0 0 0 8px var(--ring), 0 10px 22px rgba(60,140,247,.10);
+  border-color:#cfe0f5; transform: translateY(-1px);
+}
+
+/* password group */
+.pw{ display:flex; align-items:center; border:1px solid #dfe7f2; background:#ffffffcc; border-radius:18px; padding:6px 8px; transition:.2s }
+.pw-input{ flex:1; padding:10px 10px; border:0; background:transparent; outline:none; color:var(--ink) }
+.pw-toggle{ margin-left:10px; font-size:13px; color:#1d4ed8; background:linear-gradient(180deg,#fff,#fff0); border:0; cursor:pointer; border-radius:10px; padding:6px 10px }
+.pw:focus-within{ box-shadow:0 0 0 8px var(--ring), 0 10px 22px rgba(60,140,247,.10); border-color:#cfe0f5; transform: translateY(-1px); }
+
+/* Password meter */
+.pw-meter{
+  margin-top:8px;
+  width:100%; height:8px; border-radius:999px;
+  background: #eef2ff; overflow:hidden;
+  box-shadow: inset 0 1px 0 rgba(0,0,0,.04);
+}
+.pw-meter span{
+  display:block; height:100%;
+  background: linear-gradient(90deg, var(--b600), var(--y300));
+  width:0%;
+  transition: width .2s ease;
+  border-radius: 999px;
+}
+
+/* misc */
+.row{ display:flex; align-items:center; gap:10px }
+.between{ justify-content:space-between }
+.checkbox{ display:inline-flex; align-items:center; gap:8px; color:#475569; font-size:14px }
+.checkbox input{ width:16px; height:16px }
+.link{ color:#1d4ed8; background:transparent; border:0; cursor:pointer; font-size:14px; text-decoration:underline }
+
+/* alerts */
+.alert{ background:#fff1f1; color:#b91c1c; border-radius:16px; padding:10px 12px; font-size:14px }
+
+/* buttons */
+.btn-primary{
+  margin-top:6px; width:100%; padding:13px 18px; border-radius:20px; border:0; cursor:pointer;
+  color:white; font-weight:900; letter-spacing:.2px;
+  background: linear-gradient(90deg, var(--b600), var(--y300));
+  box-shadow: 0 14px 26px rgba(255,210,79,.22), 0 12px 22px rgba(60,140,247,.20);
+  transform: translateZ(0);
+  transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+}
+.btn-primary:hover{ transform: translateY(-1px) scale(1.01); filter: brightness(1.03) }
+.btn-primary:active{ transform: translateY(0) scale(.995) }
+
+.divider{ position:relative; text-align:center; margin:16px 0 }
+.divider::before{ content:""; position:absolute; left:0; right:0; top:50%; border-top:1px solid #e2e8f0; transform:translateY(-50%) }
+.divider span{ position:relative; background:var(--card); padding:0 8px; color:#94a3b8; font-size:12px }
+
+.grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
+.btn-alt{
+  padding:11px 12px; border-radius:18px; border:1px solid #e2e8f0; cursor:pointer; font-weight:900; color:#334155;
+  background: linear-gradient(180deg, #ffffffcc, #fffbeacc);
+  transition:.2s;
+}
+.btn-alt:hover{ background:#fff7d1; transform: translateY(-1px) }
+.foot{ margin-top:16px; text-align:center; color:#475569; font-size:14px }
+
+/* foot */
+.ticket-foot{
+  border-top:1px dashed #e8eefc; padding:10px 16px; text-align:center;
+  background:linear-gradient(180deg,#ffffff,#fffffa);
+}
+.ticket-foot .mini{ font-size:12px; color:#98a2b3 }
+
+/* Responsive */
+@media (max-width:980px){
+  .grid{ gap:22px }
+  .left-hero{ order:2 }
+  .right-card{ order:1 }
+  .mascot-wrap{ width: clamp(320px, 70vw, 600px); }
+  .sun{ right:4vw; top:6vh; width:96px; height:96px }
+}
+@media (max-width:560px){
+  .sky-login{ padding:18px }
+  .ticket-body{ padding:18px }
+  .sun{ display:none } /* hemat ruang di ponsel */
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion:reduce){
+  .sun, .cloud, .stars i, .birds .b, .balloon, .mascot-svg, .wave-fg, .sparkle, .hero-badge, .ticket, .plane-trail { animation:none !important }
+}
+
+/* ===== Floating Back Button ===== */
+.btn-back{
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.7);
+  background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(255,255,255,.96));
+  box-shadow: 0 12px 28px rgba(24,35,74,.10);
+  color: #1e2b44;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+}
+.btn-back .arrow{font-size: 18px; transform: translateX(0); transition: transform .15s ease}
+.btn-back:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(24,35,74,.14);
+}
+.btn-back:hover .arrow{transform: translateX(-3px)}
+.btn-back:active{transform: translateY(0) scale(.99)}
+.btn-back .txt{font-size: 14px; letter-spacing: .2px}
+
+/* kecilkan di mobile agar tidak mengganggu header browser */
+@media (max-width: 520px){
+  .btn-back{ top: 12px; left: 12px; padding: 8px 12px }
+  .btn-back .txt{ display:none }  /* tampilkan hanya panah */
+}
