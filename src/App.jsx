@@ -5,7 +5,7 @@ import { Routes, Route, Navigate, HashRouter } from "react-router-dom";
 import Home from "./components/Home";
 import CRMForm from "./pages/home/FormCrm.jsx"; // tetap ada untuk rute /crm
 import Register from "./pages/home/Register.jsx";
-import Login from "./pages/home/login.jsx";
+import Login from "./pages/home/Login.jsx";
 
 /* === Dashboard & Proteksi === */
 import AdminDashboard from "./components/dashboard/AdminDashboard";
