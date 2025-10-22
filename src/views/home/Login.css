@@ -308,3 +308,142 @@
   .btn-back{ top: 12px; left: 12px; padding: 8px 12px }
   .btn-back .txt{ display:none }  /* tampilkan hanya panah */
 }
+
+/* ===== Kawaii Alert ===== */
+.alert-kawaii{
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 10px 12px;
+  padding: 14px 14px 14px 12px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #ffffffcc, #fffefacc);
+  box-shadow: 0 16px 30px rgba(31,38,135,.10);
+  animation: ak-pop .4s cubic-bezier(.2,.8,.2,1), ak-wiggle 1.8s ease-in-out .4s 1;
+  overflow: hidden;
+}
+
+.alert-kawaii .ak-icon{
+  font-size: 22px;
+  line-height: 1;
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,.08));
+  transform: translateY(1px);
+}
+
+.alert-kawaii .ak-content{
+  position: relative;
+}
+
+.alert-kawaii .ak-title{
+  display: inline-block;
+  font-weight: 900;
+  font-size: 14px;
+  letter-spacing: .2px;
+  margin-top: 1px;
+  margin-bottom: 4px;
+  color: var(--ink);
+}
+
+.alert-kawaii .ak-text{
+  margin: 0;
+  font-size: 13.5px;
+  color: #4b5563;
+}
+
+/* tombol close */
+.alert-kawaii .ak-close{
+  margin-left: 6px;
+  margin-top: 2px;
+  border: 0;
+  background: linear-gradient(180deg, #fff, #fff6);
+  color: #334155;
+  font-weight: 800;
+  padding: 6px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(31,38,135,.10);
+  transition: transform .15s ease, filter .2s ease;
+}
+.alert-kawaii .ak-close:hover{ transform: translateY(-1px); filter: brightness(1.05) }
+.alert-kawaii .ak-close:active{ transform: translateY(0) scale(.98) }
+
+/* sparkles dekor */
+.alert-kawaii .ak-spark{
+  position: absolute;
+  opacity: .0;
+  animation: ak-sparkle 3s ease-in-out infinite;
+  pointer-events: none;
+  font-style: normal;
+}
+.alert-kawaii .ak-spark.s1{ left: -6px; top: -6px; color:#ffd166; animation-delay: .2s }
+.alert-kawaii .ak-spark.s2{ left: 12px; bottom: -6px; color:#7ec8ff; animation-delay: 1s }
+.alert-kawaii .ak-spark.s3{ right: -8px; top: -8px; color:#ffe28f; animation-delay: 1.6s }
+
+@keyframes ak-pop{
+  from{ opacity:0; transform: translateY(6px) scale(.98) }
+  to  { opacity:1; transform: translateY(0)   scale(1) }
+}
+@keyframes ak-wiggle{
+  0%   { transform: rotate(0) }
+  20%  { transform: rotate(-1.2deg) }
+  40%  { transform: rotate(1.2deg) }
+  60%  { transform: rotate(-.6deg) }
+  80%  { transform: rotate(.4deg) }
+  100% { transform: rotate(0) }
+}
+@keyframes ak-sparkle{
+  0%,100%{ opacity:0; transform: translateY(0) scale(1) }
+  50%    { opacity:.9; transform: translateY(-4px) scale(1.08) }
+}
+
+/* ===== Varian warna ===== */
+.alert-kawaii.error{
+  border-color: #ffd6e2;
+  background:
+    radial-gradient(120px 60px at -8% -10%, #ffeaf1, transparent 60%),
+    radial-gradient(140px 70px at 108% 120%, #fff7fb, transparent 60%),
+    linear-gradient(180deg, #fff, #fff5fa);
+  box-shadow: 0 18px 40px rgba(255,105,180,.12);
+}
+.alert-kawaii.error .ak-title{ color:#b91c1c }
+.alert-kawaii.error .ak-icon{ text-shadow: 0 0 0 #0000 } /* biar bersih */
+
+/* opsi lain kalau dipakai nanti */
+.alert-kawaii.success{
+  border-color: #cdeedd;
+  background:
+    radial-gradient(120px 60px at -8% -10%, #e8fff3, transparent 60%),
+    radial-gradient(140px 70px at 108% 120%, #f3fff8, transparent 60%),
+    linear-gradient(180deg, #fff, #f4fff8);
+  box-shadow: 0 18px 40px rgba(34,197,94,.12);
+}
+.alert-kawaii.success .ak-title{ color:#166534 }
+
+.alert-kawaii.warning{
+  border-color: #ffe7c2;
+  background:
+    radial-gradient(120px 60px at -8% -10%, #fff6e2, transparent 60%),
+    radial-gradient(140px 70px at 108% 120%, #fff9ed, transparent 60%),
+    linear-gradient(180deg, #fff, #fff7ea);
+  box-shadow: 0 18px 40px rgba(245,158,11,.12);
+}
+.alert-kawaii.warning .ak-title{ color:#92400e }
+
+.alert-kawaii.info{
+  border-color: #cfe6ff;
+  background:
+    radial-gradient(120px 60px at -8% -10%, #eff7ff, transparent 60%),
+    radial-gradient(140px 70px at 108% 120%, #f6fbff, transparent 60%),
+    linear-gradient(180deg, #fff, #f3f9ff);
+  box-shadow: 0 18px 40px rgba(37,99,235,.12);
+}
+.alert-kawaii.info .ak-title{ color:#1d4ed8 }
+
+/* Reduced motion: matikan goyangan & sparkles */
+@media (prefers-reduced-motion: reduce){
+  .alert-kawaii{ animation: ak-pop .25s ease-out !important }
+  .alert-kawaii .ak-spark{ display:none }
+}
+.ticket-body .alert-kawaii{ margin-top: 2px; }

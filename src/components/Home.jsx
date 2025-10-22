@@ -64,13 +64,13 @@ export default function Home() {
                   </div>
                 </Link>
 
-                <Link className="card" to="/notifikasiteriminal">
+                {/* <Link className="card" to="/notifikasiteriminal">
                   <div className="icon bubble bell-ico" aria-hidden>🚌</div>
                   <div className="info">
                     <h3 className="card-title">Notifikasi Terminal</h3>
                     <p className="card-desc">Lihat & kelola notifikasi terminal</p>
                   </div>
-                </Link>
+                </Link> */}
 
                 <Link className="card" to="/notifikasi-berkas">
                   <div className="icon bubble bell-ico" aria-hidden>📋</div>

@@ -22,9 +22,8 @@ import FormManifest from "./pages/home/FormManifest.jsx";
 import RkJadwal from "./pages/dashboard/RkJadwal.jsx";
 import Settings from "./pages/dashboard/Settings.jsx";
 
-/* === Terminal Dashboard (NEW) === */
-import Terminal from "./components/dashboard/terminal.jsx";
-import NotifikasiTerminal from "./components/dashboard/NotifikasiTerminal.jsx";
+// import Terminal from "./components/dashboard/terminal.jsx";
+// import NotifikasiTerminal from "./components/dashboard/NotifikasiTerminal.jsx";
 import NotifikasiBerkas from "./components/dashboard/NotifikasiBerkas.jsx";
 
 export default function App() {
@@ -43,7 +42,7 @@ export default function App() {
         {/* === MANIFEST === */}
         <Route path="/manifest" element={<FormManifest />} />
         <Route path="notifikasi-berkas" element={<NotifikasiBerkas />} />
-        <Route path="/notifikasiteriminal" element={<NotifikasiTerminal />} />
+        {/* <Route path="/notifikasiteriminal" element={<NotifikasiTerminal />} /> */}
 
         {/* === Area Admin (hanya email esga) === */}
         <Route element={<ProtectedRoute allowEmails={["esga@gmail.com"]} />}>
@@ -69,9 +68,9 @@ export default function App() {
           </Route>
         </Route>
 
-        <Route element={<ProtectedRoute allowEmails={["terminal@gmail.com"]} />}>
+        {/* <Route element={<ProtectedRoute allowEmails={["terminal@gmail.com"]} />}>
           <Route path="/dashboard/terminal" element={<Terminal />} />
-        </Route>
+        </Route> */}
 
         {/* === Fallback 404 → Home === */}
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -6,7 +6,7 @@ import "../../views/home/Login.css";
 const DEFAULT_ADMINS = [
   { name: "Esga",  email: "esga@gmail.com",    password: "moveonesga",  role: "admin" },
   { name: "Dumai", email: "dumaigo@gmail.com", password: "moveondumai", role: "admin" }, //wilayah
-  { name: "Terminal", email: "terminal@gmail.com",  password: "moveonterminal",  role: "admin" },
+  // { name: "Terminal", email: "terminal@gmail.com",  password: "moveonterminal",  role: "admin" },
 ];
 
 // util kecil untuk ambil/simpan admin di localStorage
@@ -110,11 +110,50 @@ function Input({ label, type = "text", name, value, onChange, placeholder }) {
   );
 }
 
+function KawaiiAlert({ variant = "error", children, onClose }) {
+  return (
+    <div
+      className={`alert-kawaii ${variant}`}
+      role="alert"
+      aria-live="assertive"
+    >
+      <span className="ak-icon" aria-hidden>
+        {variant === "success" ? "🌈" : variant === "warning" ? "⚠️" : variant === "info" ? "💫" : "🍓"}
+      </span>
+
+      <div className="ak-content">
+        <strong className="ak-title">
+          {variant === "success" ? "Berhasil!" :
+           variant === "warning" ? "Perhatian!" :
+           variant === "info" ? "Info" : "Ups!"}
+        </strong>
+        <p className="ak-text">{children}</p>
+
+        {/* sparkles purely dekorasi */}
+        <i className="ak-spark s1">✦</i>
+        <i className="ak-spark s2">✧</i>
+        <i className="ak-spark s3">✦</i>
+      </div>
+
+      <button
+        type="button"
+        className="ak-close"
+        aria-label="Tutup pemberitahuan"
+        onClick={onClose}
+        title="Tutup"
+      >
+        ✖
+      </button>
+    </div>
+  );
+}
+
 export default function Login() {
   const navigate = useNavigate(); // <-- gunakan ini untuk redirect
   const [form, setForm] = useState({ email: "", password: "", remember: true });
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   // seed dummy admins saat komponen mount (sekali saja)
   useEffect(() => {
@@ -158,19 +197,20 @@ export default function Login() {
       })
     );
 
-    alert(`Welcome Admin, ${admin.name || admin.email}!`);
+    setNotice(`Welcome Admin, ${admin.name || admin.email}!`);
 
-    // redirect (HashRouter-friendly)
     const email = admin.email.toLowerCase();
-    if (email === "esga@gmail.com") {
-      navigate("/dashboard/admin", { replace: true });
-    } else if (email === "dumaigo@gmail.com") {
-      navigate("/dashboard/dumai", { replace: true });
-    } else if (email === "terminal@gmail.com") {            // NEW
-      navigate("/dashboard/terminal", { replace: true });    // sesuaikan rute yang kamu punya
-    } else {
-      navigate("/login", { replace: true });
-    }
+    setTimeout(() => {
+      if (email === "esga@gmail.com") {
+        navigate("/dashboard/admin", { replace: true });
+      } else if (email === "dumaigo@gmail.com") {
+        navigate("/dashboard/dumai", { replace: true });
+   // } else if (email === "terminal@gmail.com") {            
+  //   navigate("/dashboard/terminal", { replace: true });  
+      } else {
+        navigate("/login", { replace: true });
+      }
+    }, 900);
   };
 
   /* === Back handler === */
@@ -293,7 +333,17 @@ export default function Login() {
                   <button type="button" className="link">Lupa password?</button>
                 </div>
 
-                {error && <div className="alert">{error}</div>}
+                {notice && (
+                  <KawaiiAlert variant="success" onClose={() => setNotice("")}>
+                    {notice}
+                  </KawaiiAlert>
+                )}
+
+                {error && (
+                  <KawaiiAlert variant="error" onClose={() => setError("")}>
+                    {error}
+                  </KawaiiAlert>
+                )}
 
                 <button type="submit" className="btn-primary">Masuk</button>
 
