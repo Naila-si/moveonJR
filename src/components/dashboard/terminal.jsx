@@ -24,6 +24,125 @@ const initialForm = {
   namaBus: "",
 };
 
+/* ============================
+   SEED DUMMY (auto sekali saja)
+   ============================ */
+(() => {
+  try {
+    const exists = localStorage.getItem(LS_KEY);
+    if (exists) return; // sudah ada data, jangan timpa
+
+    const now = Date.now();
+    const mk = (i, data, sent = false) => ({
+      id: now - i * 1000,
+      ...data,
+      sentAt: sent ? now - (i * 1000 + 123456) : null,
+      createdAt: now - i * 1000,
+      updatedAt: null,
+    });
+
+    // Relasi rute:
+    // - MoveOn Express (B 1234 ABC): Pulo Gebang → Leuwi Panjang → Baranangsiang → Kampung Rambutan (+lanjutan besok)
+    // - Cinta Jaya (D 5678 EFG): Giwangan → Jombor → Purabaya → Giwangan (PP)
+    // - Romansa Prima (F 9012 HIJ): Bekasi → Pulo Gebang → Kampung Rambutan → Bekasi (loop)
+    const items = [
+      // MoveOn Express — 23 Oct
+      mk(0, {
+        keberangkatan: "Pulo Gebang",
+        kedatangan: "Leuwi Panjang",
+        tanggal: "2025-10-23",
+        waktu: "08:00",
+        noPol: "B 1234 ABC",
+        namaBus: "MoveOn Express",
+      }, true),
+      mk(1, {
+        keberangkatan: "Leuwi Panjang",
+        kedatangan: "Baranangsiang",
+        tanggal: "2025-10-23",
+        waktu: "11:15",
+        noPol: "B 1234 ABC",
+        namaBus: "MoveOn Express",
+      }, false),
+      mk(2, {
+        keberangkatan: "Baranangsiang",
+        kedatangan: "Kampung Rambutan",
+        tanggal: "2025-10-23",
+        waktu: "14:30",
+        noPol: "B 1234 ABC",
+        namaBus: "MoveOn Express",
+      }, true),
+
+      // Cinta Jaya — 23 Oct (PP)
+      mk(3, {
+        keberangkatan: "Giwangan",
+        kedatangan: "Jombor",
+        tanggal: "2025-10-23",
+        waktu: "09:00",
+        noPol: "D 5678 EFG",
+        namaBus: "Cinta Jaya",
+      }, false),
+      mk(4, {
+        keberangkatan: "Jombor",
+        kedatangan: "Purabaya (Bungurasih)",
+        tanggal: "2025-10-23",
+        waktu: "12:00",
+        noPol: "D 5678 EFG",
+        namaBus: "Cinta Jaya",
+      }, true),
+      mk(5, {
+        keberangkatan: "Purabaya (Bungurasih)",
+        kedatangan: "Giwangan",
+        tanggal: "2025-10-23",
+        waktu: "18:30",
+        noPol: "D 5678 EFG",
+        namaBus: "Cinta Jaya",
+      }, false),
+
+      // Romansa Prima — 24 Oct (loop)
+      mk(6, {
+        keberangkatan: "Bekasi",
+        kedatangan: "Pulo Gebang",
+        tanggal: "2025-10-24",
+        waktu: "07:00",
+        noPol: "F 9012 HIJ",
+        namaBus: "Romansa Prima",
+      }, true),
+      mk(7, {
+        keberangkatan: "Pulo Gebang",
+        kedatangan: "Kampung Rambutan",
+        tanggal: "2025-10-24",
+        waktu: "08:15",
+        noPol: "F 9012 HIJ",
+        namaBus: "Romansa Prima",
+      }, false),
+      mk(8, {
+        keberangkatan: "Kampung Rambutan",
+        kedatangan: "Bekasi",
+        tanggal: "2025-10-24",
+        waktu: "10:00",
+        noPol: "F 9012 HIJ",
+        namaBus: "Romansa Prima",
+      }, true),
+
+      // Lanjutan MoveOn Express — 24 Oct
+      mk(9, {
+        keberangkatan: "Kampung Rambutan",
+        kedatangan: "Leuwi Panjang",
+        tanggal: "2025-10-24",
+        waktu: "12:30",
+        noPol: "B 1234 ABC",
+        namaBus: "MoveOn Express",
+      }, false),
+    ];
+
+    localStorage.setItem(LS_KEY, JSON.stringify(items));
+    // console.log(`✅ Seeded ${items.length} items to localStorage[${LS_KEY}]`);
+  } catch {
+    // abaikan error seeding
+  }
+})();
+/* ======== END SEED ======== */
+
 export default function Terminal() {
   const navigate = useNavigate();
   const [items, setItems] = useState(() => loadItems());

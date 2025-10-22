@@ -8,11 +8,11 @@ import { ChatIconKawaiiRobot } from "../../components/icons/ChatIconKawaiiRobot"
  *  Isi dengan format internasional TANPA tanda +.
  *  Contoh: 0812xxxx -> "62812xxxx"
  *  ========================= */
-const WA_ESGA = "6281322181769"; // ganti dengan nomor Admin Esga
-const WA_ETA  = "6281221901810"; // ganti dengan nomor Admin Eta
+const WA_ESGA = "6281322181769"; 
+const WA_ETA  = "6281221901810"; 
 
 const waLink = (num, who, preset = "") =>
-  `https://wa.me/${num}?text=${encodeURIComponent(
+  `https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(
     preset || `Halo Admin ${who}, saya butuh bantuan terkait MOVEON.`
   )}`;
 
