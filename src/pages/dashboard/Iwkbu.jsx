@@ -53,11 +53,102 @@ function addOptionIfMissing(options, setOptions, value, { forceUpper = false } =
   return valToPush;
 }
 
+const IWKBU_BASE_KEYS = [
+  "aksi","no","wilayah","nopol","tarif","golongan","nominal","trayekNew","jenis",
+  "tahun","pic","badanHukum","namaPerusahaan","alamat","kelurahan","kecamatan","kota",
+  "tglTransaksi","loket","masaBerlaku","masaSwdkllj","statusBayar","statusKendaraan",
+  "outstanding","konfirmasi","hp","namaPemilik","nik","dokPerizinan","tglBayarOs",
+  "nilaiBayarOs","tglPemeliharaan","nilaiPemeliharaanOs","keterangan"
+];
+
 export default function Iwkbu() {
   const [rows, setRows] = usePersistentState("iwkbu:rows", []);
   const [q, setQ]       = usePersistentState("iwkbu:q", "");
   const [page, setPage] = usePersistentState("iwkbu:page", 1);
   const pageSize = 8;
+  const [extraCols, setExtraCols] = usePersistentState("iwkbu:extraCols", []); // [{key,label}]
+  const [showColModal, setShowColModal] = useState(false);
+  const [newColLabel, setNewColLabel] = useState("");
+  const [openMenuKey, setOpenMenuKey]   = useState(null);  
+  const [renamingKey, setRenamingKey]   = useState(null);  
+  const [renameValue, setRenameValue]   = useState("");  
+
+  // helper bikin key aman dari label
+  const makeKeyFromLabel = (label) =>
+    label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+(\w)/g, (_, c) => c.toUpperCase())
+      .replace(/[^a-z0-9]/g, "");
+
+  // tambah kolom baru
+  const addColumn = () => {
+    const label = (newColLabel || "").trim();
+    if (!label) return;
+    const key = makeKeyFromLabel(label);
+    if (!key || IWKBU_BASE_KEYS.includes(key) || extraCols.some(c => c.key === key)) {
+      alert("Kolom dengan nama itu sudah ada atau tidak valid.");
+      return;
+    }
+    const col = { key, label };
+    setExtraCols(prev => [...prev, col]);
+    setRows(prev => prev.map(r => ({ ...r, [key]: "" })));
+    setShowColModal(false);
+    setNewColLabel("");
+  };
+
+  // hapus kolom
+  const removeColumn = (key) => {
+    const col = extraCols.find(c => c.key === key);
+    if (!col) return;
+    if (!window.confirm(`Hapus kolom "${col.label}"? Data pada kolom ini akan hilang.`)) return;
+    setExtraCols(prev => prev.filter(c => c.key !== key));
+    setRows(prev => prev.map(({ [key]: _omit, ...rest }) => rest));
+    setOpenMenuKey(null);
+  };
+
+  // rename kolom
+  const startRename = (key) => {
+    const col = extraCols.find(c => c.key === key);
+    if (!col) return;
+    setRenamingKey(key);
+    setRenameValue(col.label);
+    setOpenMenuKey(null);
+  };
+  const commitRename = () => {
+    const label = (renameValue || "").trim();
+    if (!label) { setRenamingKey(null); return; }
+    setExtraCols(prev => prev.map(c => c.key === renamingKey ? ({ ...c, label }) : c));
+    setRenamingKey(null);
+  };
+
+  // urut kolom (di dalam extraCols saja)
+  const indexOfExtra = (key) => extraCols.findIndex(c => c.key === key);
+  const moveExtraByIndex = (from, to) => {
+    if (to < 0 || to >= extraCols.length || from === -1 || to === from) return;
+    setExtraCols(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+  const moveStart = (key) => moveExtraByIndex(indexOfExtra(key), 0);
+  const moveEnd   = (key) => moveExtraByIndex(indexOfExtra(key), extraCols.length - 1);
+  const moveLeft  = (key) => { const i = indexOfExtra(key); if (i > -1) moveExtraByIndex(i, (i - 1 + extraCols.length) % extraCols.length); };
+  const moveRight = (key) => { const i = indexOfExtra(key); if (i > -1) moveExtraByIndex(i, (i + 1) % extraCols.length); };
+
+  const toggleMenu = (key) => setOpenMenuKey(cur => cur === key ? null : key);
+
+  // tutup ring bila klik di luar
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (!e.target.closest?.('.th-hasmenu, .th-ring, .th-orbit')) {
+        setOpenMenuKey(null);
+      }
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, []);
 
   // opsi dinamis (seed dulu, lalu bisa nambah)
   const [WILAYAH_OPTS, setWilayahOpts]                   = usePersistentState("iwkbu:opts:wilayah", SEED_WILAYAH);
@@ -213,16 +304,18 @@ export default function Iwkbu() {
         </div>
 
         <div className="actions">
-          <div className="search">
-            <input
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Cari nopol / wilayah / kota / trayek / perusahaan / PIC…"
-            />
-          </div>
+          <input
+            className="search"
+            placeholder="Cari nopol / wilayah / kota / trayek / perusahaan / PIC…"
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(1);
+            }}
+          />
+           <button className="btn ghost" onClick={() => setShowColModal(true)}>
+              + Tambah Kolom
+            </button>
           <button
             className="btn primary"
             onClick={() => { setNewForm(emptyForm); setShowNopolModal(true); }}
@@ -271,6 +364,51 @@ export default function Iwkbu() {
                 <th>Tgl Pemeliharaan</th>
                 <th>Nilai Pemeliharaan OS IWKBU</th>
                 <th>Keterangan</th>
+                {extraCols.map((c) => (
+                  <th key={`h-extra-${c.key}`}>
+                    <div className="th-hasmenu">
+                      {renamingKey === c.key ? (
+                        <div className="th-rename">
+                          <input
+                            autoFocus
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onBlur={commitRename}
+                            onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenamingKey(null); }}
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          className="th-toggle"
+                          onClick={(e) => { e.stopPropagation(); toggleMenu(c.key); }}
+                          aria-haspopup="true"
+                          aria-expanded={openMenuKey === c.key}
+                        >
+                          {c.label}
+                        </button>
+                      )}
+
+                      {openMenuKey === c.key && (
+                        <>
+                          {/* RING CONTROL */}
+                          <div className="th-ring pretty" role="group" aria-label={`Atur kolom ${c.label}`}>
+                            <div className="ring-aura" aria-hidden />
+                            <button className="ring-btn ring-top" onClick={() => moveStart(c.key)} aria-label="Ke awal">⏮</button>
+                            <button className="ring-btn ring-left" onClick={() => moveLeft(c.key)} aria-label="Geser kiri">◀</button>
+                            <button className="ring-btn ring-right" onClick={() => moveRight(c.key)} aria-label="Geser kanan">▶</button>
+                            <button className="ring-btn ring-bottom" onClick={() => moveEnd(c.key)} aria-label="Ke akhir">⏭</button>
+                          </div>
+
+                          {/* ORBIT CHIP */}
+                          <div className="th-orbit">
+                            <button className="ring-chip ring-rename" onClick={() => startRename(c.key)} aria-label="Ubah nama">✎ Ubah</button>
+                            <button className="ring-chip ring-delete" onClick={() => removeColumn(c.key)} aria-label="Hapus kolom">🗑 Hapus</button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -634,6 +772,18 @@ export default function Iwkbu() {
                       onChange={(e) => updateRow(r.id, { keterangan: e.target.value })}
                     />
                   </td>
+                  {/* Kolom dinamis */}
+                  {extraCols.map((c) => (
+                    <td key={`c-extra-${r.id}-${c.key}`}>
+                      <input
+                        type="text"
+                        value={r[c.key] ?? ""}
+                        onChange={(e) => updateRow(r.id, { [c.key]: e.target.value })}
+                        placeholder={c.label}
+                      />
+                    </td>
+                  ))}
+
                 </tr>
               ))}
 
@@ -939,6 +1089,28 @@ export default function Iwkbu() {
               <button className="btn primary" onClick={saveNominal}>
                 Simpan
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Tambah Kolom Baru */}
+      {showColModal && (
+        <div className="modal-backdrop" onClick={() => setShowColModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3>Tambah Kolom Baru</h3>
+            <label className="stack">
+              Nama Kolom
+              <input
+                type="text"
+                value={newColLabel}
+                onChange={(e) => setNewColLabel(e.target.value)}
+                placeholder="Contoh: NPWP, Email, Catatan"
+              />
+            </label>
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => setShowColModal(false)}>Batal</button>
+              <button className="btn primary" onClick={addColumn}>Tambah</button>
             </div>
           </div>
         </div>

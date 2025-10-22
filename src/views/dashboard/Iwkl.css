@@ -9,11 +9,12 @@
   --white:#fff;
   --line:#e3f0ff;
   --shadow: 0 10px 24px rgba(36,59,83,.12), 0 6px 12px rgba(36,59,83,.06);
-
-  /* Ring control tokens */
-  --ring-gap: 8px;      /* jarak ring dari tepi pill label */
-  --orbit-gap: 28px;    /* jarak orbit chip dari tepi pill label */
-  --ring-size: 32px;    /* diameter tombol ring */
+  --col-no-w: 56px;
+  --col-aksi-w: 96px;
+  --chrome-h: 180px;
+  --ring-gap: 8px;     
+  --orbit-gap: 28px;    
+  --ring-size: 32px;    
 }
 
 *{ box-sizing:border-box; }
@@ -25,7 +26,7 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
 .iwkl-wrap{
   position:relative; min-height:100dvh; padding:16px;
   background:linear-gradient(180deg, var(--bg), #eef6ff);
-  max-width:900px; margin:0 auto;
+  max-width:900px; margin:0 auto; padding-inline: 16px;
 }
 .iwkl-bg{
   position:absolute; inset:0; pointer-events:none; opacity:.35; filter:blur(12px);
@@ -41,7 +42,7 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
 .iwkl-header .emoji{ font-size:26px; }
 .iwkl-header h1{ margin:0; color:var(--ink); font-size:22px; }
 
-.actions{ display:flex; align-items:center; gap:10px; }
+.actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .search{
   border:2px solid var(--blue); border-radius:14px; padding:10px 12px; width:280px; background:#fff;
   box-shadow: inset 0 -3px 0 #00000008, 0 2px 0 #00000006;
@@ -56,6 +57,7 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
 .btn:active{ transform: translateY(1px); }
 .btn.primary{ background:linear-gradient(0deg, var(--blue), #bfe0ff); }
 .btn.ghost{ background:#fff; }
+.btn.xs{ padding:6px 10px; font-size:12px; border-radius:10px; }
 
 .card{
   position:relative; z-index:1;
@@ -73,45 +75,57 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
    Table (scroll container, table, form controls)
    ========================================================= */
 .table-scroll{
-  width:100%; max-width:100%; max-height:65vh; overflow:auto;
+  width:100%; max-width:100%; max-height:calc(100dvh - var(--chrome-h));; overflow:auto;
   border:2px solid #bae6fd; border-radius:16px; background:#fff;
-  box-shadow: 0 10px 40px rgba(147,197,253,.25);
+  box-shadow: 0 10px 40px rgba(147,197,253,.25); scrollbar-width: auto; scrollbar-color: #93c5fd #e0f2fe;
 }
-.table-scroll::-webkit-scrollbar{ height:10px; width:10px; }
+.table-scroll::-webkit-scrollbar{ height:14px; width:14px; }
 .table-scroll::-webkit-scrollbar-thumb{ background:#93c5fd; border-radius:999px; }
 .table-scroll::-webkit-scrollbar-track{ background:#e0f2fe; border-radius:999px; }
 
 .kawaii-table{
-  width:100%; min-width:1100px; border-collapse:separate; border-spacing:0; table-layout:fixed;
+  width:100%; min-width:fit-content; border-collapse:separate; border-spacing:0; table-layout:auto;
   font-size:13px;
 }
 .kawaii-table thead th{
   position:sticky; top:0; z-index:5;
   background:linear-gradient(180deg,#e0f2fe,#f0f9ff);
   padding:10px; text-align:left; border-bottom:2px solid var(--blue);
-  color:#0a1e2f; font-weight:800;          /* darker & bolder once */
+  color:#0a1e2f; font-weight:800;
 }
 .kawaii-table th, .kawaii-table td{
   padding:8px 10px; font-size:12px; vertical-align:top; word-break:break-word; white-space:normal;
   border-bottom:1px dashed #cbd5e1;
 }
+.kawaii-table tbody td{ padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
 .kawaii-table tbody tr:nth-child(odd){ background:#ffffff; }
 .kawaii-table tbody tr:nth-child(even){ background:#fcfeff; }
-
-/* No column */
-.kawaii-table th:nth-child(1),
-.kawaii-table td:nth-child(1){ width:56px; text-align:center; }
 
 /* Inputs */
 .kawaii-table input[type="text"],
 .kawaii-table input[type="tel"],
 .kawaii-table input[type="date"],
 .kawaii-table select{
-  width:100%; max-width:220px; /* lebih compact di sel */
+  width:100%; max-width:220px;
+  border:2px solid var(--blue); border-radius:10px; padding:8px 10px; background:#fff; outline:none;
+  box-shadow: inset 0 -3px 0 #00000008;
+}
+.kawaii-table input[type="number"]{
+  width:100%; max-width:120px; /* angka lebih ramping */
   border:2px solid var(--blue); border-radius:10px; padding:8px 10px; background:#fff; outline:none;
   box-shadow: inset 0 -3px 0 #00000008;
 }
 .kawaii-table input:focus, .kawaii-table select:focus{ box-shadow:0 0 0 4px var(--yellow); }
+
+/* Utility cell styles */
+.num{ text-align:right; font-variant-numeric: tabular-nums; }
+.strong{ font-weight:800; }
+.hint{ color:#5b6b7a; font-size:11px; margin-top:4px; }
+
+/* Remove number spinners (webkit) */
+.kawaii-table input[type=number]::-webkit-outer-spin-button,
+.kawaii-table input[type=number]::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
+.kawaii-table input[type=number]{ -moz-appearance: textfield; }
 
 .empty{ text-align:center; color:#677; padding:18px; }
 
@@ -120,10 +134,10 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
    ========================================================= */
 .modal-backdrop{
   position:fixed; inset:0; background:rgba(7,14,30,.35);
-  display:flex; align-items:center; justify-content:center; z-index:30;
+  display:flex; align-items:center; justify-content:center; z-index:1000;
 }
 .modal-card{
-  width:min(540px,92%); background:#fff; border:2px solid var(--blue); border-radius:16px; padding:16px; box-shadow:var(--shadow);
+  width:min(540px,92%); background:#fff; border:2px solid var(--blue); border-radius:16px; padding:16px; box-shadow:var(--shadow); position: relative; z-index: 10001;
 }
 .modal-card h3{ margin:0 0 8px; color:#0b273b; }
 .modal-card .stack{ display:flex; flex-direction:column; gap:6px; font-weight:600; color:#415a77; margin-top:8px; }
@@ -156,7 +170,6 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
 /* =========================================================
    Ring control (around pill)
    ========================================================= */
-/* area ring menutup ketat di sekeliling pill */
 .th-ring.pretty{
   position:absolute;
   left: calc(-1 * var(--ring-gap));
@@ -165,7 +178,6 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
   bottom: calc(-1 * var(--ring-gap));
   pointer-events:none; z-index:1; display:block;
 }
-/* aura lembut */
 .th-ring.pretty .ring-aura{
   position:absolute; inset:6px; border-radius:999px; pointer-events:none;
   background: radial-gradient(60% 60% at 50% 50%, rgba(147,197,253,.35), transparent 70%);
@@ -174,11 +186,9 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
 
 .th-ring.pretty, .th-orbit{ will-change: transform; }
 
-.th-ring.pretty,
-.th-orbit{ pointer-events: auto; }
+.th-ring.pretty, .th-orbit{ pointer-events: auto; }
 .th-ring.pretty .ring-aura{ pointer-events: none; }
 
-/* tombol arah glassy */
 .ring-btn{
   pointer-events:auto; width:var(--ring-size); height:var(--ring-size);
   display:grid; place-items:center;
@@ -192,13 +202,11 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
 .ring-btn:hover{ transform:translateY(-1px); box-shadow:0 10px 28px rgba(30,58,138,.22); }
 .ring-btn:active{ transform:translateY(0); box-shadow:0 6px 18px rgba(30,58,138,.2) inset; }
 
-/* posisi empat kuadran—rapat ke tepi pill */
 .ring-left  { position:absolute; top:50%; left:0;   transform: translate(calc(-50% - var(--ring-gap)), -50%); }
 .ring-right { position:absolute; top:50%; right:0;  transform: translate(calc( 50% + var(--ring-gap)), -50%); }
 .ring-top   { position:absolute; left:50%; top:0;   transform: translate(-50%, calc(-50% - var(--ring-gap))); }
 .ring-bottom{ position:absolute; left:50%; bottom:0;transform: translate(-50%, calc( 50% + var(--ring-gap))); }
 
-/* orbit luar untuk chip Ubah/Hapus */
 .th-orbit{
   position:absolute;
   left: calc(-1 * var(--orbit-gap));
@@ -216,14 +224,121 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
   transition: transform .1s ease, box-shadow .15s ease, background .2s ease;
 }
 .ring-chip:hover{ transform: translateY(-1px); box-shadow:0 14px 30px rgba(36,59,83,.2); }
-.ring-rename{
-  left: 0;
-  bottom: 0;
-  transform: translate(-50%, 50%);
-}
-.ring-delete{
-  right: 0;
-  bottom: 0;
-  transform: translate(50%, 50%);
-}
+.ring-rename{ left: 0; bottom: 0; transform: translate(-50%, 50%); }
+.ring-delete{ right: 0; bottom: 0; transform: translate(50%, 50%); }
 .ring-delete:hover{ background:#fff1f0; }
+
+/* ===========================
+   IWKL-style TABLE ONLY patch
+   =========================== */
+
+/* Scroll container: tinggi fleksibel + scrollbar empuk */
+.table-scroll{
+  width:100%;
+  max-width:100%;
+  max-height: calc(100dvh - var(--chrome-h));
+  overflow-x:auto;
+  overflow-y:auto;
+  border:2px solid #bae6fd;
+  border-radius:16px;
+  background:#fff;
+  box-shadow: 0 10px 40px rgba(147,197,253,.25);
+  scrollbar-width:auto;
+  scrollbar-color:#93c5fd #e0f2fe;
+}
+.table-scroll::-webkit-scrollbar{ height:14px; width:14px; }
+.table-scroll::-webkit-scrollbar-thumb{ background:#93c5fd; border-radius:999px; }
+.table-scroll::-webkit-scrollbar-track{ background:#e0f2fe; border-radius:999px; }
+
+/* Table: lebar mengikuti isi (tanpa angka fixed), layout natural */
+.kawaii-table{
+  width:max-content;         /* melebar sesuai kolom */
+  min-width:100%;            /* minimal selebar container */
+  border-collapse:separate;
+  border-spacing:0;
+  table-layout:auto;         /* biar kolom atur lebar natural */
+  font-size:13px;
+}
+
+/* Header: gradient biru susu + bold */
+.kawaii-table thead th{
+  position:sticky; top:0; z-index:5;
+  background:linear-gradient(180deg,#e0f2fe,#f0f9ff);
+  padding:10px 14px;
+  text-align:left;
+  border-bottom:2px solid var(--blue);
+  color:#0a1e2f;
+  font-weight:800;
+  white-space:nowrap;        /* judul kolom tidak membungkus */
+  line-height:1.3;
+}
+
+/* Body rows: zebra, garis halus */
+.kawaii-table th,
+.kawaii-table td{
+  padding:10px 12px;
+  font-size:12px;
+  vertical-align:top;
+  word-break:break-word;
+  white-space:normal;
+  border-bottom:1px dashed #cbd5e1;
+}
+.kawaii-table tbody td{ border-bottom:1px solid var(--line); }
+.kawaii-table tbody tr:nth-child(odd){ background:#ffffff; }
+.kawaii-table tbody tr:nth-child(even){ background:#fcfeff; }
+
+/* Form controls (sel): sama seperti IWKL */
+.kawaii-table input[type="text"],
+.kawaii-table input[type="tel"],
+.kawaii-table input[type="date"],
+.kawaii-table select{
+  width:100%;
+  max-width:220px;
+  border:2px solid var(--blue);
+  border-radius:10px;
+  padding:8px 10px;
+  background:#fff;
+  outline:none;
+  box-shadow: inset 0 -3px 0 #00000008;
+}
+.kawaii-table input[type="number"]{
+  width:100%;
+  max-width:120px;           /* angka lebih ramping */
+  border:2px solid var(--blue);
+  border-radius:10px;
+  padding:8px 10px;
+  background:#fff;
+  outline:none;
+  box-shadow: inset 0 -3px 0 #00000008;
+}
+.kawaii-table input:focus,
+.kawaii-table select:focus{
+  box-shadow:0 0 0 4px var(--yellow);
+}
+
+/* Utilities */
+.num{ text-align:right; font-variant-numeric:tabular-nums; }
+.strong{ font-weight:800; }
+.hint{ color:#5b6b7a; font-size:11px; margin-top:4px; }
+
+/* “Tidak ada data” style */
+.kawaii-table .empty{
+  padding:24px 10px !important;
+  text-align:center;
+  background:#f9fbff;
+  font-weight:600;
+  border-top:1px dashed var(--line);
+}
+
+/* Optional: hilangkan spinner number (biar sama) */
+.kawaii-table input[type=number]::-webkit-outer-spin-button,
+.kawaii-table input[type=number]::-webkit-inner-spin-button{
+  -webkit-appearance:none; margin:0;
+}
+.kawaii-table input[type=number]{ -moz-appearance:textfield; }
+
+.pager{
+  display:flex; justify-content:flex-end; align-items:center;
+  gap:10px; padding:10px 6px 0;
+}
+.page-info{ font-weight:700; color:#415a77; }

@@ -111,11 +111,6 @@ export default function DataFromManifest() {
             value={q}
             onChange={(e) => { setQ(e.target.value); setPage(1); }}
           />
-          <button className="btn ghost" onClick={exportCSV}>Export CSV</button>
-          <button className="btn danger" onClick={clearAll}>Hapus Semua</button>
-          <Link className="btn primary" to="/dashboard/admin/manifest/data">
-            + Tambah Manifest
-          </Link>
         </div>
       </header>
 

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "../../views/home/FormManifest.css";
 
+const LS_KEY = "manifest_submissions";
+
 function KawaiiNavbar({ active = "Form Manifest", onBack, backLabel = "Kembali", canBack = true }) {
   const links = [
     { to: "/", label: "Home", icon: "🏡" },
@@ -39,7 +41,7 @@ function KawaiiNavbar({ active = "Form Manifest", onBack, backLabel = "Kembali",
   );
 }
 
-export default function DataFromManifest() {
+export default function FormManifest() {
   // State form
   const [tanggal, setTanggal] = useState(() => {
     const d = new Date();
@@ -56,10 +58,10 @@ export default function DataFromManifest() {
   const [agen, setAgen] = useState("");
   const [telp, setTelp] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Signature canvas
   const canvasRef = useRef(null);
-  const drawing = useRef(false);
 
   // Hitung total penumpang dan premi
   const totalPenumpang = useMemo(() => {
@@ -101,15 +103,12 @@ export default function DataFromManifest() {
     const setupSize = () => {
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
-      // set "buffer size" (pixel) tinggi/lebarnya
       canvas.width = Math.max(1, Math.round(rect.width * dpr));
       canvas.height = Math.max(1, Math.round(rect.height * dpr));
-      // scale supaya koordinat pakai satuan CSS pixel
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     setupSize();
 
-    // responsif: kalau kontainer berubah ukuran
     const ro = new ResizeObserver(setupSize);
     ro.observe(canvas);
 
@@ -123,10 +122,8 @@ export default function DataFromManifest() {
     };
 
     const start = (e) => {
-      // biar halaman nggak ikut scroll/gesture
       e.preventDefault();
       isDrawing = true;
-      // capture pointer (stabil di drag cepat)
       canvas.setPointerCapture?.(e.pointerId);
       const { x, y } = getPos(e);
       ctx.beginPath();
@@ -149,7 +146,6 @@ export default function DataFromManifest() {
       ctx.closePath();
     };
 
-    // pakai pointer events (cover mouse + touch)
     canvas.addEventListener("pointerdown", start);
     canvas.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);
@@ -174,11 +170,74 @@ export default function DataFromManifest() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  // Submit data
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setSubmitted(true);
-    // TODO: Kirim data ke API jika diperlukan
+  // Helper: convert File -> dataURL (agar persist di localStorage)
+  const fileToDataURL = (file) =>
+    new Promise((resolve) => {
+      if (!file) return resolve("");
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result || ""));
+      fr.onerror = () => resolve("");
+      fr.readAsDataURL(file);
+    });
+
+  // Submit & simpan ke localStorage
+  const handleSave = async () => {
+    // validasi minimal
+    if (!tanggal || !kapal || !asal) {
+      alert("Lengkapi tanggal, kapal, dan asal dulu ya.");
+      return;
+    }
+
+    setSaving(true);
+
+    // ambil dataURL tanda tangan (opsional)
+    let signUrl = "";
+    try {
+      const canvas = canvasRef.current;
+      if (canvas) signUrl = canvas.toDataURL("image/png");
+    } catch (e) {
+      // noop
+    }
+
+    // konversi foto ke dataURL supaya tidak hilang saat reload
+    const fotoUrl = await fileToDataURL(fotoFile);
+
+    // bentuk record
+    const record = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      tanggal,
+      kapal,
+      asal,
+      dewasa: Number(dewasa) || 0,
+      anak: Number(anak) || 0,
+      total: totalPenumpang,
+      premiPerOrang: Number(premiPerOrang) || 0,
+      jumlahPremi: Number(jumlahPremi) || 0,
+      agen: agen.trim(),
+      telp: telp.trim(),
+      fotoUrl,
+      signUrl, // belum dipakai di list, tapi disimpan jika suatu saat perlu
+    };
+
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      arr.push(record);
+      localStorage.setItem(LS_KEY, JSON.stringify(arr));
+
+      setSubmitted(true);
+      setShowPopup(true);
+
+      // redirect setelah sejenak (ubah path sesuai rute daftar kamu)
+      setTimeout(() => {
+        window.location.href = "/"; // contoh: ke halaman list. Ubah ke "/dashboard/admin/manifest" jika itu rutenya.
+      }, 1200);
+    } catch (e) {
+      console.error("Simpan manifest gagal", e);
+      alert("Gagal menyimpan ke perangkat. Coba ulangi.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toRupiah = (n) =>
@@ -190,15 +249,15 @@ export default function DataFromManifest() {
 
   return (
     <>
-    <KawaiiNavbar
-      active="Form Manifest"
-      onBack={() => window.history.back()}
-      backLabel="Kembali"
-      canBack={true}
-    />
+      <KawaiiNavbar
+        active="Form Manifest"
+        onBack={() => window.history.back()}
+        backLabel="Kembali"
+        canBack={true}
+      />
       <div className="dfm-wrapper">
         <div className="dfm-cloud-bg" aria-hidden />
-        <form className="dfm-card" onSubmit={handleSubmit}>
+        <form className="dfm-card" onSubmit={(e) => e.preventDefault()}>
           <header className="dfm-header">
             <div className="dfm-title">
               <span className="dfm-emoji" role="img" aria-label="ferry">
@@ -375,15 +434,10 @@ export default function DataFromManifest() {
             <button
               type="button"
               className="dfm-btn primary"
-              onClick={() => {
-                setSubmitted(true);
-                setShowPopup(true);
-                setTimeout(() => {
-                  window.location.href = "/"; // balik ke home setelah 2 detik
-                }, 2000);
-              }}
+              onClick={handleSave}
+              disabled={saving}
             >
-              Simpan Manifest ✨
+              {saving ? "Menyimpan…" : "Simpan Manifest ✨"}
             </button>
 
             {showPopup && (

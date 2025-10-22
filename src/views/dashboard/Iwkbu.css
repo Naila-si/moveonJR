@@ -7,13 +7,14 @@
   --white:#fff;
   --shadow: 0 10px 24px rgba(36,59,83,.12), 0 6px 12px rgba(36,59,83,.06);
   --line:#e3f0ff;
+  --chrome-h: 200px;
 }
 
 *{ box-sizing: border-box; }
 body{ background:var(--bg); font-family: "Poppins","Segoe UI",system-ui,sans-serif; }
 
 .iwkbu-wrap{
-  padding:20px;
+  padding:16px;
   position:relative;
   min-height:100dvh;
   background:linear-gradient(180deg, var(--bg), #eef6ff);
@@ -36,8 +37,8 @@ body{ background:var(--bg); font-family: "Poppins","Segoe UI",system-ui,sans-ser
 .iwkbu-header h1{ margin:0; font-size:22px; color:var(--ink); }
 .iwkbu-header .actions{ display:flex; gap:10px; align-items:center; }
 .search input{
-  border:2px solid var(--blue); border-radius:14px; padding:10px 12px; width:260px; background:#fff;
-  box-shadow: inset 0 -3px 0 #00000008, 0 2px 0 #00000006;
+  border: 1.5px solid var(--blue); border-radius:14px; padding:10px 12px; width:200px; background:#fff;
+  box-shadow: inset 0 -3px 0 #00000008, 0 2px 0 #00000006; font-size: 13px;
 }
 .btn{ border:2px solid var(--blue); background:#fff; color:#1f2d3d; padding:10px 14px; border-radius:14px; font-weight:700; cursor:pointer; box-shadow:0 4px 0 #00000010; }
 .btn:hover{ box-shadow:0 6px 0 #00000010; }
@@ -53,10 +54,10 @@ body{ background:var(--bg); font-family: "Poppins","Segoe UI",system-ui,sans-ser
 .table-scroll{ overflow:auto; max-width:100%; }
 
 .kawaii-table{
-  border-collapse: separate; border-spacing:0; width: max(1200px, 100%); font-size:13px;
+  border-collapse: separate; border-spacing:0; width:100%; font-size:13px; min-width:fit-content; table-layout:auto;
 }
 .kawaii-table thead th{
-  position:sticky; top:0; background:#eef6ff; z-index:2;
+  position:sticky; top:0; background:#eef6ff; z-index:2; background:linear-gradient(180deg,#e0f2fe,#f0f9ff);
   border-bottom:2px solid var(--blue); color:#0b273b; text-align:left; padding:10px;
 }
 .kawaii-table tbody td{ padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
@@ -68,7 +69,7 @@ body{ background:var(--bg); font-family: "Poppins","Segoe UI",system-ui,sans-ser
 .kawaii-table input[type="date"],
 .kawaii-table input[type="number"],
 .kawaii-table select{
-  width: 100%;
+  width: 100%; max-width:220px;
   border:2px solid var(--blue); background:#fff; border-radius:10px; padding:8px 10px; outline:none;
   box-shadow: inset 0 -3px 0 #00000008;
 }
@@ -97,10 +98,10 @@ body{ background:var(--bg); font-family: "Poppins","Segoe UI",system-ui,sans-ser
 /* ==== Modal ==== */
 .modal-backdrop{
   position:fixed; inset:0; background:rgba(7, 14, 30, .35);
-  display:flex; align-items:center; justify-content:center; z-index:30;
+  display:flex; align-items:center; justify-content:center; z-index:1000;
 }
 .modal-card{
-  width:min(560px, 92%); background:#fff; border:2px solid var(--blue); border-radius:16px; padding:16px; box-shadow:var(--shadow);
+  width:min(560px, 92%); background:#fff; border:2px solid var(--blue); border-radius:16px; padding:16px; box-shadow:var(--shadow); position: relative; z-index: 10001;
 }
 .modal-card h3{ margin:0 0 8px; color:#0b273b; }
 .modal-card .grid{
@@ -135,20 +136,20 @@ body{ background:var(--bg); font-family: "Poppins","Segoe UI",system-ui,sans-ser
 /* Scroll area di dalam kartu (bisa geser kanan kiri) */
 .table-scroll{
   width: 100%;
-  overflow-x: auto;      /* scroll nyamping */
-  overflow-y: auto;      /* scroll ke bawah */
-  max-height: 70vh;      /* batasi tinggi tabel biar gak panjang banget */
+  overflow-x: auto;      
+  overflow-y: auto;      
+  max-height: calc(100dvh - var(--chrome-h));
   padding-bottom: 8px;
   border-radius: 14px;
 }
 
 /* TABEL DILEBARIN SENDIRI — halaman gak ikut melar */
 .kawaii-table{
-  width: 100%;
-  min-width: 2000px;     /* 💡 ubah angka ini kalau masih sempit (1400–1800px) */
+  width: max-content;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  table-layout: fixed;   /* biar kolom konsisten, teks bisa wrap */
+  table-layout: auto;
   font-size: 13px;
 }
 
@@ -207,3 +208,83 @@ body{ background:var(--bg); font-family: "Poppins","Segoe UI",system-ui,sans-ser
 }
 .modal-card .hint { display:block; margin-top:4px; font-size:12px; color:#6b7d92; }
 
+/* =========================================================
+   Header controls (label pill, inline rename)
+   ========================================================= */
+.th-hasmenu{ position:relative; display:inline-flex; align-items:center; gap:6px; }
+.th-toggle{
+  appearance:none; background:#fff; color:#0a1e2f;
+  border:2px solid var(--blue); border-radius:10px; padding:6px 10px;
+  font-weight:800; cursor:pointer; box-shadow:0 2px 0 #00000012;
+  transition: transform .08s ease, box-shadow .08s ease, background .2s ease;
+  position:relative; z-index:2;
+}
+.th-toggle:hover{ box-shadow:0 4px 0 #00000012; }
+.th-toggle:active{ transform:translateY(1px); }
+.th-toggle[aria-expanded="true"]{ background:linear-gradient(0deg, #e6f2ff, #fff); }
+
+.th-rename input{
+  border:2px solid var(--blue); border-radius:10px; padding:6px 8px; background:#fff;
+  box-shadow: inset 0 -2px 0 #00000008; font-weight:700; min-width:140px;
+}
+
+/* =========================================================
+   Ring control (around pill)
+   ========================================================= */
+.th-ring.pretty{
+  position:absolute;
+  left: calc(-1 * var(--ring-gap));
+  top:  calc(-1 * var(--ring-gap));
+  right: calc(-1 * var(--ring-gap));
+  bottom: calc(-1 * var(--ring-gap));
+  pointer-events:none; z-index:1; display:block;
+}
+.th-ring.pretty .ring-aura{
+  position:absolute; inset:6px; border-radius:999px; pointer-events:none;
+  background: radial-gradient(60% 60% at 50% 50%, rgba(147,197,253,.35), transparent 70%);
+  box-shadow: 0 0 0 6px rgba(191,225,255,.45) inset, 0 10px 30px rgba(30,64,175,.15);
+}
+
+.th-ring.pretty, .th-orbit{ will-change: transform; }
+
+.th-ring.pretty, .th-orbit{ pointer-events: auto; }
+.th-ring.pretty .ring-aura{ pointer-events: none; }
+
+.ring-btn{
+  pointer-events:auto; width:var(--ring-size); height:var(--ring-size);
+  display:grid; place-items:center;
+  border-radius:999px; border:1.5px solid #bae6fd;
+  background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.65));
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 20px rgba(30,58,138,.18), inset 0 -4px 10px rgba(59,130,246,.08);
+  font-weight:800; color:#0a1e2f; cursor:pointer;
+  transition: transform .1s ease, box-shadow .15s ease, background .2s ease;
+}
+.ring-btn:hover{ transform:translateY(-1px); box-shadow:0 10px 28px rgba(30,58,138,.22); }
+.ring-btn:active{ transform:translateY(0); box-shadow:0 6px 18px rgba(30,58,138,.2) inset; }
+
+.ring-left  { position:absolute; top:50%; left:0;   transform: translate(calc(-50% - var(--ring-gap)), -50%); }
+.ring-right { position:absolute; top:50%; right:0;  transform: translate(calc( 50% + var(--ring-gap)), -50%); }
+.ring-top   { position:absolute; left:50%; top:0;   transform: translate(-50%, calc(-50% - var(--ring-gap))); }
+.ring-bottom{ position:absolute; left:50%; bottom:0;transform: translate(-50%, calc( 50% + var(--ring-gap))); }
+
+.th-orbit{
+  position:absolute;
+  left: calc(-1 * var(--orbit-gap));
+  top:  calc(-1 * var(--orbit-gap));
+  right: calc(-1 * var(--orbit-gap));
+  bottom: calc(-1 * var(--orbit-gap));
+  pointer-events:none; z-index:0;
+}
+.ring-chip{
+  position:absolute; pointer-events:auto;
+  padding:8px 12px; border-radius:999px;
+  border:1.5px solid #a5d8ff; background:linear-gradient(180deg,#ffffff,#f8fbff);
+  box-shadow: 0 10px 24px rgba(36,59,83,.14);
+  font-weight:800; font-size:12px; color:#0a1e2f; cursor:pointer;
+  transition: transform .1s ease, box-shadow .15s ease, background .2s ease;
+}
+.ring-chip:hover{ transform: translateY(-1px); box-shadow:0 14px 30px rgba(36,59,83,.2); }
+.ring-rename{ left: 0; bottom: 0; transform: translate(-50%, 50%); }
+.ring-delete{ right: 0; bottom: 0; transform: translate(50%, 50%); }
+.ring-delete:hover{ background:#fff1f0; }
