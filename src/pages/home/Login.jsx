@@ -4,8 +4,18 @@ import "../../views/home/Login.css";
 
 /* === Dummy Admins (DEV ONLY) === */
 const DEFAULT_ADMINS = [
-  { name: "Esga",  email: "esga@gmail.com",    password: "moveonesga",  role: "admin" },
-  { name: "Dumai", email: "dumaigo@gmail.com", password: "moveondumai", role: "admin" }, //wilayah
+  {
+    name: "Esga",
+    email: "esga@gmail.com",
+    password: "moveonesga",
+    role: "admin",
+  },
+  {
+    name: "Dumai",
+    email: "dumaigo@gmail.com",
+    password: "moveondumai",
+    role: "admin",
+  }, //wilayah
   // { name: "Terminal", email: "terminal@gmail.com",  password: "moveonterminal",  role: "admin" },
 ];
 
@@ -22,12 +32,15 @@ function seedAdmins() {
     }
     // merge by email (tambahkan yang belum ada)
     const current = JSON.parse(raw);
-    const byEmail = new Map(current.map(u => [u.email.toLowerCase(), u]));
-    DEFAULT_ADMINS.forEach(u => {
+    const byEmail = new Map(current.map((u) => [u.email.toLowerCase(), u]));
+    DEFAULT_ADMINS.forEach((u) => {
       const key = u.email.toLowerCase();
       if (!byEmail.has(key)) byEmail.set(key, u);
     });
-    localStorage.setItem(ADMIN_KEY, JSON.stringify(Array.from(byEmail.values())));
+    localStorage.setItem(
+      ADMIN_KEY,
+      JSON.stringify(Array.from(byEmail.values()))
+    );
   } catch {
     localStorage.setItem(ADMIN_KEY, JSON.stringify(DEFAULT_ADMINS));
   }
@@ -62,32 +75,54 @@ function Mascot() {
 
       <svg viewBox="0 0 360 240" className="mascot-svg" aria-hidden>
         {/* wave bg */}
-        <path d="M0 190 Q70 168 140 190 T280 190 T360 190 V240 H0 Z" className="wave-bg"/>
+        <path
+          d="M0 190 Q70 168 140 190 T280 190 T360 190 V240 H0 Z"
+          className="wave-bg"
+        />
         {/* boat deck */}
-        <path d="M50 152 L310 152 L280 182 L80 182 Z" className="boat-top"/>
-        <path d="M80 182 L280 182 L268 192 L92 192 Z" className="boat-bottom"/>
+        <path d="M50 152 L310 152 L280 182 L80 182 Z" className="boat-top" />
+        <path d="M80 182 L280 182 L268 192 L92 192 Z" className="boat-bottom" />
         {/* face */}
-        <rect x="96" y="78" rx="34" ry="34" width="168" height="88" className="face"/>
-        <rect x="112" y="94" rx="22" ry="22" width="136" height="56" className="face-inner"/>
+        <rect
+          x="96"
+          y="78"
+          rx="34"
+          ry="34"
+          width="168"
+          height="88"
+          className="face"
+        />
+        <rect
+          x="112"
+          y="94"
+          rx="22"
+          ry="22"
+          width="136"
+          height="56"
+          className="face-inner"
+        />
         {/* eyes + highlights */}
         <g className="eyes">
           <g>
-            <circle cx="156" cy="121" r={blink ? 2 : 11} className="eye"/>
-            <circle cx="153" cy="117" r={blink ? 0 : 3.2} className="eye-hi"/>
+            <circle cx="156" cy="121" r={blink ? 2 : 11} className="eye" />
+            <circle cx="153" cy="117" r={blink ? 0 : 3.2} className="eye-hi" />
           </g>
           <g>
-            <circle cx="204" cy="121" r={blink ? 2 : 11} className="eye"/>
-            <circle cx="201" cy="117" r={blink ? 0 : 3.2} className="eye-hi"/>
+            <circle cx="204" cy="121" r={blink ? 2 : 11} className="eye" />
+            <circle cx="201" cy="117" r={blink ? 0 : 3.2} className="eye-hi" />
           </g>
         </g>
         {/* smile + blush */}
-        <path d="M164 130 q16 14 32 0" className="smile"/>
-        <ellipse cx="146" cy="132" rx="14" ry="8.5" className="blush"/>
-        <ellipse cx="214" cy="132" rx="14" ry="8.5" className="blush"/>
+        <path d="M164 130 q16 14 32 0" className="smile" />
+        <ellipse cx="146" cy="132" rx="14" ry="8.5" className="blush" />
+        <ellipse cx="214" cy="132" rx="14" ry="8.5" className="blush" />
         {/* tag */}
-        <rect x="246" y="62" width="26" height="34" rx="10" className="tag"/>
+        <rect x="246" y="62" width="26" height="34" rx="10" className="tag" />
         {/* wave fg */}
-        <path d="M0 202 Q70 178 140 202 T280 202 T360 202" className="wave-fg"/>
+        <path
+          d="M0 202 Q70 178 140 202 T280 202 T360 202"
+          className="wave-fg"
+        />
       </svg>
     </div>
   );
@@ -118,14 +153,24 @@ function KawaiiAlert({ variant = "error", children, onClose }) {
       aria-live="assertive"
     >
       <span className="ak-icon" aria-hidden>
-        {variant === "success" ? "🌈" : variant === "warning" ? "⚠️" : variant === "info" ? "💫" : "🍓"}
+        {variant === "success"
+          ? "🌈"
+          : variant === "warning"
+          ? "⚠️"
+          : variant === "info"
+          ? "💫"
+          : "🍓"}
       </span>
 
       <div className="ak-content">
         <strong className="ak-title">
-          {variant === "success" ? "Berhasil!" :
-           variant === "warning" ? "Perhatian!" :
-           variant === "info" ? "Info" : "Ups!"}
+          {variant === "success"
+            ? "Berhasil!"
+            : variant === "warning"
+            ? "Perhatian!"
+            : variant === "info"
+            ? "Info"
+            : "Ups!"}
         </strong>
         <p className="ak-text">{children}</p>
 
@@ -205,8 +250,8 @@ export default function Login() {
         navigate("/dashboard/admin", { replace: true });
       } else if (email === "dumaigo@gmail.com") {
         navigate("/dashboard/dumai", { replace: true });
-   // } else if (email === "terminal@gmail.com") {            
-  //   navigate("/dashboard/terminal", { replace: true });  
+        // } else if (email === "terminal@gmail.com") {
+        //   navigate("/dashboard/terminal", { replace: true });
       } else {
         navigate("/login", { replace: true });
       }
@@ -242,15 +287,21 @@ export default function Login() {
       <div className="cloud c2" aria-hidden />
       <div className="cloud c3" aria-hidden />
       <div className="stars" aria-hidden>
-        {Array.from({length:18}).map((_,i)=>(<i key={i} style={{'--d':`${i*0.25}s`}} />))}
+        {Array.from({ length: 18 }).map((_, i) => (
+          <i key={i} style={{ "--d": `${i * 0.25}s` }} />
+        ))}
       </div>
       <div className="birds" aria-hidden>
         <span className="b b1">〰︎</span>
         <span className="b b2">〰︎</span>
         <span className="b b3">〰︎</span>
       </div>
-      <div className="balloon bl1" aria-hidden>🎈</div>
-      <div className="balloon bl2" aria-hidden>🎈</div>
+      <div className="balloon bl1" aria-hidden>
+        🎈
+      </div>
+      <div className="balloon bl2" aria-hidden>
+        🎈
+      </div>
 
       {/* GRID */}
       <div className="grid">
@@ -260,7 +311,8 @@ export default function Login() {
           <Mascot />
           <h1 className="hero-title">Hai, selamat datang! ☀️</h1>
           <p className="hero-sub">
-            Langit biru & sinar kuning untuk mood cerah. Yuk login dan berlayar bareng <b>Boat Bot</b>~
+            Langit biru & sinar kuning untuk mood cerah. Yuk login dan berlayar
+            bareng <b>Boat Bot</b>~
           </p>
         </section>
 
@@ -279,7 +331,12 @@ export default function Login() {
                   <svg viewBox="0 0 24 24" className="avatar-face">
                     <circle cx="9" cy="10" r="2" />
                     <circle cx="15" cy="10" r="2" />
-                    <path d="M8.8 13.6 q3.2 2.6 6.4 0" fill="none" strokeWidth="1.8" strokeLinecap="round"/>
+                    <path
+                      d="M8.8 13.6 q3.2 2.6 6.4 0"
+                      fill="none"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
                   </svg>
                 </span>
                 <div>
@@ -313,7 +370,9 @@ export default function Login() {
                       type="button"
                       onClick={() => setShowPw((s) => !s)}
                       className="pw-toggle"
-                      aria-label={showPw ? "Sembunyikan password" : "Tampilkan password"}
+                      aria-label={
+                        showPw ? "Sembunyikan password" : "Tampilkan password"
+                      }
                     >
                       {showPw ? "Sembunyi" : "Lihat"}
                     </button>
@@ -330,7 +389,9 @@ export default function Login() {
                     />
                     <span>Ingat saya</span>
                   </label>
-                  <button type="button" className="link">Lupa password?</button>
+                  <button type="button" className="link">
+                    Lupa password?
+                  </button>
                 </div>
 
                 {notice && (
@@ -345,18 +406,29 @@ export default function Login() {
                   </KawaiiAlert>
                 )}
 
-                <button type="submit" className="btn-primary">Masuk</button>
+                <button type="submit" className="btn-primary">
+                  Masuk
+                </button>
 
-                <div className="divider"><span>atau</span></div>
+                <div className="divider">
+                  <span>atau</span>
+                </div>
 
                 <div className="grid-2">
-                  <button type="button" className="btn-alt">Google</button>
-                  <button type="button" className="btn-alt">GitHub</button>
+                  <button type="button" className="btn-alt">
+                    Google
+                  </button>
+                  <button type="button" className="btn-alt">
+                    GitHub
+                  </button>
                 </div>
               </div>
 
               <p className="foot">
-                Belum punya akun? <a className="link" href="#/register">Daftar</a>
+                Belum punya akun?{" "}
+                <a className="link" href="#/register">
+                  Daftar
+                </a>
               </p>
             </form>
 
