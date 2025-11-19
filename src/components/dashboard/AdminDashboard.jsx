@@ -1,5 +1,5 @@
 // src/components/dashboard/AdminDashboard.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { NavLink, useNavigate, Outlet, useLocation } from "react-router-dom";
 
 // === Profil context untuk sinkron nama & avatar header ===
@@ -139,7 +139,27 @@ function DashboardInner() {
   const navigate = useNavigate();
   const location = useLocation();
   const [search, setSearch] = useState("");
-  const [collapsed, setCollapsed] = useState(false); 
+  const [collapsed, setCollapsed] = useState(() => {
+    const saved = localStorage.getItem("sb_collapsed");
+    return saved ? saved === "1" : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("sb_collapsed", collapsed ? "1" : "0");
+  }, [collapsed]);
+
+  // keyboard shortcut: Ctrl/Cmd + B
+  useEffect(() => {
+    const onKey = (e) => {
+      const isMeta = e.ctrlKey || e.metaKey;
+      if (isMeta && (e.key === "b" || e.key === "B")) {
+        e.preventDefault();
+        setCollapsed((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const onLogout = () => {
     localStorage.removeItem(SESSION_KEY);
@@ -237,6 +257,52 @@ function DashboardInner() {
 /* Responsive */
 @media (max-width: 980px){ .app-wrap{ grid-template-columns: 84px 1fr } .sb-label{ display:none } .brand-name{ display:none } }
 @media (max-width: 640px){ .search{ max-width:none } .topbar{ flex-wrap: wrap; gap:10px } }
+
+/* ===== Collapse toggle button ===== */
+.collapse-btn{
+  width:34px; height:34px; border:1px solid var(--border);
+  border-radius:10px; background:#fff; display:inline-grid; place-items:center;
+  box-shadow: var(--shadow); cursor:pointer; transition:transform .12s, background .12s;
+}
+.collapse-btn:hover{ transform: translateY(-1px); }
+.collapse-btn .bar{
+  width:16px; height:2px; background:#0f2b4b; border-radius:2px; display:block;
+  position:relative;
+}
+.collapse-btn .bar + .bar{ margin-top:3px; }
+.collapse-btn .bar.rot:nth-child(1){ transform:translateY(5px) rotate(45deg); }
+.collapse-btn .bar.rot:nth-child(2){ opacity:0; }
+.collapse-btn .bar.rot:nth-child(3){ transform:translateY(-5px) rotate(-45deg); }
+
+/* ===== Collapsed hover "peek" ===== */
+/* saat collapsed, grid kolom tetap 84px → sidebar bisa overflow melebar di atas content */
+.app-wrap{ position:relative; }
+.sidebar{ width:100%; transition: width .18s ease, box-shadow .18s ease; z-index: 3; }
+.app-wrap.collapsed .sidebar{ width:84px; }
+.app-wrap.collapsed .sidebar:hover{
+  width:292px;                /* melebar sementara */
+  box-shadow: 0 18px 40px rgba(15,33,79,.12);
+}
+
+/* Saat hover-peek, tunjukkan label & section walau state collapsed masih true */
+.app-wrap.collapsed .sidebar:hover .sb-label{ display:inline; }
+.app-wrap.collapsed .sidebar:hover .sb-section.hide{ display:block; }
+.app-wrap.collapsed .sidebar:hover .brand-name{ display:flex; }
+.app-wrap.collapsed .sidebar:hover .sb-sub.collapsed{ margin-left:10px; }
+
+/* Biar overlay rapi di atas konten saat hover */
+.app-wrap.collapsed .sidebar{ overflow: visible; }
+.page, .topbar{ position:relative; z-index:1; }
+
+/* Opsional: sembunyikan scrollbar sidebar yang melebar */
+.sidebar::-webkit-scrollbar{ width:8px; height:8px; }
+.sidebar::-webkit-scrollbar-thumb{ background: rgba(0,0,0,.08); border-radius: 8px; }
+
+.page-inner{
+  max-width: 1100px;  /* ubah angka sesuai kebutuhan */
+  width: 100%;
+  margin: 0 auto;     /* supaya ketengah */
+}
       `}</style>
 
       <div className={`app-wrap ${collapsed ? "collapsed" : ""}`}>
@@ -276,6 +342,19 @@ function DashboardInner() {
         <main className="content">
           <header className="topbar" role="navigation" aria-label="Navigasi atas">
             <div className="topbar-left">
+              <button
+                type="button"
+                className="collapse-btn"
+                aria-label={collapsed ? "Buka sidebar" : "Sembunyikan sidebar"}
+                aria-pressed={collapsed}
+                onClick={() => setCollapsed((v) => !v)}
+                title={`${collapsed ? "Buka" : "Sembunyikan"} sidebar (Ctrl/Cmd + B)`}
+              >
+                {/* icon hamburger/chevron */}
+                <span className={`bar ${collapsed ? "rot" : ""}`} />
+                <span className={`bar ${collapsed ? "rot" : ""}`} />
+                <span className={`bar ${collapsed ? "rot" : ""}`} />
+              </button>
               <h1>Dasbor</h1>
             </div>
             <div className="search" role="search">
@@ -295,8 +374,10 @@ function DashboardInner() {
           </header>
 
           <section className="page">
-            <Outlet />
-            {!isChildRouteActive && content}
+            <div className="page-inner">
+              <Outlet />
+              {!isChildRouteActive && content}
+            </div>
           </section>
         </main>
       </div>

@@ -1072,6 +1072,57 @@ export default function DataFormCrm({ data = [] }) {
         overflow-y: auto; /* scroll isi */
         flex: 1; /* biar isi bisa fleksibel */
       }
+      /* ==== OVERRIDE AGAR FLUID SEPERTI DATA MANIFEST ==== */
+
+/* 1) Container jangan dibatasi 900px, biar ikut lebar konten saat sidebar toggle */
+.dfc-container{
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 20px !important; /* mirip list-wrap di contoh kedua */
+}
+
+/* 2) Kartu tabel: biar bisa penuh & nyaman diresize */
+.dfc-table-wrap{
+  max-width: 100% !important;
+  width: 100% !important;
+  /* tetap boleh scroll horizontal/vertical seperti semula */
+}
+
+/* 3) Tabel: gunakan pola width seperti contoh kedua */
+table.dfc-table{
+  /* ketika layar lebar: tabel boleh melebar; ketika sempit: minimal 1100px, jadi ada scroll */
+  width: max(1100px, 100%) !important;
+  min-width: 0 !important;       /* hilangkan pengunci min-width bawaan */
+  table-layout: auto !important; /* biar kolom bisa adaptif */
+}
+
+/* 4) Kolom: jangan kunci width per kolom terlalu agresif.
+      Biar browser yang atur, tetap rapi saat area melebar/menciut */
+.dfc-table th:nth-child(n),
+.dfc-table td:nth-child(n){
+  width: auto !important;
+  white-space: nowrap;   /* header tetap satu baris */
+}
+.dfc-table td{ white-space: normal; } /* isi sel boleh wrap */
+
+/* 5) Header tetap lengket & aman di berbagai lebar */
+.dfc-table thead th{
+  position: sticky;
+  top: 0;
+}
+
+/* 6) Modal tetap full-screen friendly; tak perlu diubah
+      tapi pastikan padding tubuh modal nyaman saat viewport melebar */
+.dfc-modal-card{ max-width: min(1200px, 96vw) !important; }
+.dfc-modal-body{ padding: 16px 20px !important; }
+
+/* 7) Sedikit penyesuaian responsif */
+@media (max-width: 980px){
+  /* saat sempit, biar pengalaman mirip contoh kedua */
+  table.dfc-table{ width: max(1000px, 100%) !important; }
+}
+
 `}</style>
     </div>
   );

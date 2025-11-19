@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import "../../views/dashboard/Iwkbu.css";
+import { supabase } from "../../lib/supabaseClient";
 
 function usePersistentState(key, initialValue) {
   const [state, setState] = useState(() => {
@@ -26,7 +27,6 @@ function usePersistentState(key, initialValue) {
 const SEED_WILAYAH = ["PEKANBARU", "DUMAI", "ROHIL", "INHIL", "ROHUL", "KUANSING", "INHU", "PELALAWAN", "SIAK", "KAMPAR", "BENGKALIS", "ACEH", "-"];
 const SEED_TRAYEK = ["AJAP", "AKDP", "Angkutan Karyawan", "AJDP", "Taksi", "AKAP", "Pariwisata", "Angdes", "Angkutan Sekolah", "-"];
 const SEED_JENIS  = ["MINIBUS", "MICROBUS", "BUS", "SEDAN", "LIGHT TRUCK", "JEEP", "TAKSI", "-"];
-const SEED_TAHUN  = [2025, 2024, 2023, 2022, 2021, 2020];
 const SEED_BADAN  = ["Perorangan", "BH", "PR", "CV", "-"];
 const SEED_STATUS_BAYAR = ["Belum Bayar", "Lunas", "Parsial", "OUTSTANDING", "DISPENSASI", "-"];
 const SEED_STATUS_KEND  = ["Aktif", "Tidak Aktif", "Blokir", "BEROPERASI", "CADANGAN", "RUSAK SEMENTARA", "RUSAK SELAMANYA", "UBAH SIFAT", "UBAH SIFAT / BENTUK", "PINDAH PO", "-"];
@@ -61,17 +61,167 @@ const IWKBU_BASE_KEYS = [
   "nilaiBayarOs","tglPemeliharaan","nilaiPemeliharaanOs","keterangan"
 ];
 
+function useEmployees() {
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data, error } = await supabase
+          .from("employees")
+          .select("id,name,loket,handle")
+          .order("name", { ascending: true });
+        if (!alive) return;
+        if (error) throw error;
+        setEmployees(data || []);
+      } catch (e) {
+        if (alive) {
+          console.error("Load employees error:", e);
+          setEmployees([]);
+          setError(e.message || String(e));
+        }
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+
+    return () => { alive = false; };
+  }, []);
+
+  return { employees, loading, error };
+}
+
 export default function Iwkbu() {
-  const [rows, setRows] = usePersistentState("iwkbu:rows", []);
+  const [rows, setRows] = useState([]);
   const [q, setQ]       = usePersistentState("iwkbu:q", "");
-  const [page, setPage] = usePersistentState("iwkbu:page", 1);
-  const pageSize = 8;
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
   const [extraCols, setExtraCols] = usePersistentState("iwkbu:extraCols", []); // [{key,label}]
   const [showColModal, setShowColModal] = useState(false);
   const [newColLabel, setNewColLabel] = useState("");
   const [openMenuKey, setOpenMenuKey]   = useState(null);  
   const [renamingKey, setRenamingKey]   = useState(null);  
   const [renameValue, setRenameValue]   = useState("");  
+  const [totalCount, setTotalCount] = useState(0);
+  const [loadingRows, setLoadingRows] = useState(false);
+
+  const fromDB = (r) => ({
+    id: r.id,
+    wilayah: r.wilayah || "",
+    nopol: r.nopol || "",
+    tarif: r.tarif ?? 0,
+    golongan: r.golongan || "",
+    nominal: r.nominal ?? 0,
+    trayekNew: r.trayek || "",       // <— mapping DB.trayek -> UI.trayekNew
+    jenis: r.jenis || "",
+    tahun: r.tahun ?? "",
+    pic: r.pic || "",
+    badanHukum: r.badan_hukum || "",
+    namaPerusahaan: r.nama_perusahaan || "",
+    alamat: r.alamat || "",
+    kelurahan: r.kelurahan || "",
+    kecamatan: r.kecamatan || "",
+    kota: r.kota || "",
+    tglTransaksi: r.tgl_transaksi || "",
+    loket: r.loket || "",
+    masaBerlaku: r.masa_berlaku || "",
+    masaSwdkllj: r.masa_swdkllj || "",
+    statusBayar: r.status_bayar || "",
+    statusKendaraan: r.status_kendaraan || "",
+    outstanding: r.outstanding ?? 0,
+    konfirmasi: r.konfirmasi || "",
+    hp: r.hp || "",
+    namaPemilik: r.nama_pemilik || "",
+    nik: r.nik || "",
+    dokPerizinan: r.dok_perizinan || "",
+    tglBayarOs: r.tgl_bayar_os || "",
+    nilaiBayarOs: r.nilai_bayar_os ?? 0,
+    tglPemeliharaan: r.tgl_pemeliharaan || "",
+    nilaiPemeliharaanOs: r.nilai_pemeliharaan_os ?? 0,
+    keterangan: r.keterangan || "",
+  });
+
+  const toDB = (r) => ({
+    wilayah: r.wilayah,
+    nopol: r.nopol,
+    tarif: Number(r.tarif || 0),
+    golongan: r.golongan || null,
+    nominal: Number(String(r.nominal || 0).replace(/[^\d]/g, "")),
+    trayek: r.trayekNew || null,        // <— mapping UI.trayekNew -> DB.trayek
+    jenis: r.jenis || null,
+    tahun: r.tahun ? Number(r.tahun) : null,
+    pic: r.pic || null,
+    badan_hukum: r.badanHukum || null,
+    nama_perusahaan: r.namaPerusahaan || null,
+    alamat: r.alamat || null,
+    kelurahan: r.kelurahan || null,
+    kecamatan: r.kecamatan || null,
+    kota: r.kota || null,
+    tgl_transaksi: r.tglTransaksi || null,
+    loket: r.loket || null,
+    masa_berlaku: r.masaBerlaku || null,
+    masa_swdkllj: r.masaSwdkllj || null,
+    status_bayar: r.statusBayar || null,
+    status_kendaraan: r.statusKendaraan || null,
+    outstanding: Number(r.outstanding || 0),
+    konfirmasi: r.konfirmasi || null,
+    hp: r.hp || null,
+    nama_pemilik: r.namaPemilik || null,
+    nik: r.nik || null,
+    dok_perizinan: r.dokPerizinan || null,
+    tgl_bayar_os: r.tglBayarOs || null,
+    nilai_bayar_os: Number(r.nilaiBayarOs || 0),
+    tgl_pemeliharaan: r.tglPemeliharaan || null,
+    nilai_pemeliharaan_os: Number(r.nilaiPemeliharaanOs || 0),
+    keterangan: r.keterangan || null,
+  });
+
+  const fetchRows = async () => {
+    setLoadingRows(true);
+    try {
+      const s = (q || "").trim();
+      let query = supabase
+        .from("iwkbu")
+        .select("*", { count: "exact" })
+        .order("id", { ascending: false });
+
+      if (s) {
+        query = query.or([
+          `nopol.ilike.%${s}%`,
+          `wilayah.ilike.%${s}%`,
+          `kota.ilike.%${s}%`,
+          `trayek.ilike.%${s}%`,
+          `nama_perusahaan.ilike.%${s}%`,
+          `pic.ilike.%${s}%`,
+        ].join(","));
+      }
+
+      const from = (page - 1) * pageSize;
+      const to   = from + pageSize - 1;
+      query = query.range(from, to);
+
+      const { data, count, error } = await query;
+
+      console.log("fetchRows result =>", { data, count, error }); // 👈 TAMBAH INI
+
+      if (error) throw error;
+
+      setRows((data || []).map(fromDB));
+      setTotalCount(count || 0);
+    } catch (e) {
+      console.error("fetchRows error:", e);
+      setRows([]);
+      setTotalCount(0);
+    } finally {
+      setLoadingRows(false);
+    }
+  };
 
   // helper bikin key aman dari label
   const makeKeyFromLabel = (label) =>
@@ -80,81 +230,10 @@ export default function Iwkbu() {
       .replace(/[^a-z0-9]+(\w)/g, (_, c) => c.toUpperCase())
       .replace(/[^a-z0-9]/g, "");
 
-  // tambah kolom baru
-  const addColumn = () => {
-    const label = (newColLabel || "").trim();
-    if (!label) return;
-    const key = makeKeyFromLabel(label);
-    if (!key || IWKBU_BASE_KEYS.includes(key) || extraCols.some(c => c.key === key)) {
-      alert("Kolom dengan nama itu sudah ada atau tidak valid.");
-      return;
-    }
-    const col = { key, label };
-    setExtraCols(prev => [...prev, col]);
-    setRows(prev => prev.map(r => ({ ...r, [key]: "" })));
-    setShowColModal(false);
-    setNewColLabel("");
-  };
-
-  // hapus kolom
-  const removeColumn = (key) => {
-    const col = extraCols.find(c => c.key === key);
-    if (!col) return;
-    if (!window.confirm(`Hapus kolom "${col.label}"? Data pada kolom ini akan hilang.`)) return;
-    setExtraCols(prev => prev.filter(c => c.key !== key));
-    setRows(prev => prev.map(({ [key]: _omit, ...rest }) => rest));
-    setOpenMenuKey(null);
-  };
-
-  // rename kolom
-  const startRename = (key) => {
-    const col = extraCols.find(c => c.key === key);
-    if (!col) return;
-    setRenamingKey(key);
-    setRenameValue(col.label);
-    setOpenMenuKey(null);
-  };
-  const commitRename = () => {
-    const label = (renameValue || "").trim();
-    if (!label) { setRenamingKey(null); return; }
-    setExtraCols(prev => prev.map(c => c.key === renamingKey ? ({ ...c, label }) : c));
-    setRenamingKey(null);
-  };
-
-  // urut kolom (di dalam extraCols saja)
-  const indexOfExtra = (key) => extraCols.findIndex(c => c.key === key);
-  const moveExtraByIndex = (from, to) => {
-    if (to < 0 || to >= extraCols.length || from === -1 || to === from) return;
-    setExtraCols(prev => {
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
-  };
-  const moveStart = (key) => moveExtraByIndex(indexOfExtra(key), 0);
-  const moveEnd   = (key) => moveExtraByIndex(indexOfExtra(key), extraCols.length - 1);
-  const moveLeft  = (key) => { const i = indexOfExtra(key); if (i > -1) moveExtraByIndex(i, (i - 1 + extraCols.length) % extraCols.length); };
-  const moveRight = (key) => { const i = indexOfExtra(key); if (i > -1) moveExtraByIndex(i, (i + 1) % extraCols.length); };
-
-  const toggleMenu = (key) => setOpenMenuKey(cur => cur === key ? null : key);
-
-  // tutup ring bila klik di luar
-  useEffect(() => {
-    const onDocClick = (e) => {
-      if (!e.target.closest?.('.th-hasmenu, .th-ring, .th-orbit')) {
-        setOpenMenuKey(null);
-      }
-    };
-    document.addEventListener('click', onDocClick);
-    return () => document.removeEventListener('click', onDocClick);
-  }, []);
-
   // opsi dinamis (seed dulu, lalu bisa nambah)
   const [WILAYAH_OPTS, setWilayahOpts]                   = usePersistentState("iwkbu:opts:wilayah", SEED_WILAYAH);
   const [TRAYEK_OPTS, setTrayekOpts]                     = usePersistentState("iwkbu:opts:trayek", SEED_TRAYEK);
   const [JENIS_OPTS, setJenisOpts]                       = usePersistentState("iwkbu:opts:jenis", SEED_JENIS);
-  const [TAHUN_OPTS]                                     = useState(SEED_TAHUN);
   const [BADAN_HUKUM_OPTS, setBadanOpts]                 = usePersistentState("iwkbu:opts:badan", SEED_BADAN);
   const [STATUS_BAYAR_OPTS, setStatusBayarOpts]          = usePersistentState("iwkbu:opts:statusBayar", SEED_STATUS_BAYAR);
   const [STATUS_KENDARAAN_OPTS, setStatusKendaraanOpts]  = usePersistentState("iwkbu:opts:statusKend", SEED_STATUS_KEND);
@@ -173,7 +252,7 @@ export default function Iwkbu() {
     nominal: 0,
     trayekNew: TRAYEK_OPTS[0] || "",
     jenis: JENIS_OPTS[0] || "",
-    tahun: TAHUN_OPTS[0] || "",
+    tahun: "",
     pic: "",
     badanHukum: "Perorangan",
     namaPerusahaan: "",
@@ -202,6 +281,7 @@ export default function Iwkbu() {
     keterangan: "",
   };
   const [newForm, setNewForm] = useState(emptyForm);
+  const { employees: EMP_OPTS, loading: employeesLoading } = useEmployees();
 
   // helper kecil
   const setF = (k, v) => setNewForm((s) => ({ ...s, [k]: v }));
@@ -211,30 +291,21 @@ export default function Iwkbu() {
   const [editingRowId, setEditingRowId] = useState(null);
   const [nominalInput, setNominalInput] = useState("");
 
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    const data = !s
-      ? rows
-      : rows.filter(
-          (r) =>
-            r.nopol.toLowerCase().includes(s) ||
-            r.wilayah.toLowerCase().includes(s) ||
-            (r.kota || "").toLowerCase().includes(s) ||
-            (r.trayekNew || "").toLowerCase().includes(s) ||
-            (r.namaPerusahaan || "").toLowerCase().includes(s) ||
-            (r.pic || "").toLowerCase().includes(s)
-        );
-    return data;
-  }, [rows, q]);
+  useEffect(() => {
+    setPage(1);
+  }, [q]);
 
-  const totalPage = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pageData = filtered.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => {
+    fetchRows();
+  }, [page, q]);
 
-  const addNopol = (e) => {
+  const totalPage = Math.max(1, Math.ceil(totalCount / pageSize));
+  const pageData = rows;
+
+  const addNopol = async (e) => {
     e?.preventDefault?.();
     if (!newForm.nopol.trim()) return;
 
-    // tambahkan nilai ke opsi jika belum ada (case-insensitive)
     const wilayahSaved   = addOptionIfMissing(WILAYAH_OPTS, setWilayahOpts, newForm.wilayah, { forceUpper: true });
     const trayekSaved    = addOptionIfMissing(TRAYEK_OPTS, setTrayekOpts, newForm.trayekNew);
     const jenisSaved     = addOptionIfMissing(JENIS_OPTS, setJenisOpts, newForm.jenis);
@@ -246,7 +317,6 @@ export default function Iwkbu() {
     addOptionIfMissing(HASIL_KONF_OPTS, setHasilKonfOpts, newForm.konfirmasi || "");
 
     const next = {
-      id: Date.now(),
       ...newForm,
       wilayah: wilayahSaved,
       trayekNew: trayekSaved,
@@ -257,19 +327,51 @@ export default function Iwkbu() {
       golongan: golSaved,
       dokPerizinan: dokSaved,
       nopol: newForm.nopol.toUpperCase(),
-      kota: newForm.kota || wilayahSaved, // fallback kota = wilayah
-      tarif: Number(newForm.tarif || 0),
-      nominal: Number(String(newForm.nominal || 0).replace(/[^\d]/g, "")),
-      tahun: Number(newForm.tahun || TAHUN_OPTS[0]),
-      outstanding: Number(newForm.outstanding || 0),
-      nilaiBayarOs: Number(newForm.nilaiBayarOs || 0),
-      nilaiPemeliharaanOs: Number(newForm.nilaiPemeliharaanOs || 0),
+      kota: newForm.kota || wilayahSaved,
     };
 
-    setRows((prev) => [next, ...prev]);
+    const payload = toDB(next);
+    const { error } = await supabase.from("iwkbu").insert(payload);
+    if (error) { alert("Gagal tambah data: " + error.message); return; }
+
     setShowNopolModal(false);
     setNewForm(emptyForm);
     setPage(1);
+    fetchRows();
+  };
+
+  const saveCell = async (id, field, value) => {
+    // ubah state dulu biar terasa cepat
+    setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+
+    // map UI row -> DB patch
+    const patchUI = { [field]: value };
+    const patchDB = toDB({ ...rows.find(r => r.id === id), ...patchUI });
+
+    // petakan hanya kolom yang berubah (hemat payload)
+    let dbField = field;
+    if (field === "trayekNew") dbField = "trayek";
+    if (field === "badanHukum") dbField = "badan_hukum";
+    if (field === "namaPerusahaan") dbField = "nama_perusahaan";
+    if (field === "tglTransaksi") dbField = "tgl_transaksi";
+    if (field === "masaBerlaku") dbField = "masa_berlaku";
+    if (field === "masaSwdkllj") dbField = "masa_swdkllj";
+    if (field === "statusBayar") dbField = "status_bayar";
+    if (field === "statusKendaraan") dbField = "status_kendaraan";
+    if (field === "namaPemilik") dbField = "nama_pemilik";
+    if (field === "dokPerizinan") dbField = "dok_perizinan";
+    if (field === "tglBayarOs") dbField = "tgl_bayar_os";
+    if (field === "nilaiBayarOs") dbField = "nilai_bayar_os";
+    if (field === "tglPemeliharaan") dbField = "tgl_pemeliharaan";
+    if (field === "nilaiPemeliharaanOs") dbField = "nilai_pemeliharaan_os";
+
+    const patch = { [dbField]: patchDB[dbField] };
+
+    const { error } = await supabase.from("iwkbu").update(patch).eq("id", id);
+    if (error) {
+      alert("Gagal menyimpan: " + error.message);
+      fetchRows(); // rollback dengan reload server
+    }
   };
 
   const openNominalFor = (rowId, current) => {
@@ -278,11 +380,9 @@ export default function Iwkbu() {
     setShowNominalModal(true);
   };
 
-  const saveNominal = () => {
+  const saveNominal = async () => {
     const val = Number(String(nominalInput).replace(/[^\d]/g, ""));
-    setRows((prev) =>
-      prev.map((r) => (r.id === editingRowId ? { ...r, nominal: val } : r))
-    );
+    await saveCell(editingRowId, "nominal", val);
     setShowNominalModal(false);
     setEditingRowId(null);
   };
@@ -290,8 +390,12 @@ export default function Iwkbu() {
   const updateRow = (id, patch) =>
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 
-  const deleteRow = (id) =>
-    setRows((prev) => prev.filter((r) => r.id !== id));
+  const deleteRow = async (id) => {
+    if (!window.confirm("Hapus baris ini?")) return;
+    const { error } = await supabase.from("iwkbu").delete().eq("id", id);
+    if (error) { alert("Gagal hapus: " + error.message); return; }
+    fetchRows();
+  };
 
   return (
     <div className="iwkbu-wrap">
@@ -313,9 +417,6 @@ export default function Iwkbu() {
               setPage(1);
             }}
           />
-           <button className="btn ghost" onClick={() => setShowColModal(true)}>
-              + Tambah Kolom
-            </button>
           <button
             className="btn primary"
             onClick={() => { setNewForm(emptyForm); setShowNopolModal(true); }}
@@ -326,8 +427,8 @@ export default function Iwkbu() {
       </header>
 
       <div className="table-card">
-        <div className="table-scroll" style={{ overflowX: "auto", overflowY: "auto", maxHeight: "70vh" }}>
-          <table className="kawaii-table" style={{ minWidth: "4600px", tableLayout: "fixed" }}>
+        <div className="table-scroll">
+          <table className="kawaii-table">
             <thead style={{ whiteSpace: "nowrap" }}>
               <tr>
                 <th>Aksi</th>
@@ -449,7 +550,8 @@ export default function Iwkbu() {
                       type="number"
                       min={0}
                       value={r.tarif}
-                      onChange={(e) => updateRow(r.id, { tarif: Number(e.target.value) })}
+                      onChange={(e) => updateRow(r.id, { tarif: e.target.value === "" ? 0 : Number(e.target.value) })}
+                      onBlur={(e) => saveCell(r.id, "tarif", e.target.value === "" ? 0 : Number(e.target.value))}
                     />
                     <div className="hint">{idr(r.tarif)}</div>
                   </td>
@@ -484,10 +586,8 @@ export default function Iwkbu() {
                     <input
                       list="trayek-list"
                       value={r.trayekNew}
-                      onChange={(e) => {
-                        const saved = addOptionIfMissing(TRAYEK_OPTS, setTrayekOpts, e.target.value);
-                        updateRow(r.id, { trayekNew: saved });
-                      }}
+                      onChange={(e) => updateRow(r.id, { trayekNew: e.target.value })}
+                      onBlur={(e) => saveCell(r.id, "trayekNew", e.target.value)}
                     />
                     <datalist id="trayek-list">
                       {TRAYEK_OPTS.map((t) => <option key={t} value={t} />)}
@@ -511,24 +611,44 @@ export default function Iwkbu() {
 
                   {/* Tahun */}
                   <td>
-                    <select
-                      value={r.tahun}
-                      onChange={(e) => updateRow(r.id, { tahun: Number(e.target.value) })}
-                    >
-                      {TAHUN_OPTS.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
+                    <input
+                      className="num"
+                      type="number"
+                      min="1900"
+                      max="2100"
+                      placeholder="cth: 2015"
+                      value={r.tahun ?? ""} 
+                      onChange={(e) =>
+                        updateRow(r.id, {
+                          tahun: e.target.value === "" ? "" : Number(e.target.value),
+                        })
+                      }
+                      onBlur={(e) =>
+                        saveCell(
+                          r.id,
+                          "tahun",
+                          e.target.value === "" ? null : Number(e.target.value)
+                        )
+                      }
+                    />
                   </td>
 
                   {/* PIC */}
                   <td>
                     <input
+                      list="pic-list"
                       type="text"
                       value={r.pic || ""}
                       onChange={(e) => updateRow(r.id, { pic: e.target.value })}
-                      placeholder="PIC"
+                      placeholder="Ketik atau pilih PIC"
                     />
+                    <datalist id="pic-list">
+                      {EMP_OPTS.map(emp => (
+                        <option key={emp.id} value={emp.name}>
+                          {emp.name}{emp.loket ? ` — ${emp.loket}` : ""}{emp.handle ? ` (@${emp.handle})` : ""}
+                        </option>
+                      ))}
+                    </datalist>
                   </td>
 
                   {/* Badan Hukum (datalist) */}
@@ -597,6 +717,7 @@ export default function Iwkbu() {
                       type="date"
                       value={r.tglTransaksi || ""}
                       onChange={(e) => updateRow(r.id, { tglTransaksi: e.target.value })}
+                      onBlur={(e) => saveCell(r.id, "tglTransaksi", e.target.value)}
                     />
                   </td>
 
@@ -852,7 +973,15 @@ export default function Iwkbu() {
 
               <label>
                 Tarif
-                <input type="number" min={0} value={newForm.tarif} onChange={(e)=>setF('tarif', Number(e.target.value))}/>
+                <input
+                  type="number"
+                  min={0}
+                  value={newForm.tarif === 0 ? "" : newForm.tarif}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setF("tarif", val === "" ? 0 : Number(val));
+                  }}
+                />
                 <small className="hint">{idr(newForm.tarif)}</small>
               </label>
 
@@ -896,15 +1025,31 @@ export default function Iwkbu() {
                   type="number"
                   min="1900"
                   max="2100"
-                  placeholder="cth: 2025"
-                  value={newForm.tahun}
-                  onChange={(e)=>setF('tahun', Number(e.target.value))}
+                  placeholder="cth: 2015"
+                  value={newForm.tahun || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setF("tahun", val === "" ? "" : Number(val));
+                  }}
                 />
               </label>
 
               <label>
                 PIC
-                <input type="text" value={newForm.pic} onChange={(e)=>setF('pic', e.target.value)} />
+                <input
+                  list="pic-list-modal"
+                  type="text"
+                  value={newForm.pic}
+                  onChange={(e)=>setF('pic', e.target.value)}
+                  placeholder={employeesLoading ? "Memuat daftar pegawai…" : "Ketik atau pilih nama"}
+                />
+                <datalist id="pic-list-modal">
+                  {EMP_OPTS.map(emp => (
+                    <option key={emp.id} value={emp.name}>
+                      {emp.name}{emp.loket ? ` — ${emp.loket}` : ""}{emp.handle ? ` (@${emp.handle})` : ""}
+                    </option>
+                  ))}
+                </datalist>
               </label>
 
               {/* Data Perusahaan */}
@@ -923,7 +1068,6 @@ export default function Iwkbu() {
                   value={newForm.namaPerusahaan}
                   onChange={(e)=>setF('namaPerusahaan', e.target.value)}
                   placeholder={String(newForm.badanHukum).toUpperCase() === 'BH' ? 'Nama PT/CV' : '—'}
-                  disabled={String(newForm.badanHukum).toUpperCase() !== 'BH'}
                 />
               </label>
 
@@ -1094,29 +1238,6 @@ export default function Iwkbu() {
         </div>
       )}
 
-      {/* Modal: Tambah Kolom Baru */}
-      {showColModal && (
-        <div className="modal-backdrop" onClick={() => setShowColModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>Tambah Kolom Baru</h3>
-            <label className="stack">
-              Nama Kolom
-              <input
-                type="text"
-                value={newColLabel}
-                onChange={(e) => setNewColLabel(e.target.value)}
-                placeholder="Contoh: NPWP, Email, Catatan"
-              />
-            </label>
-            <div className="modal-actions">
-              <button className="btn ghost" onClick={() => setShowColModal(false)}>Batal</button>
-              <button className="btn primary" onClick={addColumn}>Tambah</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Datalist sumber table (supaya gak duplicate id antara modal & table) */}
       <datalist id="wilayah-list">{WILAYAH_OPTS.map((w)=><option key={w} value={w}/>)}</datalist>
       <datalist id="golongan-list">{GOLONGAN_OPTS.map((g)=><option key={g} value={g}/>)}</datalist>
       <datalist id="trayek-list">{TRAYEK_OPTS.map((t)=><option key={t} value={t}/>)}</datalist>

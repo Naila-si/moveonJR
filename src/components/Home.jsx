@@ -125,13 +125,17 @@ export default function Home() {
                         stroke="#ffd977" strokeWidth="6" fill="none" strokeLinecap="round" />
 
                   {/* wheels */}
-                  <g className="wheel w1" transform="translate(66,96)">
-                    <circle r="12" fill="#2d2d2d" />
-                    <circle r="5" fill="#7fc4ff" />
+                  <g transform="translate(66,96)">
+                    <g className="wheel w1">
+                      <circle r="12" fill="#2d2d2d" />
+                      <circle r="5" fill="#7fc4ff" />
+                    </g>
                   </g>
-                  <g className="wheel w2" transform="translate(130,96)">
-                    <circle r="12" fill="#2d2d2d" />
-                    <circle r="5" fill="#7fc4ff" />
+                  <g transform="translate(130,96)">
+                    <g className="wheel w2">
+                      <circle r="12" fill="#2d2d2d" />
+                      <circle r="5" fill="#7fc4ff" />
+                    </g>
                   </g>
                 </svg>
               </div>

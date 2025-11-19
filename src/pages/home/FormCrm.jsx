@@ -1,5 +1,14 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 
+const LOKET_OPTIONS = [
+    "Loket Kantor Wilayah","Pekanbaru Kota","Pekanbaru Selatan","Pekanbaru Utara","Panam",
+    "Kubang","Bangkinang","Lipat Kain","Tapung","Siak","Perawang","Kandis","Pelalawan",
+    "Sorek","Pasir Pengaraian","Ujung Batu","Dalu-Dalu","Koto Tengah","Taluk Kuantan",
+    "Singingi Hilir","Rengat","Air Molek","Tembilahan","Kota Baru","Sungai Guntung",
+    "Loket Kantor Cabang Dumai","Dumai","Duri","Bengkalis","Selat Panjang",
+    "Bagan Siapiapi","Bagan Batu","Ujung Tanjung",
+  ];
+
 /**
  * FORM CRM — PRO + SignaturePad
  */
@@ -78,6 +87,7 @@ export default function FormCrm() {
     { id: 3, title: "Upload & Penilaian" },
     { id: 4, title: "Pesan & Saran" },
   ];
+
   const progressPct = useMemo(() => (step - 1) * (100 / (steps.length - 1)), [step]);
 
   // ================== VALIDASI ==================
@@ -370,10 +380,19 @@ function Step1Datakunjungan({ form, setField, errors }) {
         </Field>
 
         <Field label="Loket" req error={errors.loket}>
-          <select data-error={!!errors.loket} value={form.loket} onChange={e=>setField("loket", e.target.value)}>
-            <option value="">— Pilih Loket —</option>
-            <option>Loket A</option><option>Loket B</option><option>Loket C</option>
-          </select>
+          <input
+            data-error={!!errors.loket}
+            list="loket-list"
+            value={form.loket}
+            onChange={(e) => setField("loket", e.target.value)}
+            placeholder="Ketik nama loket…"
+            autoComplete="off"
+          />
+          <datalist id="loket-list">
+            {LOKET_OPTIONS.map((opt) => (
+              <option key={opt} value={opt} />
+            ))}
+          </datalist>
         </Field>
 
         <Field label="Nama Petugas" req error={errors.namaPetugas}>
@@ -401,7 +420,10 @@ function Step1Datakunjungan({ form, setField, errors }) {
         <Field label="Jenis Angkutan" req error={errors.jenisAngkutan}>
           <select data-error={!!errors.jenisAngkutan} value={form.jenisAngkutan} onChange={e=>setField("jenisAngkutan", e.target.value)}>
             <option value="">— Pilih jenis —</option>
-            <option value="Barang">Barang</option><option value="Orang">Orang</option><option value="Pariwisata">Pariwisata</option>
+            <option>Kendaraan Bermotor Umum</option>
+            <option>Angkutan Barang</option>
+            <option>Angkutan Penumpang</option>
+            <option>Moda Laut</option>
           </select>
         </Field>
 
@@ -447,7 +469,16 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
 
             <Field label="Status" req error={errors[`status_${i}`]}>
               <select data-error={!!errors[`status_${i}`]} value={a.status} onChange={e=>update(i,"status",e.target.value)}>
-                <option value="">— Pilih —</option><option>Aktif</option><option>Perawatan</option><option>Tidak Aktif</option>
+                <option value="">— Pilih Status —</option>
+                <option>Beroperasi + Bayar</option>
+                <option>Beroperasi</option>
+                <option>Dijual</option>
+                <option>Ubah Sifat</option>
+                <option>Ubah Bentuk</option>
+                <option>Rusak Sementara</option>
+                <option>Rusak Selamanya</option>
+                <option>Tidak Ditemukan</option>
+                <option>Cadangan</option>
               </select>
             </Field>
 
@@ -801,4 +832,28 @@ kbd{background:#fff;border:1px solid var(--bb-200);border-bottom-width:2px;paddi
 
 @media (max-width: 980px){ .grid{grid-template-columns: 1fr} .aside{position:static} }
 @media (max-width: 520px){ .container{padding:0 14px} }
+/* ==== VISIBILITY FIX for inputs ==== */
+.crm-wrap { color-scheme: light; } /* cegah browser auto-darken field */
+
+input, select, textarea {
+  color: #0f172a !important;        /* teks selalu gelap */
+  -webkit-text-fill-color: #0f172a; /* penting utk Chrome/Edge */
+  caret-color: #0f172a;
+  font-weight: 600;                  /* sedikit lebih tebal biar jelas */
+}
+
+/* Placeholder jangan terlalu pucat */
+::placeholder { color: #475569; opacity: .95; font-weight: 500; }
+
+/* Chrome/Edge autofill sering bikin teks putih/kuning — paksa normal */
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill{
+  -webkit-text-fill-color: #0f172a !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important; /* balik ke putih */
+  transition: background-color 9999s ease-out 0s;     /* hilangkan efek kuning */
+}
+
+/* Kalau ada input yg masih terlalu tipis di Windows, paksa anti-aliasing */
+input, select, textarea { text-rendering: optimizeLegibility; }
 `;

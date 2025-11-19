@@ -1,245 +1,529 @@
 import React, { useMemo, useState, useEffect } from "react";
 import "../../views/dashboard/Iwkl.css";
+import { supabase } from "../../lib/supabaseClient"; // sesuaikan path-nya ya
 
-const LOKET_OPTS = ["DUMAI", "BENGKALIS", "SELAT PANJANG"];
-const KELAS_OPTS = ["PLATINUM", "GOLD", "SILVER"];
-const STATUS_PKS_OPTS = ["Aktif", "Berakhir", "Addendum", "-"];
-const STATUS_PEMB_OPTS = ["Belum Bayar", "Lunas", "Parsial", "-"];
-const STATUS_KAPAL_OPTS = ["Beroperasi", "Cadangan", "Tidak Beroperasi", "Rusak", "-"];
-const PAS_OPTS = ["Pas Besar", "Pas Kecil", "-"];
-const SERTIF_KSL_OPTS = ["Ada", "Tidak Ada", "-"];
-const IZIN_TRAYEK_OPTS = ["Ada", "Tidak Ada", "-"];
-const SISTEM_IWKL_OPTS = ["Manual", "E-Ticket", "Campuran", "-"];
-const PERHIT_TARIF_OPTS = ["Per Kepala", "Borongan", "Campuran", "-"];
-
-const BASE_COLUMNS = [
-  { key: "no", label: "No"},
-  { key: "aksi", label: "Aksi"},
-  { key: "loket", label: "Loket" },
-  { key: "kelas", label: "Kelas" },
-  { key: "namaPerusahaan", label: "Nama Perusahaan" },
-  { key: "namaKapal", label: "Nama Kapal" },
-  { key: "namaPemilik", label: "Nama Pemilik / Pengelola" },
-  { key: "alamat", label: "Alamat" },
-  { key: "noKontak", label: "No. Kontak" },
-  { key: "tglLahir", label: "Tanggal Lahir" },
-  { key: "kapasitasPenumpang", label: "Kapasitas Penumpang" },
-  { key: "tglPKS", label: "Tanggal PKS" },
-  { key: "tglBerakhirPKS", label: "Tanggal Berakhir PKS" },
-  { key: "tglAddendum", label: "Tanggal Addendum" },
-  { key: "statusPKS", label: "Status PKS" },
-  { key: "statusPembayaran", label: "Status Pembayaran" },
-  { key: "statusKapal", label: "Status Kapal" },
-  { key: "potensiPerBulan", label: "Potensi Per Bulan (Rp)" },
-  { key: "pasBesarKecil", label: "Pas Besar / Kecil" },
-  { key: "sertifikatKeselamatan", label: "Sertifikat Keselamatan" },
-  { key: "izinTrayek", label: "Izin Trayek" },
-  { key: "tglJatuhTempoSertifikatKeselamatan", label: "Tgl Jatuh Tempo Sertifikat Keselamatan Kapal" },
-  { key: "rute", label: "Rute" },
-  { key: "sistemPengutipanIWKL", label: "Sistem Pengutipan IWKL" },
-  { key: "trayek", label: "Trayek" },
-  { key: "perhitunganTarif", label: "Perhitungan Tarif" },
-  { key: "tarifBoronganDisepakati", label: "Tarif Borongan Disepakati" },
-  { key: "keterangan", label: "Keterangan" },
-  // bulan
-  { key: "jan", label: "Januari" },
-  { key: "feb", label: "Februari" },
-  { key: "mar", label: "Maret" },
-  { key: "apr", label: "April" },
-  { key: "mei", label: "Mei" },
-  { key: "jun", label: "Juni" },
-  { key: "jul", label: "Juli" },
-  { key: "agust", label: "Agust" },
-  { key: "sept", label: "Sept" },
-  { key: "okt", label: "Okt" },
-  { key: "nov", label: "Nov" },
-  { key: "des", label: "Des" },
-  // total & persen
-  { key: "total", label: "Total", readOnly: true },
-  { key: "persenAkt2423", label: "% Akt 24 - 23" },
+const LOKET_OPTS = [
+  "Kantor Wilayah",
+  "Pelalawan",
+  "Siak",
+  "Kota Baru",
+  "Tembilahan",
+  "Sungai Guntung",
 ];
 
-const idr = (n) => (Number(n) || 0).toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+const KELAS_OPTS = ["Gold", "Silver"];
 
-export default function Iwkl() {
+const STATUS_PKS_OPTS = ["Aktif", "Non Aktif", "Berakhir", "Addendum", "-"];
+
+const STATUS_PEMB_OPTS = [
+  "Lancar",
+  "Dispensasi",
+  "Outstanding",
+  "Belum Bayar",
+  "Lunas",
+  "Parsial",
+  "-",
+];
+
+const STATUS_KAPAL_OPTS = [
+  "Beroperasi",
+  "Docking",
+  "Cadangan",
+  "Tidak Beroperasi",
+  "Rusak",
+  "-",
+];
+
+const PAS_OPTS = ["Ada", "Tidak", "-"];
+const SERTIF_KSL_OPTS = ["Ada", "Tidak", "-"];
+const IZIN_TRAYEK_OPTS = ["Ada", "Tidak", "-"];
+
+const SISTEM_IWKL_OPTS = [
+  "Manifest",
+  "Borongan",
+  "Manual",
+  "E-Ticket",
+  "Campuran",
+  "-",
+];
+
+const PERHIT_TARIF_OPTS = [
+  "Dalam Provinsi",
+  "Antar Provinsi",
+  "Angkutan Karyawan",
+  "-",
+];
+
+const monthIndex = {
+  jan: 1,
+  feb: 2,
+  mar: 3,
+  apr: 4,
+  mei: 5,
+  jun: 6,
+  jul: 7,
+  agust: 8,
+  sept: 9,
+  okt: 10,
+  nov: 11,
+  des: 12,
+};
+
+const monthFromIndex = {
+  1: "jan",
+  2: "feb",
+  3: "mar",
+  4: "apr",
+  5: "mei",
+  6: "jun",
+  7: "jul",
+  8: "agust",
+  9: "sept",
+  10: "okt",
+  11: "nov",
+  12: "des",
+};
+
+const monthKeys = [
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "mei",
+  "jun",
+  "jul",
+  "agust",
+  "sept",
+  "okt",
+  "nov",
+  "des",
+];
+
+const monthLabels = {
+  jan: "Januari",
+  feb: "Februari",
+  mar: "Maret",
+  apr: "April",
+  mei: "Mei",
+  jun: "Juni",
+  jul: "Juli",
+  agust: "Agustus",
+  sept: "September",
+  okt: "Oktober",
+  nov: "November",
+  des: "Desember",
+};
+
+const idr = (n) =>
+  (Number(n) || 0).toLocaleString("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  });
+
+// DB -> React
+const mapDbToRow = (dbRow) => ({
+  id: dbRow.id,
+  loket: dbRow.loket,
+  kelas: dbRow.kelas,
+  namaPerusahaan: dbRow.nama_perusahaan,
+  namaKapal: dbRow.nama_kapal,
+  namaPemilik: dbRow.nama_pemilik,
+  statusPKS: dbRow.status_pks,
+  statusPembayaran: dbRow.status_pembayaran,
+  statusKapal: dbRow.status_kapal,
+  potensiPerBulan: dbRow.potensi_per_bulan || 0,
+  ruteAwal: dbRow.rute_awal,
+  ruteAkhir: dbRow.rute_akhir,
+  trayek: dbRow.trayek,
+  persenAkt2423: dbRow.persen_akt_24_23,
+  alamat: dbRow.alamat,
+  noKontak: dbRow.no_kontak,
+  tglLahir: dbRow.tgl_lahir || "",
+  kapasitasPenumpang: dbRow.kapasitas_penumpang || 0,
+  tglPKS: dbRow.tgl_pks || "",
+  tglBerakhirPKS: dbRow.tgl_berakhir_pks || "",
+  tglAddendum: dbRow.tgl_addendum || "",
+  pasBesarKecil: dbRow.pas_besar_kecil,
+  sertifikatKeselamatan: dbRow.sertifikat_keselamatan,
+  izinTrayek: dbRow.izin_trayek,
+  tglJatuhTempoSertifikatKeselamatan:
+    dbRow.tgl_jatuh_tempo_sertifikat_keselamatan || "",
+  sistemPengutipanIWKL: dbRow.sistem_pengutipan_iwkl,
+  perhitunganTarif: dbRow.perhitungan_tarif,
+  seat: dbRow.seat || 0,
+  rit: dbRow.rit || 0,
+  tarifDasarIwkl: dbRow.tarif_dasar_iwkl || 0,
+  hari: dbRow.hari || 0,
+  loadFactor: dbRow.load_factor || 0,          
+  totalPerhitungan: dbRow.total_perhitungan || 0,
+  tarifBoronganDisepakati: dbRow.tarif_borongan_disepakati || 0,
+  keterangan: dbRow.keterangan,
+  // bulan
+  jan: dbRow.jan || 0,
+  feb: dbRow.feb || 0,
+  mar: dbRow.mar || 0,
+  apr: dbRow.apr || 0,
+  mei: dbRow.mei || 0,
+  jun: dbRow.jun || 0,
+  jul: dbRow.jul || 0,
+  agust: dbRow.agust || 0,
+  sept: dbRow.sept || 0,
+  okt: dbRow.okt || 0,
+  nov: dbRow.nov || 0,
+  des: dbRow.des || 0,
+});
+
+// React -> DB
+const mapRowToDbPayload = (r) => ({
+  loket: r.loket,
+  kelas: r.kelas,
+  nama_perusahaan: r.namaPerusahaan,
+  nama_kapal: r.namaKapal,
+  nama_pemilik: r.namaPemilik,
+  status_pks: r.statusPKS,
+  status_pembayaran: r.statusPembayaran,
+  status_kapal: r.statusKapal,
+  potensi_per_bulan: r.potensiPerBulan,
+  rute_awal: r.ruteAwal,
+  rute_akhir: r.ruteAkhir,
+  trayek: r.trayek,
+  persen_akt_24_23: r.persenAkt2423,
+  alamat: r.alamat,
+  no_kontak: r.noKontak,
+  tgl_lahir: r.tglLahir || null,
+  kapasitas_penumpang: r.kapasitasPenumpang,
+  tgl_pks: r.tglPKS || null,
+  tgl_berakhir_pks: r.tglBerakhirPKS || null,
+  tgl_addendum: r.tglAddendum || null,
+  pas_besar_kecil: r.pasBesarKecil,
+  sertifikat_keselamatan: r.sertifikatKeselamatan,
+  izin_trayek: r.izinTrayek,
+  tgl_jatuh_tempo_sertifikat_keselamatan:
+    r.tglJatuhTempoSertifikatKeselamatan || null,
+  sistem_pengutipan_iwkl: r.sistemPengutipanIWKL,
+  perhitungan_tarif: r.perhitunganTarif,
+  seat: r.seat,
+  rit: r.rit,
+  tarif_dasar_iwkl: r.tarifDasarIwkl,
+  hari: r.hari,
+  load_factor: r.loadFactor,
+  total_perhitungan: r.totalPerhitungan,
+  tarif_borongan_disepakati: r.tarifBoronganDisepakati,
+  keterangan: r.keterangan,
+  jan: r.jan || 0,
+  feb: r.feb || 0,
+  mar: r.mar || 0,
+  apr: r.apr || 0,
+  mei: r.mei || 0,
+  jun: r.jun || 0,
+  jul: r.jul || 0,
+  agust: r.agust || 0,
+  sept: r.sept || 0,
+  okt: r.okt || 0,
+  nov: r.nov || 0,
+  des: r.des || 0,
+});
+
+const makeEmptyRow = () => ({
+  id: null,
+  loket: LOKET_OPTS[0],
+  kelas: KELAS_OPTS[0],
+  namaPerusahaan: "",
+  namaKapal: "",
+  namaPemilik: "",
+  statusPKS: STATUS_PKS_OPTS[0],
+  statusPembayaran: STATUS_PEMB_OPTS[0],
+  statusKapal: STATUS_KAPAL_OPTS[0],
+  potensiPerBulan: 0,
+  ruteAwal: "",
+  ruteAkhir: "",
+  trayek: "",
+  persenAkt2423: "",
+  alamat: "",
+  noKontak: "",
+  tglLahir: "",
+  kapasitasPenumpang: 0,
+  tglPKS: "",
+  tglBerakhirPKS: "",
+  tglAddendum: "",
+  pasBesarKecil: PAS_OPTS[0],
+  sertifikatKeselamatan: SERTIF_KSL_OPTS[0],
+  izinTrayek: IZIN_TRAYEK_OPTS[0],
+  tglJatuhTempoSertifikatKeselamatan: "",
+  sistemPengutipanIWKL: SISTEM_IWKL_OPTS[0],
+  perhitunganTarif: PERHIT_TARIF_OPTS[0],
+  seat: 0,
+  rit: 0,
+  tarifDasarIwkl: 0,
+  hari: 0,
+  loadFactor: 0,
+  totalPerhitungan: 0,
+  tarifBoronganDisepakati: 0,
+  keterangan: "",
+  ...monthKeys.reduce((acc, k) => ({ ...acc, [k]: 0 }), {}),
+});
+
+export default function IwklSimple() {
   const [rows, setRows] = useState([]);
-  const [columns, setColumns] = useState(BASE_COLUMNS);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [openDetailId, setOpenDetailId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [tahunAktif, setTahunAktif] = useState(2024);
 
-  // modal tambah kolom (dinamis tetap bisa)
-  const [showColModal, setShowColModal] = useState(false);
-  const [newColLabel, setNewColLabel] = useState("");
-
-  // ring menu & rename
-  const [openMenuKey, setOpenMenuKey] = useState(null);
-  const [renamingKey, setRenamingKey] = useState(null);
-  const [renameValue, setRenameValue] = useState("");
-
+  // modal tambah
   const [showAddModal, setShowAddModal] = useState(false);
+  const [newForm, setNewForm] = useState(makeEmptyRow());
 
-  const emptyForm = {
-    loket: LOKET_OPTS[0] || "",
-    kelas: KELAS_OPTS[0] || "",
-    namaPerusahaan: "",
-    namaKapal: "",
-    namaPemilik: "",
-    alamat: "",
-    noKontak: "",
-    tglLahir: "",
-    kapasitasPenumpang: 0,
-    tglPKS: "",
-    tglBerakhirPKS: "",
-    tglAddendum: "",
-    statusPKS: STATUS_PKS_OPTS[0] || "",
-    statusPembayaran: STATUS_PEMB_OPTS[0] || "",
-    statusKapal: STATUS_KAPAL_OPTS[0] || "",
-    potensiPerBulan: 0,
-    pasBesarKecil: PAS_OPTS[0] || "",
-    sertifikatKeselamatan: SERTIF_KSL_OPTS[0] || "",
-    izinTrayek: IZIN_TRAYEK_OPTS[0] || "",
-    tglJatuhTempoSertifikatKeselamatan: "",
-    rute: "",
-    sistemPengutipanIWKL: SISTEM_IWKL_OPTS[0] || "",
-    trayek: "",
-    perhitunganTarif: PERHIT_TARIF_OPTS[0] || "",
-    tarifBoronganDisepakati: 0,
-    keterangan: "",
-  };
-  const [newForm, setNewForm] = useState(emptyForm);
-  const setF = (k, v) => setNewForm(s => ({ ...s, [k]: v }));
+  const pageSize = 8;
 
-  // buat baris dari form
-  const addIwkl = (e) => {
-    e?.preventDefault?.();
-    const row = {
-      id: Date.now(),
-      ...newForm,
-      kapasitasPenumpang: Number(newForm.kapasitasPenumpang || 0),
-      potensiPerBulan: Number(newForm.potensiPerBulan || 0),
-      tarifBoronganDisepakati: Number(newForm.tarifBoronganDisepakati || 0),
-      // bulan default 0
-      jan:0,feb:0,mar:0,apr:0,mei:0,jun:0,jul:0,agust:0,sept:0,okt:0,nov:0,des:0,
+  const computeTotal = (r) =>
+    monthKeys.reduce((sum, k) => sum + (Number(r[k] || 0) || 0), 0);
+
+  // load data
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+
+      const { data: iwklData, error: errIwkl } = await supabase
+        .from("iwkl")
+        .select("*")
+        .order("id", { ascending: false });
+
+      console.log("RAW iwkl dari Supabase:", iwklData?.slice(0, 5));
+
+      if (errIwkl) {
+        console.error("Error load IWKL:", errIwkl);
+        setLoading(false);
+        return;
+      }
+
+      const { data: bulanData, error: errBulan } = await supabase
+        .from("iwkl_bulanan")
+        .select("*")
+        .eq("tahun", tahunAktif);
+
+      console.log("RAW iwkl_bulanan:", bulanData?.slice(0, 5));
+
+      if (errBulan) {
+        console.error("Error load iwkl_bulanan:", errBulan);
+      }
+
+      const grouped = {};
+      (bulanData || []).forEach((row) => {
+        const iwklId = row.iwkl_id;
+        const k = monthFromIndex[row.bulan];
+        if (!k) return;
+        if (!grouped[iwklId]) grouped[iwklId] = {};
+        grouped[iwklId][k] = Number(row.nilai) || 0;
+      });
+
+      const rowsMapped = (iwklData || []).map((r) => {
+        const base = mapDbToRow(r);
+        const bulan = grouped[r.id] || {};
+        return { ...base, ...bulan };
+      });
+
+      console.log("HASIL map ke rows:", rowsMapped.slice(0, 5));
+
+      setRows(rowsMapped);
+      setLoading(false);
     };
-    setRows(prev => [row, ...prev]);
-    setShowAddModal(false);
-    setNewForm(emptyForm);
-  };
 
-  const monthKeys = ["jan","feb","mar","apr","mei","jun","jul","agust","sept","okt","nov","des"];
+    fetchData();
+  }, [tahunAktif]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return rows;
-    return rows.filter((r) => [
-      r.loket, r.kelas, r.namaPerusahaan, r.namaKapal, r.namaPemilik, r.alamat, r.noKontak, r.rute, r.trayek
-    ].join(" ").toLowerCase().includes(s));
+    return rows.filter((r) =>
+      [
+        r.loket,
+        r.kelas,
+        r.namaPerusahaan,
+        r.namaKapal,
+        r.namaPemilik,
+        r.ruteAwal,
+        r.ruteAkhir,
+        r.trayek,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(s)
+    );
   }, [rows, q]);
 
-  const [page, setPage] = useState(1);
-  const pageSize = 8;
-
   const totalPage = Math.max(1, Math.ceil(filtered.length / pageSize));
+
   const pageData = useMemo(
     () => filtered.slice((page - 1) * pageSize, page * pageSize),
     [filtered, page, pageSize]
   );
 
-  const computeTotal = (r) => monthKeys.reduce((sum, k) => sum + (Number(r[k] || 0) || 0), 0);
+  const deleteRow = async (id) => {
+    if (!window.confirm("Hapus baris ini?")) return;
+    setSaving(true);
+    const { error } = await supabase.from("iwkl").delete().eq("id", id);
+    setSaving(false);
 
-  const addRow = () => {
-    const blank = { id: Date.now() };
-    columns.forEach((c) => {
-      switch (c.key) {
-        case "loket": blank[c.key] = LOKET_OPTS[0]; break;
-        case "kelas": blank[c.key] = KELAS_OPTS[0]; break;
-        case "statusPKS": blank[c.key] = STATUS_PKS_OPTS[0]; break;
-        case "statusPembayaran": blank[c.key] = STATUS_PEMB_OPTS[0]; break;
-        case "statusKapal": blank[c.key] = STATUS_KAPAL_OPTS[0]; break;
-        case "pasBesarKecil": blank[c.key] = PAS_OPTS[0]; break;
-        case "sertifikatKeselamatan": blank[c.key] = SERTIF_KSL_OPTS[0]; break;
-        case "izinTrayek": blank[c.key] = IZIN_TRAYEK_OPTS[0]; break;
-        case "sistemPengutipanIWKL": blank[c.key] = SISTEM_IWKL_OPTS[0]; break;
-        case "perhitunganTarif": blank[c.key] = PERHIT_TARIF_OPTS[0]; break;
-        case "tglLahir": case "tglPKS": case "tglBerakhirPKS": case "tglAddendum": case "tglJatuhTempoSertifikatKeselamatan":
-          blank[c.key] = ""; break;
-        case "kapasitasPenumpang": case "potensiPerBulan": case "tarifBoronganDisepakati":
-          blank[c.key] = 0; break;
-        default:
-          if (monthKeys.includes(c.key)) blank[c.key] = 0; else if (!c.readOnly) blank[c.key] = "";
-      }
-    });
-    blank.total = 0; // computed on render
-    setRows((prev) => [blank, ...prev]);
+    if (error) {
+      console.error("Error delete:", error);
+      return;
+    }
+    setRows((prev) => prev.filter((r) => r.id !== id));
+    if (openDetailId === id) setOpenDetailId(null);
   };
 
-  const addColumn = () => {
-    const label = newColLabel.trim();
-    if (!label) return;
-    const key = label.toLowerCase().replace(/[^a-z0-9]+(\w)/g, (_, c) => c.toUpperCase()).replace(/[^a-z0-9]/g, "");
-    if (columns.some((c) => c.key === key)) { alert("Kolom dengan nama itu sudah ada."); return; }
-    const col = { key, label };
-    setColumns((prev) => [...prev, col]);
-    setRows((prev) => prev.map((r) => ({ ...r, [key]: "" })));
-    setShowColModal(false); setNewColLabel("");
-  };
+  const updateCell = async (id, key, value) => {
+    // update state dulu biar UI responsif
+    setRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, [key]: value } : r))
+    );
 
-  const updateCell = (id, key, value) => {
-    if (key === "total") return; // readOnly
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [key]: value } : r)));
-  };
+    // kalau yang diubah adalah bulan, arahkan ke iwkl_bulanan
+    if (monthKeys.includes(key)) {
+      await updateBulan(id, key, value);
+      return;
+    }
 
-  const deleteRow = (id) => setRows((prev) => prev.filter((r) => r.id !== id));
-
-  // helpers urut & hapus kolom
-  const indexOfKey = (key) => columns.findIndex((c) => c.key === key);
-  const moveColumnByIndex = (from, to) => {
-    if (to < 0 || to >= columns.length || from === -1 || to === from) return;
-    setColumns((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
-  };
-  const moveRightByKey = (key) => { const i = indexOfKey(key); if (i === -1) return; const to = (i + 1) % columns.length; moveColumnByIndex(i, to); };
-  const moveLeftByKey = (key) => { const i = indexOfKey(key); if (i === -1) return; const to = (i - 1 + columns.length) % columns.length; moveColumnByIndex(i, to); };
-  const moveStart = (key) => { moveColumnByIndex(indexOfKey(key), 0); };
-  const moveEnd   = (key) => { moveColumnByIndex(indexOfKey(key), columns.length - 1); };
-
-  const removeColumn = (key) => {
-    const col = columns.find((c) => c.key === key);
-    if (!col) return;
-    const ok = window.confirm(`Hapus kolom "${col.label}"? Data pada kolom ini akan hilang.`);
-    if (!ok) return;
-    setColumns((prev) => prev.filter((c) => c.key !== key));
-    setRows((prev) => prev.map(({ [key]: _omit, ...rest }) => rest));
-    setOpenMenuKey(null);
-  };
-
-  const startRename = (key) => {
-    const col = columns.find((c) => c.key === key);
-    if (!col) return;
-    setRenamingKey(key);
-    setRenameValue(col.label);
-    setOpenMenuKey(null);
-  };
-  const commitRename = () => {
-    const label = renameValue.trim();
-    if (!label) { setRenamingKey(null); return; }
-    setColumns((prev) => prev.map((c) => c.key === renamingKey ? { ...c, label } : c));
-    setRenamingKey(null);
-  };
-  const toggleMenu = (key) => setOpenMenuKey((cur) => (cur === key ? null : key));
-
-  useEffect(() => {
-    const onDocClick = (e) => {
-      if (!e.target.closest?.('.th-hasmenu, .th-ring, .th-orbit')) {
-        setOpenMenuKey(null);
-      }
+    const keyMap = {
+      namaPerusahaan: "nama_perusahaan",
+      namaKapal: "nama_kapal",
+      namaPemilik: "nama_pemilik",
+      statusPKS: "status_pks",
+      statusPembayaran: "status_pembayaran",
+      statusKapal: "status_kapal",
+      potensiPerBulan: "potensi_per_bulan",
+      persenAkt2423: "persen_akt_24_23",
+      noKontak: "no_kontak",
+      tglLahir: "tgl_lahir",
+      kapasitasPenumpang: "kapasitas_penumpang",
+      tglPKS: "tgl_pks",
+      tglBerakhirPKS: "tgl_berakhir_pks",
+      tglAddendum: "tgl_addendum",
+      pasBesarKecil: "pas_besar_kecil",
+      sertifikatKeselamatan: "sertifikat_keselamatan",
+      izinTrayek: "izin_trayek",
+      tglJatuhTempoSertifikatKeselamatan:
+        "tgl_jatuh_tempo_sertifikat_keselamatan",
+      sistemPengutipanIWKL: "sistem_pengutipan_iwkl",
+      perhitunganTarif: "perhitungan_tarif",
+      seat: "seat",
+      rit: "rit",
+      tarifDasarIwkl: "tarif_dasar_iwkl",
+      hari: "hari",
+      loadFactor: "load_factor",
+      totalPerhitungan: "total_perhitungan",
+      tarifBoronganDisepakati: "tarif_borongan_disepakati",
+      keterangan: "keterangan",
+      loket: "loket",
+      kelas: "kelas",
+      trayek: "trayek",
+      ruteAwal: "rute_awal",
+      ruteAkhir: "rute_akhir",
+      // ❌ jan..des DIHAPUS dari sini, karena mereka di iwkl_bulanan
     };
-    document.addEventListener('click', onDocClick);
-    return () => document.removeEventListener('click', onDocClick);
-  }, []);
+
+    const colName = keyMap[key];
+    if (!colName) {
+      console.warn("Kolom belum dimapping ke DB:", key);
+      return;
+    }
+
+    setSaving(true);
+    const { error } = await supabase
+      .from("iwkl")
+      .update({ [colName]: value })
+      .eq("id", id);
+    setSaving(false);
+
+    if (error) {
+      console.error("Error update:", error);
+    }
+  };
+
+  const updateBulan = async (iwklId, key, value) => {
+    const bulan = monthIndex[key];
+    if (!bulan) return;
+
+    setSaving(true);
+
+    // cek apakah row bulanan sudah ada
+    const { data: existing, error: selError } = await supabase
+      .from("iwkl_bulanan")
+      .select("id")
+      .eq("iwkl_id", iwklId)
+      .eq("tahun", tahunAktif)
+      .eq("bulan", bulan)
+      .maybeSingle();
+
+    if (selError && selError.code !== "PGRST116") {
+      // PGRST116 = no rows
+      console.error("Error cek iwkl_bulanan:", selError);
+      setSaving(false);
+      return;
+    }
+
+    let error;
+    if (existing) {
+      // update
+      ({ error } = await supabase
+        .from("iwkl_bulanan")
+        .update({ nilai: value })
+        .eq("id", existing.id));
+    } else {
+      // insert baru
+      ({ error } = await supabase.from("iwkl_bulanan").insert({
+        iwkl_id: iwklId,
+        tahun: tahunAktif,
+        bulan,
+        nilai: value,
+      }));
+    }
+
+    setSaving(false);
+
+    if (error) {
+      console.error("Error update/insert iwkl_bulanan:", error);
+    }
+  };
+
+  const toggleDetail = (id) => {
+    setOpenDetailId((cur) => (cur === id ? null : id));
+  };
+
+  // helper form tambah
+  const setF = (field, value) =>
+    setNewForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+  const addIwkl = async (e) => {
+    e.preventDefault();
+    const draft = { ...makeEmptyRow(), ...newForm };
+
+    setSaving(true);
+    const { data, error } = await supabase
+      .from("iwkl")
+      .insert([mapRowToDbPayload(draft)])
+      .select()
+      .single();
+    setSaving(false);
+
+    if (error) {
+      console.error("Error insert:", error);
+      return;
+    }
+
+    const newRow = mapDbToRow(data);
+    setRows((prev) => [newRow, ...prev]);
+    setShowAddModal(false);
+    setNewForm(makeEmptyRow());
+    setPage(1);
+  };
 
   return (
     <div className="iwkl-wrap">
@@ -247,21 +531,45 @@ export default function Iwkl() {
 
       <header className="iwkl-header">
         <div className="title">
-          <span className="emoji" aria-hidden>🛳️</span>
+          <span className="emoji" aria-hidden>
+            🛳️
+          </span>
           <h1>Data IWKL</h1>
+          {loading && <span style={{ marginLeft: 8, fontSize: 12 }}>Loading…</span>}
+          {saving && !loading && (
+            <span style={{ marginLeft: 8, fontSize: 12 }}>Menyimpan…</span>
+          )}
         </div>
 
         <div className="actions">
           <input
             className="search"
-            placeholder="Cari perusahaan/pemilik/alamat…"
+            placeholder="Cari kapal / perusahaan / trayek…"
             value={q}
-            onChange={(e) => { setQ(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(1);
+            }}
           />
-          <button className="btn ghost" onClick={() => setShowColModal(true)}>+ Tambah Kolom</button>
+          <select
+            value={tahunAktif}
+            onChange={(e) => setTahunAktif(Number(e.target.value))}
+            className="year-select"
+          >
+            <option value={2021}>2021</option>
+            <option value={2022}>2022</option>
+            <option value={2023}>2023</option>
+            <option value={2024}>2024</option>
+            <option value={2025}>2025</option>
+          </select>
+          {/* tombol tambah baris diganti modal */}
           <button
             className="btn primary"
-            onClick={() => { setNewForm(emptyForm); setShowAddModal(true); }}
+            type="button"
+            onClick={() => {
+              setNewForm(makeEmptyRow());
+              setShowAddModal(true);
+            }}
           >
             + Tambah Data IWKL
           </button>
@@ -270,209 +578,629 @@ export default function Iwkl() {
 
       <div className="card">
         <div className="table-scroll">
-          <table className="kawaii-table">
-            <thead>
-              <tr>
-                {columns.map((c) => (
-                  <th key={c.key}>
-                    <div className="th-hasmenu">
-                      {renamingKey === c.key ? (
-                        <div className="th-rename">
-                          <input
-                            autoFocus
-                            value={renameValue}
-                            onChange={(e) => setRenameValue(e.target.value)}
-                            onBlur={commitRename}
-                            onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenamingKey(null); }}
-                          />
-                        </div>
-                      ) : (
-                        <button className="th-toggle" onClick={(e) => { e.stopPropagation(); toggleMenu(c.key); }} aria-haspopup="true" aria-expanded={openMenuKey === c.key}>
-                          {c.label}
-                        </button>
-                      )}
-
-                      {openMenuKey === c.key && (
-                        <>
-                          <div className="th-ring pretty" role="group" aria-label={`Atur kolom ${c.label}`}>
-                            <div className="ring-aura" aria-hidden />
-                            <button className="ring-btn ring-top" onClick={() => moveStart(c.key)} aria-label="Ke awal">⏮</button>
-                            <button className="ring-btn ring-left" onClick={() => moveLeftByKey(c.key)} aria-label="Geser kiri">◀</button>
-                            <button className="ring-btn ring-right" onClick={() => moveRightByKey(c.key)} aria-label="Geser kanan">▶</button>
-                            <button className="ring-btn ring-bottom" onClick={() => moveEnd(c.key)} aria-label="Ke akhir">⏭</button>
-                          </div>
-                          <div className="th-orbit">
-                            <button className="ring-chip ring-rename" onClick={() => startRename(c.key)} aria-label="Ubah nama">✎ Ubah</button>
-                            <button className="ring-chip ring-delete" onClick={() => removeColumn(c.key)} aria-label="Hapus kolom">🗑 Hapus</button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {pageData.map((r, idx) => (
-                <tr key={r.id}>
-                  <td>{(page - 1) * pageSize + idx + 1}</td>
-                  <td>
-                    <button className="btn danger ghost xs" onClick={() => deleteRow(r.id)}>Hapus</button>
-                  </td>
-
-                  {columns.map((c) => {
-                    const k = c.key;
-                    const v = r[k];
-                    if (k === "loket") {
-                      return (
-                        <td key={k}>
-                          <select value={v} onChange={(e) => updateCell(r.id, k, e.target.value)}>
-                            {LOKET_OPTS.map((o) => (<option key={o} value={o}>{o}</option>))}
-                          </select>
-                        </td>
-                      );
-                    }
-                    if (k === "kelas") {
-                      return (
-                        <td key={k}>
-                          <select value={v} onChange={(e) => updateCell(r.id, k, e.target.value)}>
-                            {KELAS_OPTS.map((o) => (<option key={o} value={o}>{o}</option>))}
-                          </select>
-                        </td>
-                      );
-                    }
-                    if (["tglLahir","tglPKS","tglBerakhirPKS","tglAddendum","tglJatuhTempoSertifikatKeselamatan"].includes(k)) {
-                      return (
-                        <td key={k}>
-                          <input type="date" value={v || ""} onChange={(e) => updateCell(r.id, k, e.target.value)} />
-                        </td>
-                      );
-                    }
-                    if (["kapasitasPenumpang"].includes(k)) {
-                      return (
-                        <td key={k}>
-                          <input type="number" min={0} value={v || 0} onChange={(e) => updateCell(r.id, k, Number(e.target.value))} />
-                        </td>
-                      );
-                    }
-                    if (k === "potensiPerBulan" || k === "tarifBoronganDisepakati") {
-                      return (
-                        <td key={k}>
-                          <input type="number" min={0} value={v || 0} onChange={(e) => updateCell(r.id, k, Number(e.target.value))} />
-                          <div className="hint">{idr(v || 0)}</div>
-                        </td>
-                      );
-                    }
-                    if (["jan","feb","mar","apr","mei","jun","jul","agust","sept","okt","nov","des"].includes(k)) {
-                      return (
-                        <td key={k}>
-                          <input type="number" min={0} value={v || 0} onChange={(e) => updateCell(r.id, k, Number(e.target.value))} />
-                        </td>
-                      );
-                    }
-                    if (k === "statusPKS") {
-                      return (
-                        <td key={k}>
-                          <select value={v} onChange={(e) => updateCell(r.id, k, e.target.value)}>
-                            {STATUS_PKS_OPTS.map((o)=>(<option key={o} value={o}>{o}</option>))}
-                          </select>
-                        </td>
-                      );
-                    }
-                    if (k === "statusPembayaran") {
-                      return (
-                        <td key={k}>
-                          <select value={v} onChange={(e) => updateCell(r.id, k, e.target.value)}>
-                            {STATUS_PEMB_OPTS.map((o)=>(<option key={o} value={o}>{o}</option>))}
-                          </select>
-                        </td>
-                      );
-                    }
-                    if (k === "statusKapal") {
-                      return (
-                        <td key={k}>
-                          <select value={v} onChange={(e) => updateCell(r.id, k, e.target.value)}>
-                            {STATUS_KAPAL_OPTS.map((o)=>(<option key={o} value={o}>{o}</option>))}
-                          </select>
-                        </td>
-                      );
-                    }
-                    if (k === "pasBesarKecil") {
-                      return (
-                        <td key={k}>
-                          <select value={v} onChange={(e) => updateCell(r.id, k, e.target.value)}>
-                            {PAS_OPTS.map((o)=>(<option key={o} value={o}>{o}</option>))}
-                          </select>
-                        </td>
-                      );
-                    }
-                    if (k === "sertifikatKeselamatan") {
-                      return (
-                        <td key={k}>
-                          <select value={v} onChange={(e) => updateCell(r.id, k, e.target.value)}>
-                            {SERTIF_KSL_OPTS.map((o)=>(<option key={o} value={o}>{o}</option>))}
-                          </select>
-                        </td>
-                      );
-                    }
-                    if (k === "izinTrayek") {
-                      return (
-                        <td key={k}>
-                          <select value={v} onChange={(e) => updateCell(r.id, k, e.target.value)}>
-                            {IZIN_TRAYEK_OPTS.map((o)=>(<option key={o} value={o}>{o}</option>))}
-                          </select>
-                        </td>
-                      );
-                    }
-                    if (k === "sistemPengutipanIWKL") {
-                      return (
-                        <td key={k}>
-                          <select value={v} onChange={(e) => updateCell(r.id, k, e.target.value)}>
-                            {SISTEM_IWKL_OPTS.map((o)=>(<option key={o} value={o}>{o}</option>))}
-                          </select>
-                        </td>
-                      );
-                    }
-                    if (k === "perhitunganTarif") {
-                      return (
-                        <td key={k}>
-                          <select value={v} onChange={(e) => updateCell(r.id, k, e.target.value)}>
-                            {PERHIT_TARIF_OPTS.map((o)=>(<option key={o} value={o}>{o}</option>))}
-                          </select>
-                        </td>
-                      );
-                    }
-                    if (k === "noKontak") {
-                      return (
-                        <td key={k}>
-                          <input type="tel" pattern="[0-9+\\-\\s]+" value={v || ""} onChange={(e) => updateCell(r.id, k, e.target.value)} placeholder="08xx…" />
-                        </td>
-                      );
-                    }
-                    if (k === "total") {
-                      const total = computeTotal(r);
-                      return (
-                        <td key={k} className="num strong">{idr(total)}</td>
-                      );
-                    }
-                    // default text
-                    return (
-                      <td key={k}>
-                        <input type="text" value={v ?? ""} onChange={(e) => updateCell(r.id, k, e.target.value)} placeholder={c.label} />
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-
-              {filtered.length === 0 && (
+          <div className="scroll-inner">
+            <table className="kawaii-table">
+              <thead>
                 <tr>
-                  <td className="empty" colSpan={columns.length + 2}>Tidak ada data</td>
+                  <th>No</th>
+                  <th>Aksi</th>
+                  <th>Loket</th>
+                  <th>Kelas</th>
+                  <th>Nama Kapal</th>
+                  <th>Nama Perusahaan</th>
+                  <th>Nama Pemilik / Pengelola</th>
+                  <th>Status PKS</th>
+                  <th>Status Kapal</th>
+                  <th>Rute</th>
+                  <th>Trayek</th>
+                  <th>Potensi / Bulan (Rp)</th>
+                  <th>Total Jan–Des</th>
+                  <th>% Akt 24 - 23</th>
+                  <th>Detail</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pageData.map((r, idx) => {
+                  const total = computeTotal(r);
+                  const isOpen = openDetailId === r.id;
+                  return (
+                    <React.Fragment key={r.id}>
+                      <tr>
+                        <td>{(page - 1) * pageSize + idx + 1}</td>
+                        <td>
+                          <button
+                            className="btn danger ghost xs"
+                            onClick={() => deleteRow(r.id)}
+                          >
+                            Hapus
+                          </button>
+                        </td>
+
+                        {/* Loket */}
+                        <td>
+                          <select
+                            value={r.loket || ""}
+                            onChange={(e) =>
+                              updateCell(r.id, "loket", e.target.value)
+                            }
+                          >
+                            {LOKET_OPTS.map((o) => (
+                              <option key={o} value={o}>
+                                {o}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+
+                        {/* Kelas */}
+                        <td>
+                          <select
+                            value={r.kelas || ""}
+                            onChange={(e) =>
+                              updateCell(r.id, "kelas", e.target.value)
+                            }
+                          >
+                            {KELAS_OPTS.map((o) => (
+                              <option key={o} value={o}>
+                                {o}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+
+                        {/* Nama Kapal */}
+                        <td>
+                          <input
+                            type="text"
+                            value={r.namaKapal || ""}
+                            onChange={(e) =>
+                              updateCell(r.id, "namaKapal", e.target.value)
+                            }
+                            placeholder="Nama Kapal"
+                          />
+                        </td>
+
+                        {/* Nama Perusahaan */}
+                        <td>
+                          <input
+                            type="text"
+                            value={r.namaPerusahaan || ""}
+                            onChange={(e) =>
+                              updateCell(
+                                r.id,
+                                "namaPerusahaan",
+                                e.target.value
+                              )
+                            }
+                            placeholder="Nama Perusahaan"
+                          />
+                        </td>
+
+                        {/* Nama Pemilik */}
+                        <td>
+                          <input
+                            type="text"
+                            value={r.namaPemilik || ""}
+                            onChange={(e) =>
+                              updateCell(r.id, "namaPemilik", e.target.value)
+                            }
+                            placeholder="Nama Pemilik"
+                          />
+                        </td>
+
+                        {/* Status PKS */}
+                        <td>
+                          <select
+                            value={r.statusPKS || ""}
+                            onChange={(e) =>
+                              updateCell(r.id, "statusPKS", e.target.value)
+                            }
+                          >
+                            {STATUS_PKS_OPTS.map((o) => (
+                              <option key={o} value={o}>
+                                {o}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+
+                        {/* Status Kapal */}
+                        <td>
+                          <select
+                            value={r.statusKapal || ""}
+                            onChange={(e) =>
+                              updateCell(r.id, "statusKapal", e.target.value)
+                            }
+                          >
+                            {STATUS_KAPAL_OPTS.map((o) => (
+                              <option key={o} value={o}>
+                                {o}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+
+                        {/* Rute (gabungan awal-akhir) */}
+                        <td>
+                          {(r.ruteAwal || "-") + " → " + (r.ruteAkhir || "-")}
+                        </td>
+
+                        {/* Trayek */}
+                        <td>
+                          <input
+                            type="text"
+                            value={r.trayek || ""}
+                            onChange={(e) =>
+                              updateCell(r.id, "trayek", e.target.value)
+                            }
+                            placeholder="Trayek"
+                          />
+                        </td>
+
+                        {/* Potensi per bulan */}
+                        <td>
+                          <input
+                            type="number"
+                            min={0}
+                            value={r.potensiPerBulan || 0}
+                            onChange={(e) =>
+                              updateCell(
+                                r.id,
+                                "potensiPerBulan",
+                                Number(e.target.value)
+                              )
+                            }
+                          />
+                          <div className="hint">
+                            {idr(r.potensiPerBulan || 0)}
+                          </div>
+                        </td>
+
+                        {/* Total Jan–Des */}
+                        <td className="num strong">{idr(total)}</td>
+
+                        {/* Persen Akt 24-23 */}
+                        <td>
+                          <input
+                            type="text"
+                            value={r.persenAkt2423 || ""}
+                            onChange={(e) =>
+                              updateCell(r.id, "persenAkt2423", e.target.value)
+                            }
+                            placeholder="contoh: 40.7%"
+                          />
+                        </td>
+
+                        {/* tombol detail */}
+                        <td>
+                          <button
+                            className="btn ghost xs"
+                            type="button"
+                            onClick={() => toggleDetail(r.id)}
+                          >
+                            {isOpen ? "Tutup" : "Detail"}
+                          </button>
+                        </td>
+                      </tr>
+
+                      {isOpen && (
+                        <tr className="row-detail">
+                          <td colSpan={15}>
+                            <div className="detail-grid">
+                              <section>
+                                <h4>Info Lengkap</h4>
+                                <div className="detail-fields">
+                                  <label>
+                                    Rute Awal
+                                    <input
+                                      type="text"
+                                      value={r.ruteAwal || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "ruteAwal",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </label>
+
+                                  <label>
+                                    Rute Akhir
+                                    <input
+                                      type="text"
+                                      value={r.ruteAkhir || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "ruteAkhir",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </label>
+
+                                  <label>
+                                    Alamat
+                                    <input
+                                      type="text"
+                                      value={r.alamat || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "alamat",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </label>
+
+                                  <label>
+                                    No. Kontak
+                                    <input
+                                      type="tel"
+                                      value={r.noKontak || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "noKontak",
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder="08xx…"
+                                    />
+                                  </label>
+
+                                  <label>
+                                    Tanggal Lahir
+                                    <input
+                                      type="date"
+                                      value={r.tglLahir || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "tglLahir",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </label>
+
+                                  <label>
+                                    Kapasitas Penumpang
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={r.kapasitasPenumpang || 0}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "kapasitasPenumpang",
+                                          Number(e.target.value)
+                                        )
+                                      }
+                                    />
+                                  </label>
+
+                                  <label>
+                                    Tanggal PKS
+                                    <input
+                                      type="date"
+                                      value={r.tglPKS || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "tglPKS",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </label>
+
+                                  <label>
+                                    Tanggal Berakhir PKS
+                                    <input
+                                      type="date"
+                                      value={r.tglBerakhirPKS || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "tglBerakhirPKS",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </label>
+
+                                  <label>
+                                    Tanggal Addendum
+                                    <input
+                                      type="date"
+                                      value={r.tglAddendum || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "tglAddendum",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </label>
+
+                                  <label>
+                                    Status Pembayaran
+                                    <select
+                                      value={r.statusPembayaran || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "statusPembayaran",
+                                          e.target.value
+                                        )
+                                      }
+                                    >
+                                      {STATUS_PEMB_OPTS.map((o) => (
+                                        <option key={o} value={o}>
+                                          {o}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+
+                                  <label>
+                                    Pas Besar / Kecil
+                                    <select
+                                      value={r.pasBesarKecil || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "pasBesarKecil",
+                                          e.target.value
+                                        )
+                                      }
+                                    >
+                                      {PAS_OPTS.map((o) => (
+                                        <option key={o} value={o}>
+                                          {o}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+
+                                  <label>
+                                    Sertifikat Keselamatan
+                                    <select
+                                      value={r.sertifikatKeselamatan || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "sertifikatKeselamatan",
+                                          e.target.value
+                                        )
+                                      }
+                                    >
+                                      {SERTIF_KSL_OPTS.map((o) => (
+                                        <option key={o} value={o}>
+                                          {o}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+
+                                  <label>
+                                    Izin Trayek
+                                    <select
+                                      value={r.izinTrayek || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "izinTrayek",
+                                          e.target.value
+                                        )
+                                      }
+                                    >
+                                      {IZIN_TRAYEK_OPTS.map((o) => (
+                                        <option key={o} value={o}>
+                                          {o}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+
+                                  <label>
+                                    Tgl Jatuh Tempo Sertifikat Kapal
+                                    <input
+                                      type="date"
+                                      value={
+                                        r.tglJatuhTempoSertifikatKeselamatan ||
+                                        ""
+                                      }
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "tglJatuhTempoSertifikatKeselamatan",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </label>
+
+                                  <label>
+                                    Sistem Pengutipan IWKL
+                                    <select
+                                      value={r.sistemPengutipanIWKL || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "sistemPengutipanIWKL",
+                                          e.target.value
+                                        )
+                                      }
+                                    >
+                                      {SISTEM_IWKL_OPTS.map((o) => (
+                                        <option key={o} value={o}>
+                                          {o}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+
+                                  <section>
+                                    <h4>Perhitungan Tarif</h4>
+                                    <div className="detail-fields">
+                                      <label>
+                                        Seat
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          value={r.seat || 0}
+                                          onChange={(e) => updateCell(r.id, "seat", Number(e.target.value))}
+                                        />
+                                      </label>
+
+                                      <label>
+                                        Rit
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          value={r.rit || 0}
+                                          onChange={(e) => updateCell(r.id, "rit", Number(e.target.value))}
+                                        />
+                                      </label>
+
+                                      <label>
+                                        Tarif Dasar IWKL
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          value={r.tarifDasarIwkl || 0}
+                                          onChange={(e) =>
+                                            updateCell(r.id, "tarifDasarIwkl", Number(e.target.value))
+                                          }
+                                        />
+                                      </label>
+
+                                      <label>
+                                        Hari
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          value={r.hari || 0}
+                                          onChange={(e) => updateCell(r.id, "hari", Number(e.target.value))}
+                                        />
+                                      </label>
+
+                                      <label>
+                                        Load Factor (%)
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={100}
+                                          value={r.loadFactor || 0}
+                                          onChange={(e) =>
+                                            updateCell(r.id, "loadFactor", Number(e.target.value))
+                                          }
+                                        />
+                                      </label>
+
+                                      <div style={{ gridColumn: "1 / -1", marginTop: 8 }}>
+                                        Total:
+                                        <strong>
+                                          {" "}
+                                          {idr(
+                                            (r.seat || 0) *
+                                              (r.rit || 0) *
+                                              (r.tarifDasarIwkl || 0) *
+                                              (r.hari || 0) *
+                                              ((r.loadFactor || 0) / 100)
+                                          )}
+                                        </strong>
+                                      </div>
+                                    </div>
+                                  </section>
+
+                                  <label>
+                                    Tarif Borongan Disepakati (Rp)
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={r.tarifBoronganDisepakati || 0}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "tarifBoronganDisepakati",
+                                          Number(e.target.value)
+                                        )
+                                      }
+                                    />
+                                    <small className="hint">
+                                      {idr(r.tarifBoronganDisepakati || 0)}
+                                    </small>
+                                  </label>
+
+                                  <label style={{ gridColumn: "1 / -1" }}>
+                                    Keterangan
+                                    <input
+                                      type="text"
+                                      value={r.keterangan || ""}
+                                      onChange={(e) =>
+                                        updateCell(
+                                          r.id,
+                                          "keterangan",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                </div>
+                              </section>
+
+                              <section>
+                                <h4>Realisasi per Bulan</h4>
+                                <div className="month-grid">
+                                  {monthKeys.map((k) => (
+                                    <label key={k}>
+                                      {monthLabels[k]}
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        value={r[k] || 0}
+                                        onChange={(e) =>
+                                          updateCell(
+                                            r.id,
+                                            k,
+                                            Number(e.target.value)
+                                          )
+                                        }
+                                      />
+                                    </label>
+                                  ))}
+                                </div>
+
+                                <div className="hint" style={{ marginTop: 8 }}>
+                                  Total Jan–Des: <strong>{idr(total)}</strong>
+                                </div>
+                              </section>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+
+                {filtered.length === 0 && (
+                  <tr>
+                    <td className="empty" colSpan={15}>
+                      Tidak ada data
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+
         <div className="pager">
           <button
             className="btn ghost"
@@ -494,190 +1222,356 @@ export default function Iwkl() {
         </div>
       </div>
 
-      {showColModal && (
-        <div className="modal-backdrop" onClick={() => setShowColModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>Tambah Kolom Baru</h3>
-            <label className="stack">
-              Nama Kolom
-              <input type="text" value={newColLabel} onChange={(e) => setNewColLabel(e.target.value)} placeholder="Contoh: NPWP, Email, Catatan" />
-            </label>
-            <div className="modal-actions">
-              <button className="btn ghost" onClick={() => setShowColModal(false)}>Batal</button>
-              <button className="btn primary" onClick={addColumn}>Tambah</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* MODAL TAMBAH DATA */}
       {showAddModal && (
-        <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{maxHeight:'80vh', display:'flex', flexDirection:'column'}}>
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxHeight: "80vh", display: "flex", flexDirection: "column" }}
+          >
             <h3>Tambah Data IWKL</h3>
 
-            <form onSubmit={addIwkl} className="grid" style={{overflow:'auto', paddingRight:4}}>
-              {/* Baris 1 */}
+            <form
+              onSubmit={addIwkl}
+              className="grid"
+              style={{ overflow: "auto", paddingRight: 4 }}
+            >
               <label>
                 Loket
-                <select value={newForm.loket} onChange={(e)=>setF('loket', e.target.value)}>
-                  {LOKET_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+                <select
+                  value={newForm.loket}
+                  onChange={(e) => setF("loket", e.target.value)}
+                >
+                  {LOKET_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
                 </select>
               </label>
 
               <label>
                 Kelas
-                <select value={newForm.kelas} onChange={(e)=>setF('kelas', e.target.value)}>
-                  {KELAS_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+                <select
+                  value={newForm.kelas}
+                  onChange={(e) => setF("kelas", e.target.value)}
+                >
+                  {KELAS_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
                 </select>
               </label>
 
               <label>
                 Nama Perusahaan
-                <input type="text" value={newForm.namaPerusahaan} onChange={(e)=>setF('namaPerusahaan', e.target.value)} />
+                <input
+                  type="text"
+                  value={newForm.namaPerusahaan}
+                  onChange={(e) => setF("namaPerusahaan", e.target.value)}
+                />
               </label>
 
               <label>
                 Nama Kapal
-                <input type="text" value={newForm.namaKapal} onChange={(e)=>setF('namaKapal', e.target.value)} />
+                <input
+                  type="text"
+                  value={newForm.namaKapal}
+                  onChange={(e) => setF("namaKapal", e.target.value)}
+                />
               </label>
 
-              {/* Baris 2 */}
               <label>
                 Nama Pemilik / Pengelola
-                <input type="text" value={newForm.namaPemilik} onChange={(e)=>setF('namaPemilik', e.target.value)} />
+                <input
+                  type="text"
+                  value={newForm.namaPemilik}
+                  onChange={(e) => setF("namaPemilik", e.target.value)}
+                />
               </label>
 
-              <label style={{gridColumn:'span 1'}}>
+              <label>
                 Alamat
-                <input type="text" value={newForm.alamat} onChange={(e)=>setF('alamat', e.target.value)} />
+                <input
+                  type="text"
+                  value={newForm.alamat}
+                  onChange={(e) => setF("alamat", e.target.value)}
+                />
               </label>
 
               <label>
                 No. Kontak
-                <input type="tel" pattern="[0-9+\\-\\s]+" value={newForm.noKontak} onChange={(e)=>setF('noKontak', e.target.value)} placeholder="08xx…" />
+                <input
+                  type="tel"
+                  value={newForm.noKontak}
+                  onChange={(e) => setF("noKontak", e.target.value)}
+                  placeholder="08xx…"
+                />
               </label>
 
               <label>
                 Tanggal Lahir
-                <input type="date" value={newForm.tglLahir || ''} onChange={(e)=>setF('tglLahir', e.target.value)} />
+                <input
+                  type="date"
+                  value={newForm.tglLahir || ""}
+                  onChange={(e) => setF("tglLahir", e.target.value)}
+                />
               </label>
 
-              {/* Baris 3 */}
               <label>
                 Kapasitas Penumpang
-                <input type="number" min={0} value={newForm.kapasitasPenumpang} onChange={(e)=>setF('kapasitasPenumpang', e.target.value)} />
+                <input
+                  type="number"
+                  min={0}
+                  value={newForm.kapasitasPenumpang}
+                  onChange={(e) =>
+                    setF("kapasitasPenumpang", Number(e.target.value))
+                  }
+                />
               </label>
 
               <label>
                 Tanggal PKS
-                <input type="date" value={newForm.tglPKS || ''} onChange={(e)=>setF('tglPKS', e.target.value)} />
+                <input
+                  type="date"
+                  value={newForm.tglPKS || ""}
+                  onChange={(e) => setF("tglPKS", e.target.value)}
+                />
               </label>
 
               <label>
                 Tanggal Berakhir PKS
-                <input type="date" value={newForm.tglBerakhirPKS || ''} onChange={(e)=>setF('tglBerakhirPKS', e.target.value)} />
+                <input
+                  type="date"
+                  value={newForm.tglBerakhirPKS || ""}
+                  onChange={(e) => setF("tglBerakhirPKS", e.target.value)}
+                />
               </label>
 
               <label>
                 Tanggal Addendum
-                <input type="date" value={newForm.tglAddendum || ''} onChange={(e)=>setF('tglAddendum', e.target.value)} />
+                <input
+                  type="date"
+                  value={newForm.tglAddendum || ""}
+                  onChange={(e) => setF("tglAddendum", e.target.value)}
+                />
               </label>
 
-              {/* Baris 4 */}
               <label>
                 Status PKS
-                <select value={newForm.statusPKS} onChange={(e)=>setF('statusPKS', e.target.value)}>
-                  {STATUS_PKS_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+                <select
+                  value={newForm.statusPKS}
+                  onChange={(e) => setF("statusPKS", e.target.value)}
+                >
+                  {STATUS_PKS_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
                 </select>
               </label>
 
               <label>
                 Status Pembayaran
-                <select value={newForm.statusPembayaran} onChange={(e)=>setF('statusPembayaran', e.target.value)}>
-                  {STATUS_PEMB_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+                <select
+                  value={newForm.statusPembayaran}
+                  onChange={(e) => setF("statusPembayaran", e.target.value)}
+                >
+                  {STATUS_PEMB_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
                 </select>
               </label>
 
               <label>
                 Status Kapal
-                <select value={newForm.statusKapal} onChange={(e)=>setF('statusKapal', e.target.value)}>
-                  {STATUS_KAPAL_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+                <select
+                  value={newForm.statusKapal}
+                  onChange={(e) => setF("statusKapal", e.target.value)}
+                >
+                  {STATUS_KAPAL_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
                 </select>
               </label>
 
               <label>
                 Potensi Per Bulan (Rp)
-                <input type="number" min={0} value={newForm.potensiPerBulan} onChange={(e)=>setF('potensiPerBulan', e.target.value)} />
-                <small className="hint">{idr(newForm.potensiPerBulan)}</small>
+                <input
+                  type="number"
+                  min={0}
+                  value={newForm.potensiPerBulan}
+                  onChange={(e) =>
+                    setF("potensiPerBulan", Number(e.target.value))
+                  }
+                />
+                <small className="hint">
+                  {idr(newForm.potensiPerBulan || 0)}
+                </small>
               </label>
 
-              {/* Baris 5 */}
               <label>
                 Pas Besar / Kecil
-                <select value={newForm.pasBesarKecil} onChange={(e)=>setF('pasBesarKecil', e.target.value)}>
-                  {PAS_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+                <select
+                  value={newForm.pasBesarKecil}
+                  onChange={(e) => setF("pasBesarKecil", e.target.value)}
+                >
+                  {PAS_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
                 </select>
               </label>
 
               <label>
                 Sertifikat Keselamatan
-                <select value={newForm.sertifikatKeselamatan} onChange={(e)=>setF('sertifikatKeselamatan', e.target.value)}>
-                  {SERTIF_KSL_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+                <select
+                  value={newForm.sertifikatKeselamatan}
+                  onChange={(e) =>
+                    setF("sertifikatKeselamatan", e.target.value)
+                  }
+                >
+                  {SERTIF_KSL_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
                 </select>
               </label>
 
               <label>
                 Izin Trayek
-                <select value={newForm.izinTrayek} onChange={(e)=>setF('izinTrayek', e.target.value)}>
-                  {IZIN_TRAYEK_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+                <select
+                  value={newForm.izinTrayek}
+                  onChange={(e) => setF("izinTrayek", e.target.value)}
+                >
+                  {IZIN_TRAYEK_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
                 </select>
               </label>
 
               <label>
-                Tgl Jatuh Tempo Sertifikat Keselamatan Kapal
-                <input type="date" value={newForm.tglJatuhTempoSertifikatKeselamatan || ''} onChange={(e)=>setF('tglJatuhTempoSertifikatKeselamatan', e.target.value)} />
+                Tgl Jatuh Tempo Sertifikat Kapal
+                <input
+                  type="date"
+                  value={newForm.tglJatuhTempoSertifikatKeselamatan || ""}
+                  onChange={(e) =>
+                    setF(
+                      "tglJatuhTempoSertifikatKeselamatan",
+                      e.target.value
+                    )
+                  }
+                />
               </label>
 
-              {/* Baris 6 */}
               <label>
-                Rute
-                <input type="text" value={newForm.rute} onChange={(e)=>setF('rute', e.target.value)} />
+                Rute Awal
+                <input
+                  type="text"
+                  value={newForm.ruteAwal}
+                  onChange={(e) => setF("ruteAwal", e.target.value)}
+                />
+              </label>
+
+              <label>
+                Rute Akhir
+                <input
+                  type="text"
+                  value={newForm.ruteAkhir}
+                  onChange={(e) => setF("ruteAkhir", e.target.value)}
+                />
               </label>
 
               <label>
                 Sistem Pengutipan IWKL
-                <select value={newForm.sistemPengutipanIWKL} onChange={(e)=>setF('sistemPengutipanIWKL', e.target.value)}>
-                  {SISTEM_IWKL_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+                <select
+                  value={newForm.sistemPengutipanIWKL}
+                  onChange={(e) =>
+                    setF("sistemPengutipanIWKL", e.target.value)
+                  }
+                >
+                  {SISTEM_IWKL_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
                 </select>
               </label>
 
               <label>
                 Trayek
-                <input type="text" value={newForm.trayek} onChange={(e)=>setF('trayek', e.target.value)} />
+                <input
+                  type="text"
+                  value={newForm.trayek}
+                  onChange={(e) => setF("trayek", e.target.value)}
+                />
               </label>
 
               <label>
                 Perhitungan Tarif
-                <select value={newForm.perhitunganTarif} onChange={(e)=>setF('perhitunganTarif', e.target.value)}>
-                  {PERHIT_TARIF_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+                <select
+                  value={newForm.perhitunganTarif}
+                  onChange={(e) =>
+                    setF("perhitunganTarif", e.target.value)
+                  }
+                >
+                  {PERHIT_TARIF_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
                 </select>
               </label>
 
-              {/* Baris 7 */}
               <label>
                 Tarif Borongan Disepakati (Rp)
-                <input type="number" min={0} value={newForm.tarifBoronganDisepakati} onChange={(e)=>setF('tarifBoronganDisepakati', e.target.value)} />
-                <small className="hint">{idr(newForm.tarifBoronganDisepakati)}</small>
+                <input
+                  type="number"
+                  min={0}
+                  value={newForm.tarifBoronganDisepakati}
+                  onChange={(e) =>
+                    setF("tarifBoronganDisepakati", Number(e.target.value))
+                  }
+                />
+                <small className="hint">
+                  {idr(newForm.tarifBoronganDisepakati || 0)}
+                </small>
               </label>
 
-              <label style={{gridColumn:'1 / -1'}}>
+              <label style={{ gridColumn: "1 / -1" }}>
                 Keterangan
-                <input type="text" value={newForm.keterangan} onChange={(e)=>setF('keterangan', e.target.value)} />
+                <input
+                  type="text"
+                  value={newForm.keterangan}
+                  onChange={(e) => setF("keterangan", e.target.value)}
+                />
               </label>
             </form>
 
-            <div className="modal-actions" style={{marginTop:10}}>
-              <button className="btn ghost" onClick={() => setShowAddModal(false)}>Batal</button>
-              <button className="btn primary" onClick={addIwkl}>Tambah</button>
+            <div className="modal-actions" style={{ marginTop: 10 }}>
+              <button
+                className="btn ghost"
+                type="button"
+                onClick={() => setShowAddModal(false)}
+              >
+                Batal
+              </button>
+              <button className="btn primary" type="submit" onClick={addIwkl}>
+                Tambah
+              </button>
             </div>
           </div>
         </div>

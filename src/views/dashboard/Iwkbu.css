@@ -121,12 +121,6 @@ body{ background:var(--bg); font-family: "Poppins","Segoe UI",system-ui,sans-ser
 
 /* ==== PERBAIKAN: hanya tabel yang melebar, bukan seluruh halaman ==== */
 
-/* Biar halaman tetap 900px, tapi tabel bebas melebar */
-.iwkbu-wrap{
-  max-width: 900px;
-  margin: 0 auto;
-}
-
 /* Kotak tabel full lebar container */
 .table-card{
   width: 100%;
@@ -288,3 +282,111 @@ body{ background:var(--bg); font-family: "Poppins","Segoe UI",system-ui,sans-ser
 .ring-rename{ left: 0; bottom: 0; transform: translate(-50%, 50%); }
 .ring-delete{ right: 0; bottom: 0; transform: translate(50%, 50%); }
 .ring-delete:hover{ background:#fff1f0; }
+
+/* Wrapper halaman biarkan fleksibel mengikuti lebar kartu .page */
+.iwkbu-wrap{
+  padding:16px;
+  position:relative;
+  min-height:100dvh;
+  background:linear-gradient(180deg, var(--bg), #eef6ff);
+}
+
+/* Kartu tabel: jangan jadi scroller, cukup “membungkus” */
+.table-card{
+  position:relative; z-index:1;
+  background:linear-gradient(180deg, var(--white), #fffaf2);
+  border:2px solid var(--blue); border-radius:18px; box-shadow:var(--shadow);
+  padding:12px;
+  overflow: clip; /* atau hidden */
+}
+
+/* INI ADALAH SCROLLER UTAMA */
+.table-scroll{
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100dvh - var(--chrome-h)); /* kamu sudah set --chrome-h */
+  padding-bottom: 8px;
+  border-radius: 14px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable both-edges;
+}
+
+/* Tabel boleh melebar sesuka hati, scroller yang mengatasi */
+.kawaii-table{
+  width: max-content;   /* kunci: biar bisa melebar > container */
+  min-width: 100%;      /* kalau kolom sedikit, tetap memenuhi lebar */
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* --- Fix: semua teks di modal jadi hitam (ink) --- */
+.modal-card { color: #0b273b; } /* warna dasar teks modal */
+
+.modal-card h3,
+.modal-card label { color: #0b273b; }
+
+.modal-card input,
+.modal-card select,
+.modal-card textarea {
+  color: #0b273b !important;   /* teks input */
+  background: #fff;            /* pastikan background putih */
+}
+
+/* placeholder biar abu-abu, bukan putih */
+.modal-card input::placeholder,
+.modal-card textarea::placeholder { color: #6b7d92; opacity: 1; }
+
+/* opsi datalist (yang bisa diwariskan) */
+.modal-card datalist option { color: #0b273b; }
+
+/* kalau browser autofill bikin teks jadi putih */
+.modal-card input:-webkit-autofill {
+  -webkit-text-fill-color: #0b273b !important;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Kalau header / judul mau beda, bisa atur lagi di sini */
+.iwkbu-header h1 {
+  color: #000 !important;
+}
+
+/* Input, select, textarea, button biar jelas juga */
+.iwkbu-wrap input,
+.iwkbu-wrap select,
+.iwkbu-wrap textarea,
+.iwkbu-wrap button {
+  color: #000 !important;
+}
+
+/* Placeholder (teks abu-abu di dalam input) */
+.iwkbu-wrap input::placeholder,
+.iwkbu-wrap textarea::placeholder {
+  color: #555;
+}
+/* === Warna teks khusus TABEL IWKBU saja === */
+
+/* Header tabel */
+.kawaii-table thead th {
+  color: #0b273b !important;
+}
+
+/* Isi tabel */
+.kawaii-table tbody td {
+  color: #0b273b !important;
+}
+
+/* Input di dalam tabel */
+.kawaii-table input,
+.kawaii-table select,
+.kawaii-table textarea {
+  color: #0b273b !important;
+  background: #fff !important;
+}
+
+/* Placeholder */
+.kawaii-table input::placeholder,
+.kawaii-table textarea::placeholder {
+  color: #777 !important;
+}

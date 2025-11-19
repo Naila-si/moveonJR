@@ -26,7 +26,7 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
 .iwkl-wrap{
   position:relative; min-height:100dvh; padding:16px;
   background:linear-gradient(180deg, var(--bg), #eef6ff);
-  max-width:900px; margin:0 auto; padding-inline: 16px;
+  max-width:1100px; margin:0 auto; padding-inline: 16px;
 }
 .iwkl-bg{
   position:absolute; inset:0; pointer-events:none; opacity:.35; filter:blur(12px);
@@ -337,8 +337,114 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
 }
 .kawaii-table input[type=number]{ -moz-appearance:textfield; }
 
-.pager{
-  display:flex; justify-content:flex-end; align-items:center;
-  gap:10px; padding:10px 6px 0;
+/* isi yang ikut scroll (tabel + pager) */
+.scroll-inner{
+  width: max-content;    /* ikut lebar kolom */
+  min-width: 100%;       /* tapi tidak kurang dari container */
 }
-.page-info{ font-weight:700; color:#415a77; }
+
+/* pager umum */
+.pager{
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+}
+
+/* bikin pager nempel di bawah area yang di-scroll */
+.pager-sticky{
+  position: sticky;
+  bottom: 0;            /* lengket ke bawah scroll container */
+  left: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0), #ffffff 40%);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -6px 12px rgba(147,197,253,.12);
+}
+
+/* container scroll tetap block penuh */
+.table-scroll{
+  display:block;          /* penting: biar pager jatuh ke baris berikutnya */
+  width:100%;
+  overflow:auto;
+  position:relative;
+}
+
+/* konten yang melebar mengikuti kolom */
+.scroll-inner{
+  width:max-content;
+  min-width:100%;
+}
+
+/* pager di luar, rata kanan */
+.pager{
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:10px;
+  padding:10px 6px 0;     /* beri jarak dari box scroll */
+}
+
+/* opsional: garis tipis biar terasa di bawah tabel */
+.pager{ border-top: 0; }  /* atau hapus kalau nggak mau garis */
+
+/* Susun isi card menumpuk ke bawah */
+.card{
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;   /* anak-anaknya full width */
+}
+
+/* area tabel mengisi lebar penuh */
+.card > .table-scroll{
+  flex: 1 1 auto;
+  display: block;         /* pastikan bukan inline/inline-block */
+  width: 100%;
+}
+
+/* pager di baris bawah, rata kanan, dan tidak nempel float */
+.card > .pager{
+  flex: 0 0 auto;
+  align-self: flex-end;   /* tombolnya di kanan */
+  clear: both;            /* jaga-jaga kalau ada float di atas */
+  padding-top: 10px;
+}
+
+.row-detail td {
+  background:#f8fbff;
+}
+
+.detail-grid{
+  display:grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr);
+  gap:16px;
+}
+
+.detail-grid section h4{
+  margin:0 0 8px;
+  font-size:13px;
+  font-weight:700;
+  color:#0b273b;
+}
+
+.detail-fields{
+  display:grid;
+  grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
+  gap:10px;
+}
+
+.detail-fields label,
+.month-grid label{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  font-size:11px;
+  font-weight:600;
+  color:#415a77;
+}
+
+.month-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fit,minmax(120px,1fr));
+  gap:8px;
+}

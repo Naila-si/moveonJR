@@ -316,3 +316,13 @@ body{ background: transparent; }
 
 /* pastikan dekor di belakang */
 .bg.sky, .bg.blobs{ z-index: 0; }
+
+.wheel{
+  animation: spin 3s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center; 
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

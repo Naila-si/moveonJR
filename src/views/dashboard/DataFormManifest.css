@@ -48,17 +48,66 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
 }
 
 .table-scroll{ overflow:auto; }
-.df-table{ border-collapse:separate; border-spacing:0; width:max(1100px,100%); font-size:13px; }
+.df-table{ border-collapse:separate; border-spacing:0; width:max(1000px,100%); font-size:13px; }
 .df-table thead th{
   position:sticky; top:0; background:#eef6ff; z-index:2;
-  border-bottom:2px solid var(--blue); color:#0b273b; text-align:left; padding:10px;
+  border-bottom:2px solid var(--blue); color:#0b273b; text-align:left; padding:10px 6px;
+  white-space: nowrap;
 }
-.df-table tbody td{ padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
+.df-table tbody td{ padding:8px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
 .df-table tbody tr:nth-child(odd){ background:#ffffff; }
 .df-table tbody tr:nth-child(even){ background:#fcfeff; }
+
+/* KOLOM NO YANG LEBIH KECIL */
+.df-table th:first-child,
+.df-table td:first-child {
+  width: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  text-align: center;
+  padding: 8px 4px !important;
+}
+
 .df-table .num{ text-align:right; }
 .df-table .strong{ font-weight:800; }
-.df-table .thumb-link{ display:inline-block; padding:4px 8px; border:2px dashed var(--blue); border-radius:10px; text-decoration:none; }
+
+/* THUMB ACTIONS YANG LEBIH KOMPAK */
+.thumb-actions {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.thumb-link {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 3px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.thumb-link:hover {
+  background: #0056b3;
+}
+
+.thumb-download {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 3px 5px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.thumb-download:hover {
+  background: #1e7e34;
+}
 
 .empty{ text-align:center; color:#677; padding:18px; }
 
@@ -70,6 +119,91 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
 .pager{ display:flex; justify-content:flex-end; align-items:center; gap:10px; padding:10px 6px 0; }
 .page-info{ font-weight:700; color:#415a77; }
 
+/* UKURAN KOLOM LAINNYA YANG LEBIH OPTIMAL */
+.df-table th:nth-child(2), /* Tanggal */
+.df-table td:nth-child(2) {
+  width: 140px;
+  min-width: 140px;
+}
+
+.df-table th:nth-child(3), /* Kapal */
+.df-table td:nth-child(3) {
+  width: 120px;
+  min-width: 120px;
+}
+
+.df-table th:nth-child(4), /* Rute */
+.df-table td:nth-child(4) {
+  width: 150px;
+  min-width: 150px;
+}
+
+.df-table th:nth-child(5), /* Total Penumpang */
+.df-table td:nth-child(5) {
+  width: 80px;
+  min-width: 80px;
+}
+
+.df-table th:nth-child(6), /* Jumlah Premi */
+.df-table td:nth-child(6) {
+  width: 100px;
+  min-width: 100px;
+}
+
+.df-table th:nth-child(7), /* Agen */
+.df-table td:nth-child(7) {
+  width: 120px;
+  min-width: 120px;
+}
+
+.df-table th:nth-child(8), /* Telepon */
+.df-table td:nth-child(8) {
+  width: 100px;
+  min-width: 100px;
+}
+
+.df-table th:nth-child(9), /* Foto */
+.df-table td:nth-child(9) {
+  width: 90px;
+  min-width: 90px;
+  text-align: center;
+}
+
+.df-table th:nth-child(10), /* Tanda Tangan */
+.df-table td:nth-child(10) {
+  width: 90px;
+  min-width: 90px;
+  text-align: center;
+}
+
 @media (max-width: 980px){
   .search{ width: 190px; }
+  .df-table { font-size: 12px; }
+  
+  /* Lebih kecil di mobile */
+  .df-table th:first-child,
+  .df-table td:first-child {
+    width: 35px !important;
+    min-width: 35px !important;
+    max-width: 35px !important;
+    padding: 6px 2px !important;
+  }
+}
+.integration-status {
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.integration-status.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.integration-status.warning {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
 }
