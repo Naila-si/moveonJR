@@ -214,3 +214,43 @@ input.search {
 .df-table .group-header td {
   border-top: 2px solid #cfe4ff;
 }
+/* pastikan tabel benar-benar jadi tabel biasa */
+.df-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* kembalikan thead/tbody/tfoot ke display default tabel */
+.df-table thead,
+.df-table tbody,
+.df-table tfoot {
+  display: table-row-group;
+}
+
+.df-table tr {
+  display: table-row;
+}
+
+.df-table th,
+.df-table td {
+  display: table-cell;
+  padding: 8px 12px;
+  vertical-align: middle;
+}
+
+/* kolom aksi jangan terlalu sempit */
+.df-table th:nth-child(1),
+.df-table td:nth-child(1) {
+  width: 140px;           /* sesuaikan kalau perlu */
+}
+
+/* tata letak tombol Edit / Hapus di dalam kolom Aksi */
+.actions-cell {
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;  /* kalau mau vertikal; ganti 'row' kalau mau sejajar */
+  gap: 4px;
+}

@@ -649,13 +649,11 @@ export default function DataFromManifest() {
                     );
                   }
                   const r = computeRow(raw);
-                  const rowNumber = (page - 1) * pageSize+ i + 1;
                   return (
                     <React.Fragment key={r.id}>
                       <tr>
                         <td className="actions-cell">
                           <div className="actions">
-                            <span className="badge" style={{ background:"#eef6ff" }}>{rowNumber}</span>
                             <button className="btn ghost" onClick={() => onEdit(raw)}>Edit</button>
                             <button className="btn danger" onClick={() => onDelete(raw.id)}>Hapus</button>
                           </div>

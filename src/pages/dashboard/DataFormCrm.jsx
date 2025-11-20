@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { supabase } from "../../lib/supabaseClient";
 
 const LS_KEY = "crmData";
 
@@ -13,9 +14,7 @@ function loadCrmLs() {
 }
 
 const saveCrmLs = (rows) => localStorage.setItem(LS_KEY, JSON.stringify(rows));
-// ==== Dummy bawaan (5 rows) ====
 const DEFAULT_ROWS = (() => {
-  // util kecil buat timestamp "YYYY-MM-DD HH:mm"
   const ts = (d) => {
     const pad = (n) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -57,10 +56,8 @@ const DEFAULT_ROWS = (() => {
         suratPernyataan: [{ name: "Surat_Pernyataan.pdf", url: "#" }],
         evidence: [{ name: "Foto_Stiker.jpg", url: "#" }],
         responPemilik: "Kooperatif",
-        ketertibanOperasional: 5,
         ketaatanPerizinan: 5,
         keramaianPenumpang: 4,
-        ketaatanUjiKir: 5,
       },
       step4: {
         validasiOleh: "Petugas",
@@ -295,84 +292,107 @@ export default function DataFormCrm({ data = [] }) {
   const [filterValidasi, setFilterValidasi] = useState("Semua");
   const [selected, setSelected] = useState(null);
 
-  const [rows, setRows] = useState(() => {
-    const fromLs = Array.isArray(loadCrmLs()) ? loadCrmLs() : [];
-    const base = Array.isArray(data) ? data : [];
-    return [...fromLs, ...base];
-  });
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  // Seed otomatis kalau belum ada data lokal & prop `data` juga kosong
   useEffect(() => {
-    const hasLocal = Array.isArray(loadCrmLs()) && loadCrmLs().length > 0;
-    const hasProp = Array.isArray(data) && data.length > 0;
-    if (!hasLocal && !hasProp) {
-      localStorage.setItem(LS_KEY, JSON.stringify(DEFAULT_ROWS));
-      setRows([...DEFAULT_ROWS]); // sinkron ke tabel
+    async function fetchReports() {
+      setLoading(true);
+      setErrorMsg("");
+
+      try {
+        // 1) Ambil laporan (tanpa armada detail)
+        const { data: remote, error } = await supabase
+          .from("crm_reports_with_total_os")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          console.error("Supabase error:", error);
+          setErrorMsg("Gagal mengambil data dari server.");
+          setRows([]);
+          setLoading(false);
+          return;
+        }
+
+        const reports = remote || [];
+        const reportIds = reports.map((r) => r.id).filter(Boolean);
+
+        // 2) Ambil detail armada dari tabel crm_armada, untuk semua report_id
+        let armadaByReport = new Map();
+
+        if (reportIds.length > 0) {
+          const { data: armadaRows, error: armadaErr } = await supabase
+            .from("crm_armada")
+            .select("*")
+            .in("report_id", reportIds);
+
+          if (armadaErr) {
+            console.error("Supabase armada error:", armadaErr);
+          } else {
+            (armadaRows || []).forEach((row) => {
+              const rid = row.report_id;
+              if (!armadaByReport.has(rid)) armadaByReport.set(rid, []);
+              armadaByReport.get(rid).push(row);
+            });
+          }
+        }
+
+        // 3) Map ke shape yang dipakai DataFormCrm
+        const mapped = (remote || []).map((r) => {
+          const armadaRows = armadaByReport.get(r.id) || [];
+
+          const rincianArmada = armadaRows.map((a) => ({
+            nopol: a.nopol ?? "",
+            status: a.status ?? "",
+            tipeArmada: a.tipe_armada ?? "",
+            tahun: a.tahun ?? null,
+            bayarOs: a.bayar_os ?? 0,
+            rekomendasi: a.rekomendasi ?? "",
+            tindakLanjut: a.rekomendasi ?? "",
+            bukti: a.bukti || [],
+          }));
+
+          return {
+            // id untuk ditampilkan (kode laporan)
+            id: r.report_code || r.id,
+            // simpan id asli tabel crm_reports untuk update/verifikasi
+            dbId: r.id,
+            step1: r.step1 || {},
+            step2: {
+              ...(r.step2 || {}),
+              rincianArmada, // <-- full list dari crm_armada
+            },
+            step3: r.step3 || {},
+            step4: r.step4 || {},
+            step5: r.step5 || {},
+            // boleh tetap pakai kolom agregat view kalau nanti sudah benar
+            totalOS: Number(r.total_os_dibayar || 0),
+          };
+        });
+
+        setRows(mapped);
+      } catch (e) {
+        console.error("Supabase exception:", e);
+        setErrorMsg("Terjadi kesalahan saat menghubungi server.");
+        setRows([]);
+      }
+
+      setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+    fetchReports();
+  }, [data]);
 
   const wrapRef = useRef(null);
   const isDown = useRef(false);
   const startX = useRef(0);
   const scrollLeftStart = useRef(0);
 
-  const [verifyOpen, setVerifyOpen] = useState(false);
-  const [verifyNote, setVerifyNote] = useState("");
-
-  useEffect(() => {
-    if (!selected) return;
-    setVerifyOpen(false);
-    setVerifyNote(selected?.step4?.catatanValidasi || "");
-  }, [selected]);
-
-  const handleSaveVerification = () => {
-    if (!selected) return;
-    const all = loadCrmLs();
-    const idx = all.findIndex(r => r.id === selected.id);
-    if (idx >= 0) {
-      const now = new Date();
-      const pad = (n) => String(n).padStart(2, "0");
-      const ts = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-
-      all[idx] = {
-        ...all[idx],
-        step4: {
-          ...(all[idx].step4 || {}),
-          validasiOleh: "Petugas",
-          // NOTE: pakai "Tervalidasi" supaya konsisten dgn filter & badge di tabel kamu
-          statusValidasi: "Tervalidasi",
-          catatanValidasi: verifyNote || "",
-          waktuValidasi: ts,
-        },
-      };
-      saveCrmLs(all);
-      // sinkronkan tabel & modal
-      setRows(prev => {
-        // update juga di state rows yang sedang dipakai tabel
-        const j = prev.findIndex(r => r.id === selected.id);
-        if (j < 0) return prev;
-        const copy = [...prev];
-        copy[j] = all[idx];
-        return copy;
-      });
-      setSelected(all[idx]);
-      addVerificationNotificationLocal({
-        reportId: all[idx].id,
-        status: all[idx].step4.statusValidasi,      // "Tervalidasi"
-        note: all[idx].step4.catatanValidasi || "",
-        waktuValidasi: all[idx].step4.waktuValidasi // supaya timestamp konsisten
-      });
-
-    }
-    setVerifyOpen(false);
-  };
-
   function handleWheel(e) {
     const el = wrapRef.current;
     if (!el) return;
-    // Kalau user scroll vertikal, kita alihkan jadi horizontal
-    // (kecuali dia pakai shift -> biarkan native)
     if (!e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
       el.scrollLeft += e.deltaY;
       e.preventDefault();
@@ -400,9 +420,83 @@ export default function DataFormCrm({ data = [] }) {
     if (!isDown.current || !el) return;
     e.preventDefault();
     const x = e.pageX - el.offsetLeft;
-    const walk = (x - startX.current) * 1; // kecepatan drag
+    const walk = (x - startX.current) * 1;
     el.scrollLeft = scrollLeftStart.current - walk;
   }
+
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifyNote, setVerifyNote] = useState("");
+
+  useEffect(() => {
+    if (!selected) return;
+    setVerifyOpen(false);
+    setVerifyNote(selected?.step4?.catatanValidasi || "");
+  }, [selected]);
+
+  useEffect(() => {
+    if (selected) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [selected]);
+
+  const handleSaveVerification = async () => {
+    if (!selected || !selected.dbId) return;
+
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+      now.getDate()
+    )} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    const newStep4 = {
+      ...(selected.step4 || {}),
+      validasiOleh: "Petugas",
+      statusValidasi: "Tervalidasi",
+      catatanValidasi: verifyNote || "",
+      waktuValidasi: ts,
+    };
+
+    // update ke tabel crm_reports (bukan view)
+    const { data: updated, error } = await supabase
+      .from("crm_reports")
+      .update({ step4: newStep4 })
+      .eq("id", selected.dbId)
+      .select("*")
+      .single();
+
+    if (error) {
+      console.error("Gagal update verifikasi:", error);
+      alert("Gagal menyimpan verifikasi.");
+      return;
+    }
+
+    // sinkronkan ke tampilan (rows + selected)
+    setRows((prev) =>
+      prev.map((row) =>
+        row.dbId === selected.dbId
+          ? {
+              ...row,
+              step4: updated.step4 || newStep4,
+            }
+          : row
+      )
+    );
+
+    setSelected((prev) =>
+      prev
+        ? {
+            ...prev,
+            step4: updated.step4 || newStep4,
+          }
+        : prev
+    );
+
+    setVerifyOpen(false);
+  };
 
   useEffect(() => {
     if (selected) {
@@ -425,13 +519,16 @@ export default function DataFormCrm({ data = [] }) {
       const s1 = d?.step1 || {};
       const s2 = d?.step2 || {};
       const s4 = d?.step4 || {};
+
+      const rincian = Array.isArray(s2.rincianArmada) ? s2.rincianArmada : [];
+
       const text = `${d?.id ?? ""} ${s1.tanggalWaktu ?? ""} ${s1.loket ?? ""} ${
         s1.petugasDepan ?? ""
       } ${s1.petugasBelakang ?? ""} ${s1.jenisAngkutan ?? ""} ${
-        s1.namaPemilik ?? ""} ${s1.perusahaan ?? ""
-      } ${s2.nopolAtauNamaKapal ?? ""} ${s2.statusKendaraan ?? ""} ${
-        s2.janjiBayar ?? ""
-      } ${s4.statusValidasi ?? ""}`
+        s1.namaPemilik ?? ""
+      } ${s1.perusahaan ?? ""} ${s2.nopolAtauNamaKapal ?? ""} ${
+        s2.statusKendaraan ?? ""
+      } ${s2.janjiBayar ?? ""} ${s4.statusValidasi ?? ""}`
         .toLowerCase()
         .includes(query.toLowerCase());
 
@@ -439,6 +536,7 @@ export default function DataFormCrm({ data = [] }) {
         filterJenis === "Semua" || s1.jenisAngkutan === filterJenis;
       const matchValidasi =
         filterValidasi === "Semua" || s4.statusValidasi === filterValidasi;
+
       return text && matchJenis && matchValidasi;
     });
   }, [rows, query, filterJenis, filterValidasi]);
@@ -533,10 +631,8 @@ export default function DataFormCrm({ data = [] }) {
     y += 10;
     const s3 = [
       ["Respon Pemilik/Pengelola", row.step3.responPemilik || "-"],
-      ["Ketertiban Operasional", `${row.step3.ketertibanOperasional || "-"}/5`],
       ["Ketaatan Perizinan", `${row.step3.ketaatanPerizinan || "-"}/5`],
       ["Keramaian Penumpang", `${row.step3.keramaianPenumpang || "-"}/5`],
-      ["Ketaatan Uji KIR/Sertifikat", `${row.step3.ketaatanUjiKir || "-"}/5`],
     ];
     autoTable(doc, {
       startY: y + 6,
@@ -579,21 +675,6 @@ export default function DataFormCrm({ data = [] }) {
         <div className="dfc-title">
           <KawaiiCloud />
           <h1>Hasil Input Form CRM</h1>
-        </div>
-        <p className="dfc-subtitle">
-          5 langkah: Kunjungan • Kendaraan • Upload & Penilaian • Validasi •
-          Pesan & Saran
-        </p>
-        <div style={{ marginLeft: "auto" }}>
-          <button
-            className="btn btn-soft"
-            onClick={() => {
-              localStorage.removeItem(LS_KEY);
-              setRows([...(Array.isArray(data) ? data : [])]);
-            }}
-          >
-            Bersihkan Data Lokal
-          </button>
         </div>
       </header>
 
@@ -663,58 +744,99 @@ export default function DataFormCrm({ data = [] }) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((d) => (
-              <tr key={d.id}>
-                <td>{d.id}</td>
-                <td>{d.step1.tanggalWaktu}</td>
-                <td>{d.step1.loket}</td>
-                <td>
-                  {d.step1.petugasDepan} {d.step1.petugasBelakang}
-                </td>
-                <td>{d.step1.jenisAngkutan}</td>
-                <td>{d.step1.namaPemilik}</td>
-                <td>{d.step2.nopolAtauNamaKapal}</td>
-                <td>
-                  <Badge
-                    tone={
-                      d.step2.statusKendaraan === "Beroperasi" ||
-                      d.step2.statusKendaraan === "Aktif"
-                        ? "green"
-                        : "gray"
-                    }
-                  >
-                    {d.step2.statusKendaraan}
-                  </Badge>
-                </td>
-                <td>{d.step2.janjiBayar}</td>
-                <td>
-                  {d.step3.ketertibanOperasional}/5 •{" "}
-                  {d.step3.ketaatanPerizinan}/5 • {d.step3.keramaianPenumpang}/5
-                </td>
-                <td>
-                  <Badge
-                    tone={
-                      d.step4.statusValidasi === "Tervalidasi"
-                        ? "green"
-                        : d.step4.statusValidasi === "Menunggu"
-                        ? "amber"
-                        : "red"
-                    }
-                  >
-                    {d.step4.statusValidasi}
-                  </Badge>
-                </td>
-                <td style={{ textAlign: "right" }}>
-                  <button
-                    type="button"
-                    className="btn btn-detail"
-                    onClick={() => setSelected(d)}
-                  >
-                    Detail
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {filtered.map((d) => {
+              const s2 = d.step2 || {};
+              const rincian = Array.isArray(s2.rincianArmada) ? s2.rincianArmada : [];
+
+              const semuaNopol = rincian
+                .map((r) => r.nopol)
+                .filter(Boolean);
+
+              const totalArmada =
+                semuaNopol.length || (s2.nopolAtauNamaKapal ? 1 : 0);
+
+              const nopolDisplay =
+                semuaNopol.length === 0
+                  ? (s2.nopolAtauNamaKapal || "-")
+                  : semuaNopol.length <= 2
+                  ? semuaNopol.join(", ")
+                  : `${semuaNopol[0]}, ${semuaNopol[1]} (+${
+                      semuaNopol.length - 2
+                    } armada)`;
+
+              const statusDisplay =
+                totalArmada <= 1
+                  ? (s2.statusKendaraan || "-")
+                  : `Lihat detail (${totalArmada} armada)`;
+
+              const statusTone =
+                s2.statusKendaraan === "Beroperasi" ||
+                s2.statusKendaraan === "Aktif"
+                  ? "green"
+                  : "gray";
+
+              return (
+                <tr key={d.id}>
+                  <td>{d.id}</td>
+                  <td>{d.step1.tanggalWaktu}</td>
+                  <td>{d.step1.loket}</td>
+                  <td>
+                    {d.step1.petugasDepan} {d.step1.petugasBelakang}
+                  </td>
+                  <td>{d.step1.jenisAngkutan}</td>
+                  <td>{d.step1.namaPemilik}</td>
+
+                  {/* NOPOL: ringkas + info jumlah armada */}
+                  <td>
+                    {nopolDisplay}
+                    {totalArmada > 1 && (
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "#64748b",
+                          marginTop: 2,
+                        }}
+                      >
+                        Total {totalArmada} armada
+                      </div>
+                    )}
+                  </td>
+
+                  {/* Status */}
+                  <td>
+                    <Badge tone={statusTone}>{statusDisplay}</Badge>
+                  </td>
+
+                  <td>{d.step2.janjiBayar}</td>
+                  <td>
+                    {d.step3.ketertibanOperasional}/5 •{" "}
+                    {d.step3.ketaatanPerizinan}/5 • {d.step3.keramaianPenumpang}/5
+                  </td>
+                  <td>
+                    <Badge
+                      tone={
+                        d.step4.statusValidasi === "Tervalidasi"
+                          ? "green"
+                          : d.step4.statusValidasi === "Menunggu"
+                          ? "amber"
+                          : "red"
+                      }
+                    >
+                      {d.step4.statusValidasi}
+                    </Badge>
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    <button
+                      type="button"
+                      className="btn btn-detail"
+                      onClick={() => setSelected(d)}
+                    >
+                      Detail
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={12} className="dfc-empty">
@@ -806,32 +928,88 @@ export default function DataFormCrm({ data = [] }) {
 
               {/* Step 2 */}
               <Section title="2) Armada">
-                <dl className="grid-2">
-                  <Item
-                    label="Nopol/Nama Kapal"
-                    value={selected.step2.nopolAtauNamaKapal}
-                  />
-                  <Item
-                    label="Status Kendaraan"
-                    value={selected.step2.statusKendaraan}
-                  />
-                  <Item
-                    label="Hasil Kunjungan"
-                    value={selected.step2.hasilKunjungan}
-                  />
-                  <Item
-                    label="Jumlah Tunggakan"
-                    value={formatRupiah(selected.step2.tunggakan || 0)}
-                  />
-                  <Item
-                    label="Janji Bayar Tunggakan"
-                    value={selected.step2.janjiBayar}
-                  />
-                  <Item
-                    label="Rekomendasi"
-                    value={selected.step2.rekomendasi}
-                  />
-                </dl>
+                {(() => {
+                  const rincian = Array.isArray(selected.step2?.rincianArmada)
+                    ? selected.step2.rincianArmada
+                    : [];
+
+                  // total OS yang harus dibayar (sum semua bayarOs yang terisi)
+                  const totalOsHarusDibayar = rincian.reduce((sum, a) => {
+                    const raw = Number(a?.bayarOs);
+                    return sum + (Number.isFinite(raw) ? raw : 0);
+                  }, 0);
+
+                  return (
+                    <>
+                      <dl className="grid-2">
+                        <Item
+                          label="Hasil Kunjungan"
+                          value={selected.step2.hasilKunjungan}
+                        />
+                        <Item
+                          label="Total OS yang harus dibayar"
+                          value={formatRupiah(totalOsHarusDibayar)}
+                        />
+                        <Item
+                          label="Janji Bayar Tunggakan"
+                          value={selected.step2.janjiBayar}
+                        />
+                      </dl>
+
+                      {/* 👉 TABEL DETAIL SEMUA ARMADA */}
+                      {rincian.length > 0 && (
+                        <div className="armada-table-mini">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>No</th>
+                                <th>Nopol / Nama Kapal</th>
+                                <th>Status</th>
+                                <th>Tipe / Tahun</th>
+                                <th>OS Dibayar</th>
+                                <th>Rekomendasi / Tindak Lanjut</th>
+                                <th>Bukti</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {rincian.map((a, idx) => {
+                                const rawOs = Number(a.bayarOs);
+                                const osValue = Number.isFinite(rawOs) ? rawOs : 0;
+
+                                const tipe = a.tipeArmada || "Tidak diisi";
+                                const tahun = a.tahun ? ` (${a.tahun})` : "";
+
+                                return (
+                                  <tr key={idx}>
+                                    <td>{idx + 1}</td>
+                                    <td>{a.nopol || "-"}</td>
+                                    <td>{a.status || "-"}</td>
+                                    <td>{`${tipe}${tahun}`}</td>
+                                    <td>{formatRupiah(osValue)}</td>
+                                    <td>{a.rekomendasi || a.tindakLanjut || "-"}</td>
+                                    <td>
+                                      {Array.isArray(a.bukti) && a.bukti.length > 0 ? (
+                                        a.bukti.map((f, i) => (
+                                          <div key={i}>
+                                            <a href={f.url} target="_blank" rel="noreferrer">
+                                              {f.name || `Bukti ${i + 1}`}
+                                            </a>
+                                          </div>
+                                        ))
+                                      ) : (
+                                        <span style={{ fontSize: 11, color: "#94a3b8" }}>Tidak ada</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </Section>
 
               {/* Step 3 */}
@@ -868,11 +1046,7 @@ export default function DataFormCrm({ data = [] }) {
                 <div className="ratings">
                   <Rating
                     label="Respon Pemilik/Pengelola"
-                    value={selected.step3.responPemilik}
-                  />
-                  <Rating
-                    label="Ketertiban Operasional"
-                    value={`${selected.step3.ketertibanOperasional}/5`}
+                    value={`${selected.step3.responPemilik}/5`}
                   />
                   <Rating
                     label="Ketaatan Perizinan"
@@ -883,6 +1057,28 @@ export default function DataFormCrm({ data = [] }) {
                     value={`${selected.step3.keramaianPenumpang}/5`}
                   />
                 </div>
+                {(selected.step3.tandaTanganPetugas || selected.step3.tandaTanganPemilik) && (
+                  <div className="signatures">
+                    {selected.step3.tandaTanganPetugas && (
+                      <div className="sig-card">
+                        <div className="sig-label">Tanda Tangan Petugas</div>
+                        <img
+                          src={selected.step3.tandaTanganPetugas}
+                          alt="Tanda tangan petugas"
+                        />
+                      </div>
+                    )}
+                    {selected.step3.tandaTanganPemilik && (
+                      <div className="sig-card">
+                        <div className="sig-label">Tanda Tangan Pemilik/Pengelola</div>
+                        <img
+                          src={selected.step3.tandaTanganPemilik}
+                          alt="Tanda tangan pemilik/pengelola"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </Section>
 
               {/* Step 4 */}
@@ -1122,7 +1318,62 @@ table.dfc-table{
   /* saat sempit, biar pengalaman mirip contoh kedua */
   table.dfc-table{ width: max(1000px, 100%) !important; }
 }
-
+.armada-table-mini{
+  margin-top:10px;
+  border-radius:14px;
+  border:2px solid var(--sky-200);
+  overflow:hidden;
+  background:var(--sky-50);
+}
+.armada-table-mini table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
+}
+.armada-table-mini th,
+.armada-table-mini td{
+  padding:6px 8px;
+  border-bottom:1px solid var(--border);
+}
+.armada-table-mini th{
+  background:var(--sky-100);
+  text-align:left;
+  color:#0369a1;
+  font-weight:700;
+}
+.armada-table-mini tr:last-child td{
+  border-bottom:none;
+}
+  .signatures{
+  margin-top:12px;
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0,1fr));
+  gap:10px;
+}
+@media (max-width:720px){
+  .signatures{
+    grid-template-columns:1fr;
+  }
+}
+.sig-card{
+  background:var(--sky-50);
+  border:2px dashed var(--sky-200);
+  border-radius:16px;
+  padding:10px;
+}
+.sig-label{
+  font-size:11px;
+  color:#64748b;
+  margin-bottom:6px;
+  font-weight:600;
+}
+.sig-card img{
+  width:100%;
+  max-height:160px;
+  object-fit:contain;
+  background:#fff;
+  border-radius:12px;
+}
 `}</style>
     </div>
   );
@@ -1155,6 +1406,23 @@ function Rating({ label, value }) {
     if (typeof value === "number") return value;
     return null;
   })();
+
+  return (
+    <div className="rating">
+      <div>
+        <div style={{ fontSize: 12, color: "#64748b" }}>{label}</div>
+        <div style={{ fontWeight: 600 }}>{value || "-"}</div>
+      </div>
+
+      {numeric != null && (
+        <div style={{ display: "flex", gap: 2 }}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Star key={i} filled={i <= numeric} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Note({ label, text }) {

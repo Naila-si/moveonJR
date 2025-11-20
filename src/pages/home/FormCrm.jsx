@@ -1,4 +1,30 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import { supabase } from "../../lib/supabaseClient";
+
+const idr = (n) =>
+  (Number(n) || 0).toLocaleString("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  });
+
+const ARMADA_STATUS_OPTIONS = [
+  "Beroperasi + Bayar",
+  "Beroperasi",
+  "Dijual",
+  "Ubah Sifat",
+  "Ubah Bentuk",
+  "Rusak Sementara",
+  "Rusak Selamanya",
+  "Tidak Ditemukan",
+  "Cadangan",
+];
+
+const ARMADA_STATUS_NEED_UPLOAD = new Set(
+  ["Dijual", "Ubah Sifat", "Ubah Bentuk", "Rusak Sementara", "Rusak Selamanya", "Tidak Ditemukan"].map(
+    (s) => s.toUpperCase()
+  )
+);
 
 const LOKET_OPTIONS = [
     "Loket Kantor Wilayah","Pekanbaru Kota","Pekanbaru Selatan","Pekanbaru Utara","Panam",
@@ -9,13 +35,277 @@ const LOKET_OPTIONS = [
     "Bagan Siapiapi","Bagan Batu","Ujung Tanjung",
   ];
 
-/**
- * FORM CRM — PRO + SignaturePad
- */
+// === Shared table untuk CRM list (dipakai DataFormCrm juga) ===
+const CRM_LS_KEY = "crmData";
+
+function loadCrmRows() {
+  try {
+    const raw = localStorage.getItem(CRM_LS_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCrmRows(rows) {
+  localStorage.setItem(CRM_LS_KEY, JSON.stringify(rows));
+}
+
+// bikin ID: CRM-2025-xxx
+function generateCrmId() {
+  const year = new Date().getFullYear();
+  const rand = String(Math.floor(Math.random() * 999)).padStart(3, "0");
+  return `CRM-${year}-${rand}`;
+}
+
+// mapping dari state `form` → struktur row yang dipakai DataFormCrm
+function buildCrmRowFromForm(form) {
+  const tanggal = form.tanggal || "";
+  const waktu = form.waktu || "";
+  const tanggalWaktu = `${tanggal} ${waktu || "00:00"}`.trim();
+
+  const armadaList = Array.isArray(form.armadaList) ? form.armadaList : [];
+  const firstArmada = armadaList[0] || {};
+
+  // rincianArmada di tabel
+  const rincianArmada = armadaList.map((a) => ({
+    nopol: a.nopol || "",
+    status: a.status || "",
+    tipeArmada: a.tipeArmada || "",
+    tahun: a.tahun || "",
+    osTarif: a.osTarif ?? null,
+    bayarOs: a.bayarOs || "",
+    rekomendasi: a.rekomendasi || "",
+    // untuk kompatibel dengan DataFormCrm yg sudah pakai `tindakLanjut`
+    tindakLanjut: a.rekomendasi || "",
+  }));
+
+  // gabung rekomendasi armada jadi satu kalimat
+  const rekomGabung = armadaList
+    .map((a) => a.rekomendasi)
+    .filter(Boolean)
+    .join(" | ");
+
+  return {
+    id: generateCrmId(),
+
+    // ===== STEP 1 di tabel =====
+    step1: {
+      tanggalWaktu,                      // "YYYY-MM-DD HH:mm"
+      loket: form.loket || "",
+      petugasDepan: form.namaPetugas || "",
+      petugasBelakang: "",               // form cuma 1 field petugas
+      perusahaan: form.badanUsahaNama || "",
+      jenisAngkutan: form.jenisAngkutan || "",
+      namaPemilik: form.namaPemilik || "",
+      alamat: form.alamatKunjungan || "",
+      telepon: form.telPemilik || "",
+      sudahKunjungan: !!form.sudahKunjungan,
+      badanUsahaTipe: form.badanUsahaTipe || "",
+      telPengelola: form.telPengelola || "",
+    },
+
+    // ===== STEP 2 di tabel =====
+    step2: {
+      nopolAtauNamaKapal: firstArmada.nopol || "",
+      statusKendaraan: firstArmada.status || "",
+      hasilKunjungan: form.hasilKunjunganPenjelasan || "",
+      penjelasanHasil: form.hasilKunjunganPenjelasan || "",
+      tunggakan: 0,                         // kamu bisa ganti logika ini nanti
+      janjiBayar: form.janjiBayarTunggakan || "-",
+      rekomendasi: rekomGabung || "",
+      rincianArmada,
+    },
+
+    // ===== STEP 3 di tabel =====
+    step3: {
+      // Untuk sekarang, foto & file tidak dipakai di list → isi array kosong dulu
+      fotoKunjungan: [],
+      suratPernyataan: [],
+      evidence: [],
+      responPemilik: form.nilaiKebersihan ?? 3,
+      ketertibanOperasional: form.nilaiKebersihan ?? 3,
+      ketaatanPerizinan: form.nilaiPelayanan ?? 3,
+      keramaianPenumpang: form.nilaiKelengkapan ?? 3,
+      ketaatanUjiKir: form.nilaiPelayanan ?? 3,
+      tandaTanganPetugas: form.tandaTanganPetugas || "",
+      tandaTanganPemilik: form.tandaTanganPemilik || "",
+    },
+
+    // ===== STEP 4 di tabel (validasi) =====
+    step4: {
+      validasiOleh: "Petugas",
+      statusValidasi: "Menunggu",          // default: belum diverifikasi
+      catatanValidasi: "",
+      wilayah: form.loket || "",
+      waktuValidasi: tanggalWaktu,
+    },
+
+    // ===== STEP 5 di tabel (pesan & saran) =====
+    step5: {
+      pesan: form.pesanPetugas || "",
+      saran: form.saranUntukPemilik || "",
+      kirimKeWaPemilik: !!form.kirimKeWaPemilik,
+      kirimKeWaPengelola: !!form.kirimKeWaPengelola,
+    },
+  };
+}
+
+async function saveCrmToSupabase(form) {
+  // 1) Build row dengan struktur lama
+  const baseRow = buildCrmRowFromForm(form);
+  const reportCode = baseRow.id; // contoh "CRM-2025-123"
+
+  // 2) Upload file ke Storage (pakai reportCode sebagai folder)
+  // 2a) Foto kunjungan (single)
+  let fotoUrls = [];
+  if (form.fotoKunjungan) {
+    const up = await uploadToCrmStorage(
+      form.fotoKunjungan,
+      reportCode,
+      "foto_kunjungan"
+    );
+    if (up?.url) {
+      // DataFormCrm pakai array string untuk fotoKunjungan
+      fotoUrls = [up.url];
+    }
+  }
+
+  // 2b) Surat/evidence (multiple)
+  const suratUploads = await uploadMany(
+    form.suratPernyataanEvidence || [],
+    reportCode,
+    "surat"
+  );
+  // DataFormCrm pakai bentuk { name, url }
+  const suratJson = suratUploads.map((f) => ({
+    name: f.name,
+    url: f.url,
+  }));
+
+  // 3) Gabungkan hasil upload ke step3
+  const step3 = {
+    ...baseRow.step3,
+    fotoKunjungan: fotoUrls,   // ["https://..."]
+    suratPernyataan: suratJson,
+    evidence: [],              // kalau mau dipisah lagi, bisa diatur
+  };
+
+  // 4) Insert ke crm_reports
+  const { data: reportInserted, error: reportError } = await supabase
+    .from("crm_reports")
+    .insert([
+      {
+        report_code: reportCode,
+        step1: baseRow.step1,
+        step2: baseRow.step2,
+        step3,              // pakai yang sudah include URL upload
+        step4: baseRow.step4,
+        step5: baseRow.step5,
+      },
+    ])
+    .select("id")
+    .single();
+
+  if (reportError) {
+    console.error("Gagal insert crm_reports:", reportError);
+    throw reportError;
+  }
+
+  const reportId = reportInserted.id;
+
+  // 5) Insert ke crm_armada + upload buktiFiles per armada
+  const armadaFromForm = Array.isArray(form.armadaList) ? form.armadaList : [];
+  const armadaRows = [];
+
+  for (let i = 0; i < armadaFromForm.length; i++) {
+    const a = armadaFromForm[i];
+
+    // upload buktiFiles (jika ada)
+    let buktiUploads = [];
+    if (a.buktiFiles && a.buktiFiles.length > 0) {
+      buktiUploads = await uploadMany(a.buktiFiles, reportCode, `armada_${i + 1}`);
+    }
+
+    armadaRows.push({
+      report_id: reportId,
+      nopol: a.nopol || null,
+      status: a.status || null,
+      tipe_armada: a.tipeArmada || null,
+      tahun: a.tahun ? Number(a.tahun) : null,
+      bayar_os: a.bayarOs ? Number(a.bayarOs) : 0,
+      rekomendasi: a.rekomendasi || null,
+
+      // kolom baru jsonb bukti
+      bukti: buktiUploads.map((f) => ({
+        name: f.name,
+        url: f.url,
+      })),
+    });
+  }
+
+  if (armadaRows.length > 0) {
+    const { error: armadaError } = await supabase
+      .from("crm_armada")
+      .insert(armadaRows);
+
+    if (armadaError) {
+      console.error("Gagal insert crm_armada:", armadaError);
+      throw armadaError;
+    }
+  }
+
+  return { reportId, reportCode };
+}
+
+async function uploadToCrmStorage(file, folder, prefix = "file") {
+  if (!file) return null;
+
+  const ext = file.name.split(".").pop() || "bin";
+  const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const path = `${safeFolder}/${prefix}_${Date.now()}.${ext}`;
+
+  const { data, error } = await supabase
+    .storage
+    .from("crm_uploads")
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (error) throw error;
+
+  // ambil public URL
+  const { data: publicData } = supabase
+    .storage
+    .from("crm_uploads")
+    .getPublicUrl(data.path);
+
+  return {
+    path: data.path,
+    url: publicData.publicUrl,
+    name: file.name,
+  };
+}
+
+async function uploadMany(files, folder, prefix) {
+  const arr = Array.from(files || []);
+  const result = [];
+  for (let i = 0; i < arr.length; i++) {
+    const up = await uploadToCrmStorage(arr[i], folder, `${prefix}_${i + 1}`);
+    if (up) result.push(up);
+  }
+  return result;
+}
+
 export default function FormCrm() {
   const [step, setStep] = useState(1);
   const [dirty, setDirty] = useState(false);
   const initial = useRef(true);
+  const [picMaster, setPicMaster] = useState([]);
+  const [companyMaster, setCompanyMaster] = useState([]);
 
   // ================== STATE ==================
   const [form, setForm] = useState(() => {
@@ -60,6 +350,76 @@ export default function FormCrm() {
     localStorage.setItem("form_crm_draft_v5", JSON.stringify(form));
     setDirty(true);
   }, [form]);
+
+    // ================== LOAD MASTER DATA DARI IWKBU ==================
+  useEffect(() => {
+    (async () => {
+      try {
+        // 1) Master PIC + Loket (distinct)
+        const { data: picData, error: picErr } = await supabase
+          .from("iwkbu")
+          .select("pic,loket")
+          .not("pic", "is", null)
+          .neq("pic", "");
+
+        if (!picErr && picData) {
+          const map = new Map();
+          for (const row of picData) {
+            const raw = (row.pic || "").trim();
+            if (!raw) continue;
+            const key = raw.toLowerCase();
+            const loket = row.loket || "";
+            if (!map.has(key)) {
+              map.set(key, { pic: raw, loket });
+            } else {
+              const existing = map.get(key);
+              // kalau sebelumnya belum ada loket, tapi sekarang ada → update
+              if (!existing.loket && loket) {
+                map.set(key, { pic: existing.pic, loket });
+              }
+            }
+          }
+          const arr = Array.from(map.values()).sort((a, b) =>
+            a.pic.localeCompare(b.pic, "id")
+          );
+          setPicMaster(arr);
+        } else if (picErr) {
+          console.error("Gagal load PIC:", picErr);
+        }
+
+        // 2) Master PT/CV + pemilik + HP
+        const { data: compData, error: compErr } = await supabase
+          .from("iwkbu")
+          .select("nama_perusahaan,nama_pemilik,hp")
+          .not("nama_perusahaan", "is", null)
+          .neq("nama_perusahaan", "");
+
+        if (!compErr && compData) {
+          const map2 = new Map();
+          for (const row of compData) {
+            const raw = (row.nama_perusahaan || "").trim();
+            if (!raw) continue;
+            const key = raw.toLowerCase();
+            if (!map2.has(key)) {
+              map2.set(key, {
+                nama_perusahaan: raw,
+                nama_pemilik: row.nama_pemilik || "",
+                hp: row.hp || "",
+              });
+            }
+          }
+          const arr2 = Array.from(map2.values()).sort((a, b) =>
+            a.nama_perusahaan.localeCompare(b.nama_perusahaan, "id")
+          );
+          setCompanyMaster(arr2);
+        } else if (compErr) {
+          console.error("Gagal load perusahaan:", compErr);
+        }
+      } catch (e) {
+        console.error("Error load master data IWKBU:", e);
+      }
+    })();
+  }, []);
 
   // ================== URL SYNC (?step=1..4) ==================
   useEffect(() => {
@@ -111,6 +471,9 @@ export default function FormCrm() {
       if (!k.status) e[`status_${i}`] = "Pilih status";
       if (k.tahun && (Number(k.tahun) < 1980 || Number(k.tahun) > new Date().getFullYear() + 1))
         e[`tahun_${i}`] = "Tahun tidak wajar";
+      if (k.status === "Beroperasi + Bayar" && (!k.bayarOs || Number(k.bayarOs) <= 0)) {
+        e[`bayarOs_${i}`] = "Isi jumlah OS yang mau dibayar";
+      }
     });
     return e;
   }, [form.armadaList]);
@@ -148,10 +511,46 @@ export default function FormCrm() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const handleSubmit = () => {
-    console.log("Payload submit:", form);
-    alert("Form siap dikirim! (demo)");
-    setDirty(false);
+  const handleSubmit = async () => {
+    // safety: validasi terakhir
+    if (
+      Object.keys(step1Errors).length ||
+      Object.keys(step2Errors).length ||
+      Object.keys(step3Errors).length
+    ) {
+      alert("Masih ada kolom yang belum lengkap. Cek lagi langkah 1–3 ya 😊");
+      return;
+    }
+
+    try {
+      // 1) Simpan ke Supabase
+      const { reportId, reportCode } = await saveCrmToSupabase(form);
+
+      // 2) Kalau masih mau simpan juga ke localStorage (opsional)
+      const newRow = buildCrmRowFromForm(form);
+      newRow.id = reportCode; // sinkron dengan report_code di DB
+
+      const existing = loadCrmRows();
+      const next = [newRow, ...existing];
+      saveCrmRows(next);
+
+      // 3) Matikan flag "dirty" + bersihkan draft form
+      setDirty(false);
+      localStorage.removeItem("form_crm_draft_v5");
+
+      // 4) Info ke user
+      alert(
+        `Data CRM tersimpan di Supabase dengan kode ${reportCode}.\n` +
+          `ID record: ${reportId}\n\n` +
+          `Silakan buka halaman "Hasil Input Form CRM" untuk lihat rekap.`
+      );
+
+      // (opsional) redirect kalau mau:
+      // window.location.href = "/crm/data";
+    } catch (e) {
+      console.error("Gagal menyimpan data CRM:", e);
+      alert("Terjadi kesalahan saat menyimpan ke server. Coba lagi sebentar ya 🙏");
+    }
   };
 
   const resetDraft = () => {
@@ -194,7 +593,7 @@ export default function FormCrm() {
               />
 
               <div className="section">
-                {step === 1 && <Step1Datakunjungan form={form} setField={setField} errors={step1Errors} />}
+                {step === 1 && <Step1Datakunjungan form={form} setField={setField} errors={step1Errors} picMaster={picMaster} companyMaster={companyMaster} />}
                 {step === 2 && (
                   <Step2Armada
                     form={form}
@@ -347,10 +746,6 @@ function SidebarSummary({ form, step, step1Errors, step2Errors, step3Errors }) {
           Ada {errorCount} kolom yang perlu dilengkapi pada langkah ini.
         </div>
       )}
-
-      <div className="tip">
-        Tekan <kbd>Ctrl</kbd>+<kbd>Enter</kbd> untuk lanjut, <kbd>Shift</kbd>+<kbd>Enter</kbd> untuk kembali.
-      </div>
     </div>
   );
 }
@@ -364,7 +759,24 @@ function MiniItem({ label, value }) {
 }
 
 /* ================ STEPS ================ */
-function Step1Datakunjungan({ form, setField, errors }) {
+function Step1Datakunjungan({ form, setField, errors, picMaster, companyMaster }) {
+  const ownedCompanies =
+    (companyMaster || []).filter(
+      (c) =>
+        form.namaPemilik &&
+        c.nama_pemilik &&
+        c.nama_pemilik.toLowerCase() === form.namaPemilik.trim().toLowerCase()
+    );
+
+  // Untuk datalist pemilik: unik & terurut
+  const uniqueOwners = Array.from(
+    new Set(
+      (companyMaster || [])
+        .map((c) => c.nama_pemilik)
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b, "id"));
+
   return (
     <>
       <h2 className="h2">Step 1 — Datakunjungan</h2>
@@ -377,6 +789,39 @@ function Step1Datakunjungan({ form, setField, errors }) {
 
         <Field label="Waktu Kunjungan" req error={errors.waktu}>
           <input data-error={!!errors.waktu} type="time" value={form.waktu} onChange={e=>setField("waktu", e.target.value)} />
+        </Field>
+
+        <Field label="Nama Petugas" req error={errors.namaPetugas}>
+          <input
+            data-error={!!errors.namaPetugas}
+            list="pic-list"
+            value={form.namaPetugas}
+            onChange={(e) => {
+              const val = e.target.value;
+              setField("namaPetugas", val);
+
+              const match =
+                picMaster?.find(
+                  (p) => p.pic.toLowerCase() === val.trim().toLowerCase()
+                ) || null;
+
+              if (match && match.loket) {
+                setField("loket", match.loket);
+              }
+            }}
+            placeholder="Nama petugas lapangan"
+            autoComplete="off"
+          />
+          <datalist id="pic-list">
+            {picMaster?.map((p) => (
+              <option
+                key={p.pic}
+                value={p.pic}
+              >
+                {p.pic}{p.loket ? ` — ${p.loket}` : ""}
+              </option>
+            ))}
+          </datalist>
         </Field>
 
         <Field label="Loket" req error={errors.loket}>
@@ -395,10 +840,6 @@ function Step1Datakunjungan({ form, setField, errors }) {
           </datalist>
         </Field>
 
-        <Field label="Nama Petugas" req error={errors.namaPetugas}>
-          <input data-error={!!errors.namaPetugas} value={form.namaPetugas} onChange={e=>setField("namaPetugas", e.target.value)} placeholder="Nama petugas lapangan" />
-        </Field>
-
         <Field span="2" label="Status Kunjungan">
           <label className="check">
             <input type="checkbox" checked={form.sudahKunjungan} onChange={e=>setField("sudahKunjungan", e.target.checked)} />
@@ -406,40 +847,123 @@ function Step1Datakunjungan({ form, setField, errors }) {
           </label>
         </Field>
 
-        <Field label="Tipe Badan Usaha">
-          <div className="segmented">
-            <div className={`seg ${form.badanUsahaTipe==='PT'?'active':''}`} onClick={()=>setField('badanUsahaTipe','PT')}>PT</div>
-            <div className={`seg ${form.badanUsahaTipe==='Pribadi'?'active':''}`} onClick={()=>setField('badanUsahaTipe','Pribadi')}>Pribadi</div>
-          </div>
+        <Field label="Nama Pemilik / Pengelola">
+          <input
+            list="pemilik-list"
+            value={form.namaPemilik}
+            onChange={(e) => {
+              const val = e.target.value;
+              setField("namaPemilik", val);
+
+              const ownerMatch =
+                companyMaster?.find(
+                  (c) =>
+                    c.nama_pemilik &&
+                    c.nama_pemilik.toLowerCase() === val.trim().toLowerCase()
+                ) || null;
+
+              // kalau ketemu di master → auto isi hp
+              if (ownerMatch?.hp) {
+                setField("telPemilik", ownerMatch.hp);
+              }
+
+              // kalau owner ini cuma punya 1 perusahaan → auto isi PT/CV
+              const companiesForOwner =
+                companyMaster?.filter(
+                  (c) =>
+                    c.nama_pemilik &&
+                    c.nama_pemilik.toLowerCase() === val.trim().toLowerCase()
+                ) || [];
+              if (companiesForOwner.length === 1) {
+                setField("badanUsahaNama", companiesForOwner[0].nama_perusahaan);
+              }
+            }}
+            placeholder="Nama pemilik atau pengelola"
+            autoComplete="off"
+          />
+          <datalist id="pemilik-list">
+            {uniqueOwners.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
         </Field>
 
-        <Field label="Nama PT/CV / Pemilik">
-          <input value={form.badanUsahaNama} onChange={e=>setField("badanUsahaNama", e.target.value)} placeholder="Contoh: PT Maju Jaya" />
+        <Field label="Nama PT/CV yang Dikelola">
+          <input
+            list="perusahaan-list"
+            value={form.badanUsahaNama}
+            onChange={(e) => {
+              const val = e.target.value;
+              setField("badanUsahaNama", val);
+
+              const source =
+                ownedCompanies.length > 0 ? ownedCompanies : companyMaster;
+
+              const match =
+                source?.find(
+                  (c) =>
+                    c.nama_perusahaan &&
+                    c.nama_perusahaan.toLowerCase() === val.trim().toLowerCase()
+                ) || null;
+
+              if (match?.hp) {
+                setField("telPemilik", match.hp);
+              }
+              // kalau nama pemilik di form masih kosong tapi di data ada → isi
+              if (match?.nama_pemilik && !form.namaPemilik) {
+                setField("namaPemilik", match.nama_pemilik);
+              }
+            }}
+            placeholder="Pilih / ketik nama PT/CV"
+            autoComplete="off"
+          />
+          <datalist id="perusahaan-list">
+            {(ownedCompanies.length > 0 ? ownedCompanies : companyMaster || []).map(
+              (c) => (
+                <option
+                  key={`${c.nama_perusahaan}-${c.nama_pemilik || "x"}`}
+                  value={c.nama_perusahaan}
+                >
+                  {c.nama_perusahaan}
+                  {c.nama_pemilik ? ` — (${c.nama_pemilik})` : ""}
+                </option>
+              )
+            )}
+          </datalist>
         </Field>
 
         <Field label="Jenis Angkutan" req error={errors.jenisAngkutan}>
-          <select data-error={!!errors.jenisAngkutan} value={form.jenisAngkutan} onChange={e=>setField("jenisAngkutan", e.target.value)}>
+          <select
+            data-error={!!errors.jenisAngkutan}
+            value={form.jenisAngkutan}
+            onChange={(e) => setField("jenisAngkutan", e.target.value)}
+          >
             <option value="">— Pilih jenis —</option>
             <option>Kendaraan Bermotor Umum</option>
-            <option>Angkutan Barang</option>
-            <option>Angkutan Penumpang</option>
-            <option>Moda Laut</option>
+            <option>Kapal Penumpang Umum</option>
           </select>
         </Field>
 
-        <Field label="Nama Pemilik / Pengelola">
-          <input value={form.namaPemilik} onChange={e=>setField("namaPemilik", e.target.value)} placeholder="Nama pemilik atau pengelola" />
+        <Field
+          span="2"
+          label="Alamat yang Dikunjungi"
+          req
+          error={errors.alamatKunjungan}
+        >
+          <textarea
+            data-error={!!errors.alamatKunjungan}
+            value={form.alamatKunjungan}
+            onChange={(e) => setField("alamatKunjungan", e.target.value)}
+            placeholder="Tulis alamat lengkap lokasi kunjungan"
+          />
         </Field>
 
-        <Field span="2" label="Alamat yang Dikunjungi" req error={errors.alamatKunjungan}>
-          <textarea data-error={!!errors.alamatKunjungan} value={form.alamatKunjungan} onChange={e=>setField("alamatKunjungan", e.target.value)} placeholder="Tulis alamat lengkap lokasi kunjungan" />
-        </Field>
-
-        <Field label="No. Telepon/HP Pemilik">
-          <input value={form.telPemilik} onChange={e=>setField("telPemilik", e.target.value)} placeholder="08xxxxxxxxxx" />
-        </Field>
-        <Field label="No. Telepon/HP Pengelola">
-          <input value={form.telPengelola} onChange={e=>setField("telPengelola", e.target.value)} placeholder="08xxxxxxxxxx" />
+        <Field label="No. Telepon/HP Pemilik/Pengelola">
+          <input
+            value={form.telPemilik}
+            onChange={(e) => setField("telPemilik", e.target.value)}
+            placeholder="08xxxxxxxxxx"
+          />
         </Field>
       </div>
     </>
@@ -447,64 +971,354 @@ function Step1Datakunjungan({ form, setField, errors }) {
 }
 
 function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext }) {
-  const add = () => setArmadaList([...(armadaList||[]), { nopol:"", status:"", tipeArmada:"", tahun:"" }]);
-  const remove = (idx) => setArmadaList(armadaList.filter((_,i)=>i!==idx));
-  const update = (idx, key, val) => {
-    const next = [...armadaList]; next[idx] = { ...next[idx], [key]: val }; setArmadaList(next);
+  const [iwkbuRows, setIwkbuRows] = useState([]);
+  const [loadingIwkbu, setLoadingIwkbu] = useState(false);
+  const [errorIwkbu, setErrorIwkbu] = useState(null);
+
+  // ====== LOAD DATA IWKBU BERDASARKAN NAMA PERUSAHAAN (STEP 1) ======
+  useEffect(() => {
+    const nama = (form.badanUsahaNama || "").trim();
+    if (!nama) {
+      setIwkbuRows([]);
+      return;
+    }
+
+    let alive = true;
+    (async () => {
+      setLoadingIwkbu(true);
+      setErrorIwkbu(null);
+      try {
+        const { data, error } = await supabase
+          .from("iwkbu")
+          .select("nopol,tarif,jenis,tahun,nama_perusahaan")
+          .ilike("nama_perusahaan", nama);
+
+        if (!alive) return;
+        if (error) throw error;
+        setIwkbuRows(data || []);
+      } catch (e) {
+        if (!alive) return;
+        console.error("Load iwkbu for Step2Armada error:", e);
+        setErrorIwkbu(e.message || String(e));
+        setIwkbuRows([]);
+      } finally {
+        if (alive) setLoadingIwkbu(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [form.badanUsahaNama]);
+
+  // daftar nopol unik buat datalist
+  const nopolOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (iwkbuRows || [])
+            .map((r) => r.nopol)
+            .filter(Boolean)
+            .map((n) => n.toUpperCase())
+        )
+      ).sort(),
+    [iwkbuRows]
+  );
+
+  // pastikan tiap item armada punya field tambahan (osTarif, bayarOs, buktiFiles, rekomendasi)
+  const safeList = (armadaList || []).map((a) => ({
+    nopol: "",
+    status: "",
+    tipeArmada: "",
+    tahun: "",
+    osTarif: null,
+    bayarOs: "",
+    buktiFiles: [],
+    rekomendasi: "",
+    ...a,
+  }));
+
+  const setSafeList = (next) => setArmadaList(next);
+
+  const add = () =>
+    setSafeList([
+      ...safeList,
+      {
+        nopol: "",
+        status: "",
+        tipeArmada: "",
+        tahun: "",
+        osTarif: null,
+        bayarOs: "",
+        buktiFiles: [],
+        rekomendasi: "",
+      },
+    ]);
+
+  const remove = (idx) => setSafeList(safeList.filter((_, i) => i !== idx));
+
+  const update = (idx, patch) => {
+    const next = [...safeList];
+    next[idx] = { ...next[idx], ...patch };
+    setSafeList(next);
+  };
+
+  const handleNopolChange = (idx, raw) => {
+    const value = (raw || "").toUpperCase().trim();
+    // cari di data iwkbu buat perusahaan ini
+    const row = iwkbuRows.find(
+      (r) => (r.nopol || "").toUpperCase().trim() === value
+    );
+
+    if (row) {
+      update(idx, {
+        nopol: value,
+        osTarif: row.tarif ?? 0,
+        tipeArmada: row.jenis || "",
+        tahun: row.tahun || "",
+      });
+    } else {
+      // manual, tanpa data iwkbu
+      update(idx, { nopol: value, osTarif: null });
+    }
+  };
+
+  const handleStatusChange = (idx, newStatus) => {
+    const normalized = (newStatus || "").toUpperCase();
+    const current = safeList[idx];
+
+    const patch = { status: newStatus };
+
+    // kalau ganti dari "Beroperasi + Bayar" ke status lain → kosongkan bayarOs
+    if (current.status === "Beroperasi + Bayar" && newStatus !== "Beroperasi + Bayar") {
+      patch.bayarOs = "";
+    }
+
+    // kalau status baru tidak butuh upload → kosongkan buktiFiles
+    if (!ARMADA_STATUS_NEED_UPLOAD.has(normalized)) {
+      patch.buktiFiles = [];
+    }
+
+    update(idx, patch);
+  };
+
+  const handleBuktiChange = (idx, fileList) => {
+    const files = Array.from(fileList || []);
+    const MAX_FILES = 3;
+    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+
+    const valid = [];
+    const rejected = [];
+
+    for (const f of files) {
+      if (valid.length >= MAX_FILES) {
+        rejected.push(`${f.name} (lebih dari 3 file)`);
+        continue;
+      }
+      if (f.size > MAX_SIZE) {
+        rejected.push(`${f.name} (lebih dari 5MB)`);
+        continue;
+      }
+      valid.push(f);
+    }
+
+    if (rejected.length) {
+      alert(
+        "Beberapa file tidak digunakan:\n" +
+          rejected.map((r) => "- " + r).join("\n") +
+          "\nSyarat: maks 3 file, masing-masing ≤ 5MB."
+      );
+    }
+
+    update(idx, { buktiFiles: valid });
   };
 
   return (
     <>
       <h2 className="h2">Step 2 — Armada</h2>
-      <p className="lead">Daftar kendaraan dan hasil kunjungan.</p>
+      <p className="lead">
+        Daftar kendaraan, status & nilai OS IWKBU untuk PT/CV:{" "}
+        <strong>{form.badanUsahaNama || "— belum dipilih di Step 1"}</strong>
+      </p>
 
-      {errors.list && <div className="alert warn" style={{marginBottom:12}}><div className="alert-title">Perlu diperbaiki</div>{errors.list}</div>}
-
-      {(armadaList||[]).map((a, i) => (
-        <div className="card-sub" key={i}>
-          <div className="form-grid">
-            <Field label="No. Polisi" req error={errors[`nopol_${i}`]}>
-              <input data-error={!!errors[`nopol_${i}`]} value={a.nopol} onChange={e=>update(i,"nopol",e.target.value)} placeholder="B 1234 CD" />
-            </Field>
-
-            <Field label="Status" req error={errors[`status_${i}`]}>
-              <select data-error={!!errors[`status_${i}`]} value={a.status} onChange={e=>update(i,"status",e.target.value)}>
-                <option value="">— Pilih Status —</option>
-                <option>Beroperasi + Bayar</option>
-                <option>Beroperasi</option>
-                <option>Dijual</option>
-                <option>Ubah Sifat</option>
-                <option>Ubah Bentuk</option>
-                <option>Rusak Sementara</option>
-                <option>Rusak Selamanya</option>
-                <option>Tidak Ditemukan</option>
-                <option>Cadangan</option>
-              </select>
-            </Field>
-
-            <Field label="Tipe Armada">
-              <input value={a.tipeArmada} onChange={e=>update(i,"tipeArmada",e.target.value)} placeholder="Truk bak, Bus, dll." />
-            </Field>
-
-            <Field label="Tahun" error={errors[`tahun_${i}`]}>
-              <input data-error={!!errors[`tahun_${i}`]} type="number" value={a.tahun} onChange={e=>update(i,"tahun",e.target.value)} placeholder="2020" />
-            </Field>
-          </div>
-
-          <div className="actions-right">
-            <button className="btn ghost" onClick={()=>remove(i)}>Hapus</button>
-          </div>
+      {loadingIwkbu && (
+        <div className="hint" style={{ marginBottom: 8 }}>
+          Memuat riwayat armada dari IWKBU…
         </div>
-      ))}
+      )}
+      {errorIwkbu && (
+        <div className="alert warn" style={{ marginBottom: 8 }}>
+          <div className="alert-title">Gagal memuat data IWKBU</div>
+          {errorIwkbu}
+        </div>
+      )}
+      {errors.list && (
+        <div className="alert warn" style={{ marginBottom: 12 }}>
+          <div className="alert-title">Perlu diperbaiki</div>
+          {errors.list}
+        </div>
+      )}
 
-      <button className="btn primary" onClick={add}>+ Tambah Kendaraan</button>
+      {safeList.map((a, i) => {
+        const statusNorm = (a.status || "").toUpperCase();
+        const showBayarOs = a.status === "Beroperasi + Bayar";
+        const showUpload = ARMADA_STATUS_NEED_UPLOAD.has(statusNorm);
 
+        return (
+          <div className="card-sub" key={i}>
+            <div className="form-grid">
+              {/* NOPOL */}
+              <Field label="No. Polisi" req error={errors[`nopol_${i}`]}>
+                <input
+                  data-error={!!errors[`nopol_${i}`]}
+                  list="armada-nopol-list"
+                  value={a.nopol}
+                  onChange={(e) => handleNopolChange(i, e.target.value)}
+                  placeholder="BM 1234 TU"
+                  autoComplete="off"
+                />
+                {a.osTarif != null && (
+                  <div className="hint" style={{ marginTop: 4 }}>
+                    Jumlah OS yang harus dibayar:{" "}
+                    <strong>{idr(a.osTarif)}</strong>
+                  </div>
+                )}
+              </Field>
+
+              {/* STATUS */}
+              <Field label="Status Kendaraan" req error={errors[`status_${i}`]}>
+                <select
+                  data-error={!!errors[`status_${i}`]}
+                  value={a.status}
+                  onChange={(e) => handleStatusChange(i, e.target.value)}
+                >
+                  <option value="">— Pilih Status —</option>
+                  {ARMADA_STATUS_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              {/* TIPE ARMADA (otomatis dari iwkbu.jenis tapi bisa edit) */}
+              <Field label="Tipe Armada">
+                <input
+                  value={a.tipeArmada}
+                  onChange={(e) => update(i, { tipeArmada: e.target.value })}
+                  placeholder="BUS, MINIBUS, dll."
+                />
+              </Field>
+
+              {/* TAHUN (otomatis dari iwkbu.tahun tapi bisa edit) */}
+              <Field label="Tahun" error={errors[`tahun_${i}`]}>
+                <input
+                  data-error={!!errors[`tahun_${i}`]}
+                  type="number"
+                  value={a.tahun}
+                  onChange={(e) => update(i, { tahun: e.target.value })}
+                  placeholder="2020"
+                />
+              </Field>
+            </div>
+
+            {/* Jika status = Beroperasi + Bayar → input jumlah OS yang mau dibayar */}
+            {showBayarOs && (
+              <div className="form-grid" style={{ marginTop: 8 }}>
+                <Field
+                  label="Jumlah OS yang mau dibayar"
+                  error={errors[`bayarOs_${i}`]}
+                >
+                  <input
+                    data-error={!!errors[`bayarOs_${i}`]}
+                    type="number"
+                    min={0}
+                    value={a.bayarOs}
+                    onChange={(e) => update(i, { bayarOs: e.target.value })}
+                    placeholder={
+                      a.osTarif != null
+                        ? `Maksimal ${idr(a.osTarif)}`
+                        : "Masukkan jumlah yang dibayar"
+                    }
+                  />
+                  {a.osTarif != null && (
+                    <div className="hint">
+                      Nilai OS penuh: <strong>{idr(a.osTarif)}</strong>
+                    </div>
+                  )}
+                </Field>
+              </div>
+            )}
+
+            {/* Status tertentu → upload bukti */}
+            {showUpload && (
+              <div className="form-grid" style={{ marginTop: 8 }}>
+                <Field label="Upload Bukti (PDF / Foto)">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,image/*"
+                    onChange={(e) =>
+                      handleBuktiChange(i, e.target.files || [])
+                    }
+                  />
+                  <div className="hint">
+                    Maksimal 3 file, masing-masing ≤ 5MB.
+                    {a.buktiFiles?.length
+                      ? ` (${a.buktiFiles.length} file terpilih)`
+                      : ""}
+                  </div>
+                </Field>
+              </div>
+            )}
+
+            {/* Rekomendasi tindak lanjut untuk armada ini */}
+            <div className="form-grid" style={{ marginTop: 8 }}>
+              <Field span="2" label="Rekomendasi Tindak Lanjut (Armada ini)">
+                <textarea
+                  value={a.rekomendasi}
+                  onChange={(e) =>
+                    update(i, { rekomendasi: e.target.value })
+                  }
+                  placeholder="Contoh: disarankan segera membayar OS & perpanjang IWKBU, atau kendaraan direncanakan dijual, dll."
+                />
+              </Field>
+            </div>
+
+            <div className="actions-right">
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => remove(i)}
+              >
+                Hapus Armada
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* datalist nopol untuk semua armada */}
+      <datalist id="armada-nopol-list">
+        {nopolOptions.map((n) => (
+          <option key={n} value={n} />
+        ))}
+      </datalist>
+
+      {/* tombol tambah kendaraan */}
+      <button type="button" className="btn primary" onClick={add}>
+        + Tambah Kendaraan
+      </button>
+
+      {/* B. Hasil Kunjungan (umum) */}
       <div className="section" style={{ marginTop: 20 }}>
         <h3 className="h2">B. Hasil Kunjungan</h3>
         <Field span="2" label="Penjelasan Hasil Kunjungan">
           <textarea
             value={form.hasilKunjunganPenjelasan}
-            onChange={e => setField("hasilKunjunganPenjelasan", e.target.value)}
+            onChange={(e) =>
+              setField("hasilKunjunganPenjelasan", e.target.value)
+            }
             placeholder="Tuliskan Nopol / Nama Kapal dan penjelasan berdasarkan hasil kunjungan..."
           />
         </Field>
@@ -512,13 +1326,11 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
           <input
             type="datetime-local"
             value={form.janjiBayarTunggakan}
-            onChange={e => setField("janjiBayarTunggakan", e.target.value)}
+            onChange={(e) =>
+              setField("janjiBayarTunggakan", e.target.value)
+            }
           />
         </Field>
-
-        <div className="actions-right" style={{ marginTop: 10 }}>
-          <button className="btn primary" onClick={onNext}>Lanjut ke Upload ⟶</button>
-        </div>
       </div>
     </>
   );
@@ -688,11 +1500,6 @@ function Step4PesanSaran({ form, setField }) {
 
         <Field span="2" label="Saran untuk Pemilik">
           <textarea value={form.saranUntukPemilik} onChange={e=>setField("saranUntukPemilik", e.target.value)} placeholder="Saran perbaikan, prioritas, dan tindak lanjut." />
-        </Field>
-
-        <Field span="2" label="Kirim via WhatsApp">
-          <label className="check"><input type="checkbox" checked={form.kirimKeWaPemilik} onChange={e=>setField("kirimKeWaPemilik", e.target.checked)} />Pemilik</label>
-          <label className="check"><input type="checkbox" checked={form.kirimKeWaPengelola} onChange={e=>setField("kirimKeWaPengelola", e.target.checked)} />Pengelola</label>
         </Field>
       </div>
     </>

@@ -224,8 +224,8 @@ export default function DataFromManifest() {
       "Total Penumpang",
       "Jumlah Premi",
       "Agen/Perusahaan",
-      "Telepon",
-      "ID IWKL"
+      "Telepon"
+      // "ID IWKL"
     ];
 
     const lines = [
@@ -303,7 +303,7 @@ export default function DataFromManifest() {
                 <th>Jumlah Premi</th>
                 <th>Agen/Perusahaan</th>
                 <th>Telepon</th>
-                <th>ID IWKL</th>
+                {/* <th>ID IWKL</th> */}
                 <th>Aksi</th>
                 <th>Foto</th>
                 <th>Tanda Tangan</th>
@@ -320,7 +320,7 @@ export default function DataFromManifest() {
                   <td className="num">{idr(r.jumlah_premi || 0)}</td>
                   <td>{r.agen || "-"}</td>
                   <td>{r.telp || "-"}</td>
-                  <td className="num">
+                  {/* <td className="num">
                     {r.iwkl_id ? (
                       <span style={{ 
                         background: '#e3f2fd', 
@@ -333,7 +333,7 @@ export default function DataFromManifest() {
                     ) : (
                       "-"
                     )}
-                  </td>
+                  </td> */}
                   <td>
                     <button
                       className="btn danger ghost xs"
