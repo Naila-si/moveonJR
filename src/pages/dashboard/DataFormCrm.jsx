@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from "../../lib/supabaseClient";
+import { useNavigate } from "react-router-dom";
 
 const LS_KEY = "crmData";
 
@@ -288,6 +289,7 @@ function addVerificationNotificationLocal({ reportId, status, note, waktuValidas
 
 export default function DataFormCrm({ data = [] }) {
   const [query, setQuery] = useState("");
+  const navigate = useNavigate();
   const [filterJenis, setFilterJenis] = useState("Semua");
   const [filterValidasi, setFilterValidasi] = useState("Semua");
   const [selected, setSelected] = useState(null);
@@ -460,7 +462,6 @@ export default function DataFormCrm({ data = [] }) {
       waktuValidasi: ts,
     };
 
-    // update ke tabel crm_reports (bukan view)
     const { data: updated, error } = await supabase
       .from("crm_reports")
       .update({ step4: newStep4 })
@@ -474,28 +475,25 @@ export default function DataFormCrm({ data = [] }) {
       return;
     }
 
-    // sinkronkan ke tampilan (rows + selected)
+    const finalStep4 = updated?.step4 || newStep4;
+
+    // sinkron state
     setRows((prev) =>
       prev.map((row) =>
-        row.dbId === selected.dbId
-          ? {
-              ...row,
-              step4: updated.step4 || newStep4,
-            }
-          : row
+        row.dbId === selected.dbId ? { ...row, step4: finalStep4 } : row
       )
     );
-
-    setSelected((prev) =>
-      prev
-        ? {
-            ...prev,
-            step4: updated.step4 || newStep4,
-          }
-        : prev
-    );
+    setSelected((prev) => (prev ? { ...prev, step4: finalStep4 } : prev));
 
     setVerifyOpen(false);
+
+    // 🔔 1) simpan notifikasi ke localStorage (dibaca NotifikasiBerkas)
+    addVerificationNotificationLocal({
+      reportId: selected.id,                // kode laporan yang kamu tampilkan
+      status: finalStep4.statusValidasi,
+      note: finalStep4.catatanValidasi,
+      waktuValidasi: finalStep4.waktuValidasi,
+    });
   };
 
   useEffect(() => {
@@ -1373,6 +1371,108 @@ table.dfc-table{
   object-fit:contain;
   background:#fff;
   border-radius:12px;
+}
+/* === VERIFIKASI SECTION KAWAII === */
+
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-top:4px;
+}
+
+.field label{
+  font-size:12px;
+  color:#64748b;
+  font-weight:600;
+}
+
+.field textarea{
+  resize:vertical;
+  min-height:72px;
+  border-radius:16px;
+  border:2px solid var(--sky-200);
+  padding:10px 12px;
+  font-family:inherit;
+  font-size:13px;
+  background:#f9fbff;
+  transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+
+.field textarea:focus{
+  outline:none;
+  border-color:var(--sky-400);
+  box-shadow:0 0 0 2px rgba(59,130,246,.28);
+  background:#ffffff;
+}
+
+.field .muted{
+  font-size:11px;
+  color:#94a3b8;
+  margin-top:2px;
+}
+
+/* tombol khusus verifikasi */
+.dfc-modal-actions .btn.primary{
+  background:var(--sky-500);
+  color:#fff;
+  border:none;
+}
+
+.dfc-modal-actions .btn.primary:hover{
+  filter:brightness(1.05);
+  transform:translateY(-1px);
+}
+
+.dfc-modal-actions .btn.ghost{
+  background:#fff;
+  color:#0284c7;
+  border:2px solid var(--sky-300);
+}
+
+.dfc-modal-actions .btn.success{
+  background:#22c55e;
+  color:#fff;
+  border:none;
+}
+/* === FIX: Set semua tulisan jadi hitam === */
+.dfc-container, 
+.dfc-container * {
+  color: #0f172a !important;          /* teks utama */
+}
+
+/* label / subtitle abu-abu gelap */
+.dfc-container label,
+.dfc-container small,
+.dfc-container .muted,
+.dfc-container .item label {
+  color: #475569 !important;          /* slate-600 */
+}
+
+/* badge tetap terlihat */
+.badge {
+  color: #0f172a !important;
+}
+
+/* tombol */
+.btn {
+  color: #ffffff !important;          /* biar tombol solid tetap putih */
+}
+
+/* input & textarea teks hitam */
+.dfc-container input,
+.dfc-container textarea,
+.dfc-container select {
+  color: #0f172a !important;
+}
+
+/* header table */
+.dfc-table thead th {
+  color: #0284c7 !important;          /* biru pastel */
+}
+/* perbaiki warna teks tombol Download PDF (btn-soft) */
+.btn.btn-soft {
+  color: #0284c7 !important;  /* biru, biar kebaca di background putih */
 }
 `}</style>
     </div>
