@@ -102,7 +102,7 @@ function buildCrmRowFromForm(form) {
       namaPemilik: form.namaPemilik || "",
       alamat: form.alamatKunjungan || "",
       telepon: form.telPemilik || "",
-      sudahKunjungan: !!form.sudahKunjungan,
+      // sudahKunjungan: !!form.sudahKunjungan,
       badanUsahaTipe: form.badanUsahaTipe || "",
       telPengelola: form.telPengelola || "",
     },
@@ -314,7 +314,8 @@ export default function FormCrm() {
     return {
       // Step 1 — Datakunjungan
       tanggal: "", waktu: "", loket: "", namaPetugas: "",
-      sudahKunjungan: false, badanUsahaTipe: "PT", badanUsahaNama: "",
+      // sudahKunjungan: false, 
+      badanUsahaTipe: "PT", badanUsahaNama: "",
       jenisAngkutan: "", namaPemilik: "", alamatKunjungan: "",
       telPemilik: "", telPengelola: "",
 
@@ -840,12 +841,12 @@ function Step1Datakunjungan({ form, setField, errors, picMaster, companyMaster }
           </datalist>
         </Field>
 
-        <Field span="2" label="Status Kunjungan">
+        {/* <Field span="2" label="Status Kunjungan">
           <label className="check">
             <input type="checkbox" checked={form.sudahKunjungan} onChange={e=>setField("sudahKunjungan", e.target.checked)} />
             Sudah melakukan kunjungan
           </label>
-        </Field>
+        </Field> */}
 
         <Field label="Nama Pemilik / Pengelola">
           <input
