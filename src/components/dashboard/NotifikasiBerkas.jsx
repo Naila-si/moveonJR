@@ -1,6 +1,8 @@
-// File: src/components/dashboard/NotifikasiBerkas.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import { supabase } from "../../lib/supabaseClient";
 
 const NOTIF_KEY = "crm:notif";
 
@@ -10,6 +12,244 @@ function loadItems() {
 }
 function saveItems(items) {
   localStorage.setItem(NOTIF_KEY, JSON.stringify(items));
+}
+
+function formatRupiah(n) {
+  try {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }).format(Number(n) || 0);
+  } catch {
+    return `Rp ${n}`;
+  }
+}
+
+function addSignatureImage(doc, dataUrl, x, y, w) {
+  if (!dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image")) return y;
+  try {
+    // auto height proporsional (anggap ttd landscape)
+    const h = w * 0.45;
+    doc.addImage(dataUrl, "PNG", x, y, w, h);
+    return y + h;
+  } catch (e) {
+    console.warn("Gagal render ttd:", e);
+    return y;
+  }
+}
+
+async function fetchReportFull(reportCode) {
+  // 1) ambil 1 laporan (berdasarkan report_code)
+  const { data: report, error: repErr } = await supabase
+    .from("crm_reports")
+    .select("*")
+    .eq("report_code", reportCode)
+    .single();
+
+  if (repErr || !report) throw repErr || new Error("Report tidak ditemukan");
+
+  // 2) ambil armada detail
+  const { data: armadaRows, error: armErr } = await supabase
+    .from("crm_armada")
+    .select("*")
+    .eq("report_id", report.id);
+
+  if (armErr) console.warn("Armada fetch error:", armErr);
+
+  const rincianArmada = (armadaRows || []).map((a) => ({
+    nopol: a.nopol ?? "",
+    status: a.status ?? "",
+    tipeArmada: a.tipe_armada ?? "",
+    tahun: a.tahun ?? null,
+    bayarOs: a.bayar_os ?? 0,
+    rekomendasi: a.rekomendasi ?? "",
+    tindakLanjut: a.rekomendasi ?? "",
+    bukti: a.bukti || [],
+  }));
+
+  // total OS dibayar (sum bayar_os)
+  const totalOsHarusDibayar = rincianArmada.reduce((sum, a) => {
+    const raw = Number(a.bayarOs);
+    return sum + (Number.isFinite(raw) ? raw : 0);
+  }, 0);
+
+  // 3) return row shape mirip DataFormCrm
+  return {
+    id: report.report_code || report.id,
+    step1: report.step1 || {},
+    step2: {
+      ...(report.step2 || {}),
+      rincianArmada,
+      hasilKunjungan:
+        report.step2?.hasilKunjungan ||
+        report.step2?.penjelasanKunjungan ||
+        report.step2?.penjelasanHasil ||
+        "",
+      janjiBayar: report.step2?.janjiBayar || report.step2?.janji_bayar || "-",
+    },
+    step3: report.step3 || {},
+    step4: report.step4 || {},
+    step5: report.step5 || {},
+    totalOS: totalOsHarusDibayar,
+  };
+}
+
+function downloadPdfFromRow(row) {
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pad = 36;
+  let y = pad;
+
+  // Header
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("LAPORAN CRM / DTD", pad, y + 18);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`ID: ${row.id} • Validasi: ${row.step4?.statusValidasi || "-"}`, pad, y + 34);
+  y += 54;
+
+  // STEP 1
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("1) Data Kunjungan", pad, y);
+  y += 6;
+
+  const s1 = [
+    ["Tanggal & Waktu", row.step1?.tanggalWaktu || "-"],
+    ["Loket", row.step1?.loket || "-"],
+    ["Nama Petugas", `${row.step1?.petugasDepan || ""} ${row.step1?.petugasBelakang || ""}`.trim() || "-"],
+    ["Nama Perusahaan (PT/CV)", row.step1?.perusahaan || "-"],
+    ["Jenis Angkutan", row.step1?.jenisAngkutan || "-"],
+    ["Nama Pemilik/Pengelola", row.step1?.namaPemilik || "-"],
+    ["Alamat", row.step1?.alamat || "-"],
+    ["No. Telepon/HP", row.step1?.telepon || "-"],
+  ];
+
+  autoTable(doc, {
+    startY: y + 6,
+    head: [["Field", "Nilai"]],
+    body: s1,
+    theme: "grid",
+    styles: { fontSize: 9, cellPadding: 4 },
+  });
+  y = doc.lastAutoTable.finalY + 18;
+
+  // STEP 2
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("2) Armada", pad, y);
+  y += 8;
+
+  const rincian = row.step2?.rincianArmada || [];
+  const armadaTable = rincian.map((r) => [
+    r.nopol || "-",
+    r.status || "-",
+    formatRupiah(r.bayarOs || 0),
+    r.rekomendasi || r.tindakLanjut || "-",
+  ]);
+
+  autoTable(doc, {
+    startY: y + 6,
+    head: [["Nopol/Kapal", "Status", "OS Dibayar", "Rekomendasi"]],
+    body: armadaTable.length ? armadaTable : [["-", "-", "-", "-"]],
+    theme: "grid",
+    styles: { fontSize: 9, cellPadding: 4 },
+  });
+
+  y = doc.lastAutoTable.finalY + 10;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`Hasil Kunjungan: ${row.step2?.hasilKunjungan || "-"}`, pad, y + 12);
+  doc.text(`Total OS yang harus dibayar: ${formatRupiah(row.totalOS || 0)}`, pad, y + 26);
+  doc.text(`Janji Bayar Tunggakan: ${row.step2?.janjiBayar || "-"}`, pad, y + 40);
+  y += 60;
+
+  // STEP 3
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("3) Penilaian", pad, y);
+  y += 8;
+
+  const s3 = [
+    ["Respon Pemilik/Pengelola", row.step3?.responPemilik || "-"],
+    ["Ketaatan Perizinan", `${row.step3?.ketaatanPerizinan || "-"}/5`],
+    ["Keramaian Penumpang", `${row.step3?.keramaianPenumpang || "-"}/5`],
+  ];
+
+  autoTable(doc, {
+    startY: y + 6,
+    head: [["Aspek", "Nilai"]],
+    body: s3,
+    theme: "grid",
+    styles: { fontSize: 9, cellPadding: 4 },
+  });
+  y = doc.lastAutoTable.finalY + 18;
+
+  // STEP 4
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("4) Validasi", pad, y);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(
+    `Status: ${row.step4?.statusValidasi || "-"} • Catatan: ${row.step4?.catatanValidasi || "-"}`,
+    pad,
+    y + 14
+  );
+  y += 30;
+
+  // STEP 5
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("5) Pesan & Saran", pad, y);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`Pesan: ${(row.step5?.pesan || "-").substring(0, 160)}`, pad, y + 14);
+  doc.text(`Saran: ${(row.step5?.saran || "-").substring(0, 160)}`, pad, y + 28);
+
+  y += 44;
+
+  const ttdPetugas = row.step3?.tandaTanganPetugas;
+  const ttdPemilik = row.step3?.tandaTanganPemilik;
+
+  if (ttdPetugas || ttdPemilik) {
+    const pageH = doc.internal.pageSize.getHeight();
+    const bottomPad = 36;
+
+    const boxW = 220;
+    const imgH = boxW * 0.45;
+    const blockH = 12 + 8 + imgH + 12;
+
+    if (y + blockH > pageH - bottomPad) {
+      doc.addPage();
+      y = bottomPad;
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Tanda Tangan", pad, y);
+    y += 12;
+
+    const gap = 24;
+    const leftX = pad;
+    const rightX = pad + boxW + gap;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("Petugas", leftX, y);
+    doc.text("Pemilik/Pengelola", rightX, y);
+    y += 8;
+
+    const imgY = y;
+    addSignatureImage(doc, ttdPetugas, leftX, imgY, boxW);
+    addSignatureImage(doc, ttdPemilik, rightX, imgY, boxW);
+
+    y = imgY + imgH + 8;
+  }
+
+  doc.save(`${row.id}_Laporan_CRM.pdf`);
 }
 
 export default function NotifikasiBerkas() {
@@ -154,6 +394,23 @@ export default function NotifikasiBerkas() {
                         <button className="icon-btn" title="Tandai dibaca" onClick={() => markAsRead(it.id, true)}>✅</button>
                       )}
                       <button className="icon-btn" title="Hapus" onClick={() => handleDelete(it.id)}>🗑️</button>
+                      <button
+                        className="icon-btn"
+                        title="Unduh Laporan PDF"
+                        onClick={async () => {
+                          try {
+                            const rid = it?.meta?.reportId;
+                            if (!rid) return alert("Report ID tidak ada.");
+                            const row = await fetchReportFull(rid);
+                            downloadPdfFromRow(row);
+                          } catch (e) {
+                            console.error(e);
+                            alert("Gagal unduh laporan. Cek koneksi / data report.");
+                          }
+                        }}
+                      >
+                        📄
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -201,34 +458,50 @@ html, body, .notif-page {
 }
 
 /* ===== HEADER ===== */
+/* ===== HEADER ===== */
 .notif-header {
   width: 100%;
-  border-radius: 0;
-  background: linear-gradient(90deg, var(--baby-yellow) 0%, var(--baby-blue) 100%);
-  padding: 14px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
+  background: linear-gradient(90deg, var(--baby-yellow) 0%, var(--baby-blue) 100%);
+  padding: 14px 24px;
+  gap: 24px;
   box-shadow: var(--shadow);
   position: sticky;
   top: 0;
   z-index: 10;
 }
+
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.brand .icon { font-size: 30px; }
-.brand h1 { font-size: 22px; font-weight: 800; }
 
+.brand .icon {
+  font-size: 30px;
+}
+
+.brand h1 {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0;
+}
+
+/* 🔥 inilah kunci biar tombol tetap sejajar */
 .actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: row; /* pastikan horizontal */
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  flex-wrap: nowrap; /* jangan dibungkus */
 }
-.btn {
+
+.actions .btn {
+  white-space: nowrap;
   border: none;
   border-radius: var(--radius);
   padding: 10px 16px;
@@ -238,7 +511,11 @@ html, body, .notif-page {
   background: #fff;
   transition: transform .1s ease, box-shadow .2s ease;
 }
-.btn:hover { transform: translateY(-1px); }
+
+.actions .btn:hover {
+  transform: translateY(-1px);
+}
+
 .btn.home { background: linear-gradient(180deg, #fff, var(--baby-blue)); }
 .btn.mark { background: linear-gradient(180deg, #fff, var(--baby-yellow)); }
 .btn.danger { background: linear-gradient(180deg, #ffe1e1, #ffbcbc); color: #802020; }
@@ -335,14 +612,38 @@ html, body, .notif-page {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
-  .notif-header { flex-direction: column; align-items: flex-start; }
+  .notif-header {
+    flex-direction: row;
+    flex-wrap: nowrap; /* ✅ jangan dibungkus */
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .actions {
+    flex-direction: row;
+    flex-wrap: nowrap; /* ✅ jaga tetap sejajar */
+    align-items: center;
+    gap: 10px;
+  }
   .brand h1 { font-size: 19px; }
 }
+
 @media (max-width: 600px) {
   .card { padding: 14px; }
   .notif-table th, .notif-table td { padding: 8px; font-size: 13px; }
-  .actions { flex-direction: column; align-items: stretch; width: 100%; }
-  .btn { width: 100%; text-align: center; }
+  
+  /* ⛔ Hapus yang bikin tombol turun ke bawah */
+  .actions {
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    width: auto;
+  }
+  .btn {
+    width: auto;
+    white-space: nowrap;
+    text-align: center;
+  }
   .notif-container { padding: 12px; }
 }
 `;

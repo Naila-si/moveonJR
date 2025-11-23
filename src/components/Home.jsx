@@ -14,7 +14,7 @@ export default function Home() {
           </div>
 
           <nav className="top-actions">
-            <Link className="btn ghost small" to="/login">Login</Link>
+            <Link className="btn ghost small" to="/login"> 🔐 Login</Link>
           </nav>
         </div>
       </header>
@@ -143,10 +143,10 @@ export default function Home() {
               <h2 className="logo">MOVEON</h2>
               <p className="tagline">Mobility Operation and Voyage Engagement Network</p>
 
-              <div className="cta">
-                <Link className="btn ghost" to="/login">Login</Link>
-                <Link className="btn solid" to="/register">Register</Link>
-              </div>
+              {/* <div className="cta">
+                <Link className="btn ghost" to="/login">🔐 Login</Link> */}
+                {/* <Link className="btn solid" to="/register">Register</Link> */}
+              {/* </div> */}
             </div>
           </header>
         </section>

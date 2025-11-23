@@ -277,7 +277,7 @@ export default function IwklSimple() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newForm, setNewForm] = useState(makeEmptyRow());
 
-  const pageSize = 8;
+  const pageSize = 50;
 
   const computeTotal = (r) =>
     monthKeys.reduce((sum, k) => sum + (Number(r[k] || 0) || 0), 0);
@@ -541,39 +541,47 @@ export default function IwklSimple() {
           )}
         </div>
 
-        <div className="actions">
-          <input
-            className="search"
-            placeholder="Cari kapal / perusahaan / trayek…"
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
-            }}
-          />
-          <select
-            value={tahunAktif}
-            onChange={(e) => setTahunAktif(Number(e.target.value))}
-            className="year-select"
-          >
-            <option value={2021}>2021</option>
-            <option value={2022}>2022</option>
-            <option value={2023}>2023</option>
-            <option value={2024}>2024</option>
-            <option value={2025}>2025</option>
-          </select>
-          {/* tombol tambah baris diganti modal */}
-          <button
-            className="btn primary"
-            type="button"
-            onClick={() => {
-              setNewForm(makeEmptyRow());
-              setShowAddModal(true);
-            }}
-          >
-            + Tambah Data IWKL
-          </button>
+        <div className="actions actions-col">
+          {/* ROW ATAS: search + tambah sejajar */}
+          <div className="actions-row top">
+            <input
+              className="search"
+              placeholder="Cari kapal / perusahaan / trayek…"
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
+            />
+
+            <button
+              className="btn primary"
+              type="button"
+              onClick={() => {
+                setNewForm(makeEmptyRow());
+                setShowAddModal(true);
+              }}
+            >
+              + Tambah Data IWKL
+            </button>
+          </div>
+
+          {/* ROW BAWAH: dropdown tahun */}
+          <div className="actions-row bottom">
+            <select
+              value={tahunAktif}
+              onChange={(e) => setTahunAktif(Number(e.target.value))}
+              className="year-select"
+            >
+              <option value={2021}>2021</option>
+              <option value={2022}>2022</option>
+              <option value={2023}>2023</option>
+              <option value={2024}>2024</option>
+              <option value={2025}>2025</option>
+            </select>
+          </div>
         </div>
+
       </header>
 
       <div className="card">

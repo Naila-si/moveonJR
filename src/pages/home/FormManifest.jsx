@@ -8,8 +8,8 @@ const LS_KEY = "manifest_submissions";
 function KawaiiNavbar({ active = "Form Manifest", onBack, backLabel = "Kembali", canBack = true }) {
   const links = [
     { to: "/", label: "Home", icon: "🏡" },
-    { to: "/form-crm", label: "Form CRM", icon: "📋" },
-    { to: "/login", label: "Login", icon: "🔐" },
+    // { to: "/form-crm", label: "Form CRM", icon: "📋" },
+    // { to: "/login", label: "Login", icon: "🔐" },
   ];
 
   return (

@@ -364,6 +364,12 @@ export default function DataFormCrm({ data = [] }) {
             step1: r.step1 || {},
             step2: {
               ...(r.step2 || {}),
+              hasilKunjungan:
+              r.step2?.hasilKunjungan ||
+              r.step2?.penjelasanKunjungan ||
+              r.step2?.penjelasanHasil ||
+              "",
+            janjiBayar: r.step2?.janjiBayar || r.step2?.janji_bayar || "-",
               rincianArmada, // <-- full list dari crm_armada
             },
             step3: r.step3 || {},
@@ -538,6 +544,20 @@ export default function DataFormCrm({ data = [] }) {
       return text && matchJenis && matchValidasi;
     });
   }, [rows, query, filterJenis, filterValidasi]);
+
+    const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+
+  // reset ke halaman 1 kalau filter / search berubah
+  useEffect(() => {
+    setPage(1);
+  }, [query, filterJenis, filterValidasi, rows.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, page]);
 
   function handleDownloadPdf(row) {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -742,7 +762,7 @@ export default function DataFormCrm({ data = [] }) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((d) => {
+            {paginated.map((d) => {
               const s2 = d.step2 || {};
               const rincian = Array.isArray(s2.rincianArmada) ? s2.rincianArmada : [];
 
@@ -845,6 +865,30 @@ export default function DataFormCrm({ data = [] }) {
           </tbody>
         </table>
       </section>
+            {/* Pagination */}
+      {filtered.length > PAGE_SIZE && (
+        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12}}>
+          <div style={{fontSize:12, color:"#475569"}}>
+            Halaman {page} / {totalPages} • Total data: {filtered.length}
+          </div>
+          <div style={{display:"flex", gap:8}}>
+            <button
+              className="btn btn-soft"
+              disabled={page <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              ← Prev
+            </button>
+            <button
+              className="btn btn-soft"
+              disabled={page >= totalPages}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal Detail */}
       {selected && (
@@ -942,7 +986,7 @@ export default function DataFormCrm({ data = [] }) {
                       <dl className="grid-2">
                         <Item
                           label="Hasil Kunjungan"
-                          value={selected.step2.hasilKunjungan}
+                          value={selected.step2.hasilKunjungan || selected.step2.penjelasanKunjungan || "-"}
                         />
                         <Item
                           label="Total OS yang harus dibayar"
@@ -950,7 +994,7 @@ export default function DataFormCrm({ data = [] }) {
                         />
                         <Item
                           label="Janji Bayar Tunggakan"
-                          value={selected.step2.janjiBayar}
+                          value={selected.step2.janjiBayar || "-"}
                         />
                       </dl>
 

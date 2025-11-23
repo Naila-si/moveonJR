@@ -232,3 +232,8 @@
 @media (max-width:640px){
   .chat-panel{ max-height: 72vh; }
 }
+.chat-input input {
+  color: #000 !important;
+  background: #fff !important;
+  caret-color: #000 !important;
+}

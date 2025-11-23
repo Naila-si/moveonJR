@@ -439,3 +439,95 @@ body{ background: transparent; }
   align-items: center !important;
 }
 
+/* ================================
+   FIX: Home Feature Cards
+   (override dari CSS halaman lain)
+   taruh PALING BAWAH HomeStyle.css
+   ================================ */
+
+.home.kawaii .cards > a.card,
+.home.kawaii .cards > .card{
+  /* balikin layout card home */
+  display: flex !important;
+  flex-direction: row !important;   /* penting: jangan column */
+  align-items: center !important;
+  gap: 14px !important;
+
+  width: auto !important;
+  padding: 18px 16px !important;
+  border-radius: 18px !important;
+
+  background: #fff !important;
+  color: var(--ink) !important;
+  text-decoration: none !important;
+
+  border: 1px solid #e8eefc !important;
+  box-shadow: 0 6px 14px rgba(0,0,0,.04) !important;
+
+  transition: transform .2s, box-shadow .2s, border-color .2s !important;
+  height: 100% !important;
+}
+
+.home.kawaii .cards > a.card:hover,
+.home.kawaii .cards > .card:hover{
+  transform: translateY(-3px) !important;
+  box-shadow: 0 16px 38px rgba(0,0,0,.08) !important;
+}
+
+/* ikon bulat kiri */
+.home.kawaii .cards .icon.bubble{
+  flex: 0 0 56px !important;
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 50% !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: 24px !important;
+  background: linear-gradient(145deg,#f8fbff,#fff) !important;
+}
+
+/* teks kanan ikon */
+.home.kawaii .cards .info{
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  text-align: left !important;
+}
+
+.home.kawaii .cards .card-title{
+  margin: 0 0 6px !important;
+  font-size: 16px !important;
+  line-height: 1.25 !important;
+  font-weight: 700 !important;
+  color: var(--ink) !important;
+}
+
+.home.kawaii .cards .card-desc{
+  margin: 0 !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+  color: #53617f !important;
+  opacity: .9 !important;
+
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+/* responsive tetep cakep */
+@media (max-width:640px){
+  .home.kawaii .cards > a.card,
+  .home.kawaii .cards > .card{
+    padding: 14px 14px !important;
+    gap: 12px !important;
+  }
+  .home.kawaii .cards .icon.bubble{
+    width: 50px !important;
+    height: 50px !important;
+    font-size: 22px !important;
+  }
+}

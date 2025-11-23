@@ -74,11 +74,6 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
 /* =========================================================
    Table (scroll container, table, form controls)
    ========================================================= */
-.table-scroll{
-  width:100%; max-width:100%; max-height:calc(100dvh - var(--chrome-h));; overflow:auto;
-  border:2px solid #bae6fd; border-radius:16px; background:#fff;
-  box-shadow: 0 10px 40px rgba(147,197,253,.25); scrollbar-width: auto; scrollbar-color: #93c5fd #e0f2fe;
-}
 .table-scroll::-webkit-scrollbar{ height:14px; width:14px; }
 .table-scroll::-webkit-scrollbar-thumb{ background:#93c5fd; border-radius:999px; }
 .table-scroll::-webkit-scrollbar-track{ background:#e0f2fe; border-radius:999px; }
@@ -233,19 +228,6 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
    =========================== */
 
 /* Scroll container: tinggi fleksibel + scrollbar empuk */
-.table-scroll{
-  width:100%;
-  max-width:100%;
-  max-height: calc(100dvh - var(--chrome-h));
-  overflow-x:auto;
-  overflow-y:auto;
-  border:2px solid #bae6fd;
-  border-radius:16px;
-  background:#fff;
-  box-shadow: 0 10px 40px rgba(147,197,253,.25);
-  scrollbar-width:auto;
-  scrollbar-color:#93c5fd #e0f2fe;
-}
 .table-scroll::-webkit-scrollbar{ height:14px; width:14px; }
 .table-scroll::-webkit-scrollbar-thumb{ background:#93c5fd; border-radius:999px; }
 .table-scroll::-webkit-scrollbar-track{ background:#e0f2fe; border-radius:999px; }
@@ -362,14 +344,6 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
   box-shadow: 0 -6px 12px rgba(147,197,253,.12);
 }
 
-/* container scroll tetap block penuh */
-.table-scroll{
-  display:block;          /* penting: biar pager jatuh ke baris berikutnya */
-  width:100%;
-  overflow:auto;
-  position:relative;
-}
-
 /* konten yang melebar mengikuti kolom */
 .scroll-inner{
   width:max-content;
@@ -447,4 +421,347 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
   display:grid;
   grid-template-columns: repeat(auto-fit,minmax(120px,1fr));
   gap:8px;
+}
+
+/* ================================
+   HEADER FILTER (tahun, dll) - IWKL
+   ================================ */
+.iwkl-header select,
+.actions select,
+.select-filter-iwkl {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  background: var(--white) !important;
+  color: var(--ink) !important;
+
+  border: 2px solid var(--blue);
+  border-radius: 14px;
+
+  padding: 8px 38px 8px 12px;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+
+  cursor: pointer;
+  box-shadow:
+    inset 0 -3px 0 #00000008,
+    0 4px 0 #00000010;
+
+  min-width: 90px;   /* cocok buat tahun */
+  height: 36px;
+  transition: .15s ease;
+}
+
+.iwkl-header select:hover,
+.actions select:hover,
+.select-filter-iwkl:hover{
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 -3px 0 #00000008,
+    0 6px 0 #00000010;
+}
+
+.iwkl-header select:focus,
+.actions select:focus,
+.select-filter-iwkl:focus{
+  outline: none;
+  box-shadow:
+    0 0 0 4px var(--yellow),
+    inset 0 -3px 0 #00000008,
+    0 4px 0 #00000010;
+}
+
+/* panah biru kecil */
+.iwkl-header select,
+.actions select,
+.select-filter-iwkl{
+  background-image:
+    linear-gradient(45deg, transparent 50%, #3b82f6 50%),
+    linear-gradient(135deg, #3b82f6 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 12px) 50%;
+  background-size:
+    6px 6px,
+    6px 6px;
+  background-repeat: no-repeat;
+}
+
+.iwkl-header select option,
+.actions select option{
+  background:#fff;
+  color:var(--ink);
+  font-weight:700;
+}
+/* ================================
+   Header actions 2 baris
+   ================================ */
+.actions-col{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  align-items:flex-end; /* rata kanan */
+  width:100%;
+}
+
+.actions-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  width:100%;
+}
+
+/* row atas: search agak panjang */
+.actions-row.top .search{
+  width:280px;
+  height:36px;
+}
+
+/* row bawah: tahun */
+.actions-row.bottom{
+  justify-content:flex-end;
+}
+
+/* kecil tapi matching */
+.year-select{
+  min-width:90px;
+  height:36px;
+}
+
+/* mobile turun rapi */
+@media (max-width:640px){
+  .actions-col{ align-items:stretch; }
+  .actions-row{ justify-content:flex-start; }
+  .actions-row.top .search{
+    width:100%;
+    flex:1 1 100%;
+  }
+}
+
+/* ================================
+   Card column + pager di bawah tabel
+   ================================ */
+.card{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+}
+
+.card > .table-scroll{
+  width:100%;
+  flex:1 1 auto;
+  display:block;
+}
+
+.card > .pager{
+  width:100%;                 /* biar jadi baris sendiri */
+  display:flex;
+  justify-content:flex-end;   /* tombol rata kanan */
+  align-items:center;
+  gap:12px;
+  margin-top:10px;
+}
+
+/* ================================
+   HEADER: search sedang + tombol sejajar
+   tahun di bawah
+   ================================ */
+
+.actions-col{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  align-items:flex-end;
+}
+
+.actions-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  width:100%;
+  justify-content:flex-end;
+}
+
+.actions-row.top{
+  flex-wrap:nowrap;   /* biar sejajar rapi */
+}
+
+/* SEARCH ukuran sedang, gak ngamuk */
+.actions-row.top .search{
+  width:200px !important;
+  max-width:200px !important;
+  height:36px;
+  flex:0 0 auto;
+}
+
+/* dropdown tahun bawah kanan */
+.actions-row.bottom{
+  justify-content:flex-end;
+}
+
+/* mobile: search turun full */
+@media (max-width:640px){
+  .actions-col{ width:100%; align-items:stretch; }
+  .actions-row.top{ flex-wrap:wrap; }
+  .actions-row.top .search{
+    width:100% !important;
+    max-width:100% !important;
+    flex:1 1 100%;
+  }
+}
+
+/* penting: inner ikut lebar tabel, tapi minimal container */
+.scroll-inner{
+  width:max-content;
+  min-width:100%;
+}
+
+/* tabel boleh melebar */
+.kawaii-table{
+  width:max-content;
+  min-width:100%;
+  table-layout:auto;
+  border-collapse:separate;
+  border-spacing:0;
+}
+
+
+/* ================================
+   PAGER: selalu di bawah scroll
+   ================================ */
+.card{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+}
+
+.card > .table-scroll{
+  flex: 1 1 auto;
+  display:block;
+}
+
+.card > .pager{
+  flex: 0 0 auto;
+  width:100%;
+  margin-top:10px;
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:12px;
+}
+
+/* ================================
+   FINAL LOCK IWKL CSS (ANTI NGILANG)
+   taruh PALING BAWAH
+   ================================ */
+
+/* ---------- HEADER ACTIONS 2 BARIS ---------- */
+.iwkl-header h1{
+  white-space: nowrap;
+}
+
+.actions.actions-col,
+.actions-col{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  align-items:flex-end;
+  width:100%;
+}
+
+.actions-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  width:100%;
+  justify-content:flex-end;
+}
+
+.actions-row.top{
+  flex-wrap:nowrap; /* search + tombol sejajar */
+}
+
+/* search sedang, gak ngamuk */
+.actions-row.top .search,
+.search{
+  width:200px !important;
+  max-width:200px !important;
+  height:36px;
+  flex:0 0 auto;
+}
+
+/* dropdown tahun di bawah kanan */
+.actions-row.bottom{
+  justify-content:flex-end;
+}
+
+.year-select{
+  min-width:90px;
+  height:36px;
+}
+
+/* mobile: biar turun rapi */
+@media (max-width:640px){
+  .actions-col{ width:100%; align-items:stretch; }
+  .actions-row.top{ flex-wrap:wrap; }
+  .actions-row.top .search{
+    width:100% !important;
+    max-width:100% !important;
+    flex:1 1 100%;
+  }
+}
+
+
+/* ---------- CARD + SCROLL TABLE ---------- */
+.card{
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:stretch !important;
+  gap:10px;
+}
+
+/* hanya tabel yang scroll */
+.card > .table-scroll{
+  width:100% !important;
+  flex:1 1 auto !important;
+  display:block !important;
+  overflow:auto !important;           /* penting */
+  max-height:calc(100dvh - var(--chrome-h)) !important;
+  position:relative !important;
+}
+
+/* inner wajib ada buat horizontal scroll */
+.card .scroll-inner{
+  width:max-content !important;
+  min-width:100% !important;
+}
+
+/* tabel boleh melebar sesuai isi */
+.card .kawaii-table{
+  width:max-content !important;
+  min-width:100% !important;
+  table-layout:auto !important;
+  border-collapse:separate;
+  border-spacing:0;
+}
+
+/* header tabel jangan wrap (biar rapi) */
+.card .kawaii-table thead th{
+  white-space:nowrap;
+}
+
+
+/* ---------- PAGER DI LUAR SCROLL ---------- */
+.card > .pager{
+  flex:0 0 auto !important;
+  width:100% !important;
+  display:flex !important;
+  justify-content:flex-end !important;
+  align-items:center !important;
+  gap:12px;
+  margin-top:10px !important;
 }

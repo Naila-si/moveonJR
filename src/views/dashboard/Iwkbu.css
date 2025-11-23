@@ -390,3 +390,128 @@ body{ background:var(--bg); font-family: "Poppins","Segoe UI",system-ui,sans-ser
 .kawaii-table textarea::placeholder {
   color: #777 !important;
 }
+.iwkbu-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.iwkbu-header .title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+/* container actions 2 baris */
+.iwkbu-header .actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end; /* biar rata kanan */
+}
+
+/* row atas & bawah */
+.iwkbu-header .actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+/* search agak panjang */
+.iwkbu-header .actions-row.top .search {
+  width: 280px;  /* adjust selera */
+  min-width: 180px;
+}
+
+/* bikin kontrol compact */
+.iwkbu-header .select-filter,
+.iwkbu-header .btn,
+.iwkbu-header .search {
+  height: 36px;
+}
+
+.iwkbu-header .btn {
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+/* mobile: biar rapi turun */
+@media (max-width: 640px) {
+  .iwkbu-header .actions {
+    align-items: stretch;
+  }
+  .iwkbu-header .actions-row {
+    justify-content: flex-start;
+  }
+  .iwkbu-header .actions-row.top .search {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+}
+/* ================================
+   SELECT FILTER HEADER (putih cantik)
+   ================================ */
+.select-filter{
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  background: var(--white) !important;
+  color: var(--ink) !important;
+
+  border: 2px solid var(--blue);
+  border-radius: 14px;
+
+  padding: 8px 38px 8px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+
+  box-shadow:
+    inset 0 -3px 0 #00000008,
+    0 4px 0 #00000010;
+
+  min-width: 160px;
+  transition: .15s ease;
+}
+
+.select-filter:hover{
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 -3px 0 #00000008,
+    0 6px 0 #00000010;
+}
+
+.select-filter:focus{
+  outline: none;
+  box-shadow:
+    0 0 0 4px var(--yellow),
+    inset 0 -3px 0 #00000008,
+    0 4px 0 #00000010;
+}
+
+/* Panah dropdown biru lucu */
+.select-filter{
+  background-image:
+    linear-gradient(45deg, transparent 50%, #3b82f6 50%),
+    linear-gradient(135deg, #3b82f6 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 12px) 50%;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+/* Options biar tetep putih */
+.select-filter option{
+  background: #fff;
+  color: var(--ink);
+  font-weight: 600;
+}

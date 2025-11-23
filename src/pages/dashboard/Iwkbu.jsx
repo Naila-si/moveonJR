@@ -110,6 +110,20 @@ export default function Iwkbu() {
   const [renameValue, setRenameValue]   = useState("");  
   const [totalCount, setTotalCount] = useState(0);
   const [loadingRows, setLoadingRows] = useState(false);
+  const [filterWilayah, setFilterWilayah] = usePersistentState("iwkbu:filter:wilayah", "");
+  const [filterLoket, setFilterLoket] = usePersistentState("iwkbu:filter:loket", "");
+  const [WILAYAH_FILTER_OPTS, setWilayahFilterOpts] = useState([]);
+  const [LOKET_FILTER_OPTS, setLoketFilterOpts] = useState([]);
+
+  const { employees: EMP_OPTS, loading: employeesLoading } = useEmployees();
+
+  const LOKET_OPTS = useMemo(() => {
+    const fromRows = rows.map(r => r.loket).filter(Boolean);
+    const fromEmp  = (EMP_OPTS || []).map(e => e.loket).filter(Boolean);
+    const uniq = Array.from(new Set([...fromRows, ...fromEmp].map(x => String(x).trim()).filter(Boolean)));
+    uniq.sort((a,b) => a.localeCompare(b));
+    return ["", ...uniq]; // "" = semua
+  }, [rows, EMP_OPTS]);
 
   const fromDB = (r) => ({
     id: r.id,
@@ -182,15 +196,66 @@ export default function Iwkbu() {
     keterangan: r.keterangan || null,
   });
 
+  const fetchFilterOptions = async () => {
+    try {
+      const { data: wData, error: wErr } = await supabase
+        .from("iwkbu")
+        .select("wilayah")
+        .not("wilayah", "is", null)
+        .limit(10000);
+
+      if (wErr) throw wErr;
+
+      const wilayahUniq = Array.from(
+        new Set((wData || []).map(x => String(x.wilayah).trim().toUpperCase()).filter(Boolean))
+      ).sort((a,b)=>a.localeCompare(b));
+
+      // ✅ gabung seed biar dropdown gak pernah kurang
+      const merged = Array.from(
+        new Set([...SEED_WILAYAH.filter(w => w && w !== "-"), ...wilayahUniq])
+      ).sort((a,b)=>a.localeCompare(b));
+
+      setWilayahFilterOpts(merged);
+
+      // Loket tetap sama
+      const { data: lData, error: lErr } = await supabase
+        .from("iwkbu")
+        .select("loket")
+        .not("loket", "is", null)
+        .limit(10000);
+
+      if (lErr) throw lErr;
+
+      const loketUniq = Array.from(
+        new Set((lData || []).map(x => String(x.loket).trim()).filter(Boolean))
+      ).sort((a,b)=>a.localeCompare(b));
+
+      setLoketFilterOpts(loketUniq);
+
+    } catch (e) {
+      console.error("fetchFilterOptions error:", e);
+      setWilayahFilterOpts(SEED_WILAYAH.filter(w => w && w !== "-")); // fallback 12
+      setLoketFilterOpts([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchFilterOptions();
+  }, []);
+
   const fetchRows = async () => {
     setLoadingRows(true);
     try {
       const s = (q || "").trim();
+
+      console.log({ s, filterWilayah, filterLoket, page });
+
       let query = supabase
         .from("iwkbu")
         .select("*", { count: "exact" })
         .order("id", { ascending: false });
 
+      // search global
       if (s) {
         query = query.or([
           `nopol.ilike.%${s}%`,
@@ -202,13 +267,25 @@ export default function Iwkbu() {
         ].join(","));
       }
 
+      // filter wilayah
+      if (filterWilayah) {
+        query = query.eq("wilayah", filterWilayah);
+        // kalau di DB kadang beda casing, pakai ilike:
+        // query = query.ilike("wilayah", filterWilayah);
+      }
+
+      // filter loket pembayaran
+      if (filterLoket) {
+        query = query.eq("loket", filterLoket);
+        // kalau butuh partial match:
+        // query = query.ilike("loket", `%${filterLoket}%`);
+      }
+
       const from = (page - 1) * pageSize;
       const to   = from + pageSize - 1;
       query = query.range(from, to);
 
       const { data, count, error } = await query;
-
-      console.log("fetchRows result =>", { data, count, error });
 
       if (error) throw error;
 
@@ -279,7 +356,6 @@ export default function Iwkbu() {
     keterangan: "",
   };
   const [newForm, setNewForm] = useState(emptyForm);
-  const { employees: EMP_OPTS, loading: employeesLoading } = useEmployees();
 
   // helper kecil
   const setF = (k, v) => setNewForm((s) => ({ ...s, [k]: v }));
@@ -295,7 +371,7 @@ export default function Iwkbu() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, q]);
+  }, [page, q, filterWilayah, filterLoket]);
 
   const totalPage = Math.max(1, Math.ceil(totalCount / pageSize));
   const pageData = rows;
@@ -336,6 +412,7 @@ export default function Iwkbu() {
     setNewForm(emptyForm);
     setPage(1);
     fetchRows();
+    fetchFilterOptions();
   };
 
   const saveCell = async (id, field, value) => {
@@ -366,6 +443,8 @@ export default function Iwkbu() {
     if (error) {
       alert("Gagal menyimpan: " + error.message);
       fetchRows();
+    } else {
+      fetchFilterOptions();
     }
   };
 
@@ -390,6 +469,7 @@ export default function Iwkbu() {
     const { error } = await supabase.from("iwkbu").delete().eq("id", id);
     if (error) { alert("Gagal hapus: " + error.message); return; }
     fetchRows();
+    fetchFilterOptions();
   };
 
   return (
@@ -403,21 +483,62 @@ export default function Iwkbu() {
         </div>
 
         <div className="actions">
-          <input
-            className="search"
-            placeholder="Cari nopol / wilayah / kota / trayek / perusahaan / PIC…"
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
-            }}
-          />
-          <button
-            className="btn primary"
-            onClick={() => { setNewForm(emptyForm); setShowNopolModal(true); }}
-          >
-            + Tambah Nomor Polisi
-          </button>
+          {/* ROW ATAS */}
+          <div className="actions-row top">
+            <input
+              className="search"
+              placeholder="Cari nopol / wilayah / kota / trayek / perusahaan / PIC…"
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
+            />
+
+            <button
+              className="btn primary"
+              onClick={() => { setNewForm(emptyForm); setShowNopolModal(true); }}
+            >
+              + Tambah Nomor Polisi
+            </button>
+          </div>
+
+          {/* ROW BAWAH */}
+          <div className="actions-row bottom">
+            <button
+              className="btn ghost"
+              onClick={() => {
+                setQ("");
+                setFilterWilayah("");
+                setFilterLoket("");
+                setPage(1);
+              }}
+            >
+              Reset Filter
+            </button>
+
+            <select
+              className="select-filter"
+              value={filterWilayah}
+              onChange={(e) => { setFilterWilayah(e.target.value); setPage(1); }}
+            >
+              <option value="">Semua Wilayah</option>
+              {WILAYAH_FILTER_OPTS.map(w => (
+                <option key={w} value={w}>{w}</option>
+              ))}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterLoket}
+              onChange={(e) => { setFilterLoket(e.target.value); setPage(1); }}
+            >
+              <option value="">Semua Loket</option>
+              {LOKET_FILTER_OPTS.map(l => (
+                <option key={l} value={l}>{l}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </header>
 

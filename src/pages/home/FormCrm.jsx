@@ -111,10 +111,10 @@ function buildCrmRowFromForm(form) {
     step2: {
       nopolAtauNamaKapal: firstArmada.nopol || "",
       statusKendaraan: firstArmada.status || "",
-      hasilKunjungan: form.hasilKunjunganPenjelasan || "",
-      penjelasanHasil: form.hasilKunjunganPenjelasan || "",
+      hasilKunjungan: form.hasilKunjungan || "",
+      penjelasanHasil: form.hasilKunjungan || "",
       tunggakan: 0,                         // kamu bisa ganti logika ini nanti
-      janjiBayar: form.janjiBayarTunggakan || "-",
+      janjiBayar: form.janjiBayar || "-",
       rekomendasi: rekomGabung || "",
       rincianArmada,
     },
@@ -306,8 +306,14 @@ export default function FormCrm() {
   const initial = useRef(true);
   const [picMaster, setPicMaster] = useState([]);
   const [companyMaster, setCompanyMaster] = useState([]);
+  const onBeforeUnloadRef = useRef(null);
+  const [showPopup, setShowPopup] = useState(false);
 
   // ================== STATE ==================
+  const showCutePopup = () => {
+    setShowPopup(true);
+    setTimeout(() => setShowPopup(false), 3000); // otomatis hilang 3 detik
+  };
   const [form, setForm] = useState(() => {
     const draft = localStorage.getItem("form_crm_draft_v5");
     if (draft) { try { return JSON.parse(draft); } catch {} }
@@ -321,8 +327,8 @@ export default function FormCrm() {
 
       // Step 2 — Armada + Hasil kunjungan
       armadaList: [{ nopol: "", status: "", tipeArmada: "", tahun: "" }],
-      hasilKunjunganPenjelasan: "",
-      janjiBayarTunggakan: "",
+      hasilKunjungan: "",
+      janjiBayar: "",
 
       // Step 3 — Upload & Penilaian
       fotoKunjungan: null,
@@ -435,7 +441,12 @@ export default function FormCrm() {
 
   // ================== UNSAVED GUARD ==================
   useEffect(() => {
-    const onBeforeUnload = (e) => { if (!dirty) return; e.preventDefault(); e.returnValue = ""; };
+    const onBeforeUnload = (e) => {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    onBeforeUnloadRef.current = onBeforeUnload;
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty]);
@@ -470,23 +481,46 @@ export default function FormCrm() {
     list.forEach((k, i) => {
       if (!k.nopol) e[`nopol_${i}`] = "Isi nopol";
       if (!k.status) e[`status_${i}`] = "Pilih status";
-      if (k.tahun && (Number(k.tahun) < 1980 || Number(k.tahun) > new Date().getFullYear() + 1))
-        e[`tahun_${i}`] = "Tahun tidak wajar";
-      if (k.status === "Beroperasi + Bayar" && (!k.bayarOs || Number(k.bayarOs) <= 0)) {
-        e[`bayarOs_${i}`] = "Isi jumlah OS yang mau dibayar";
-      }
     });
+    if (!form.hasilKunjungan) e.HasilKunjungan = "Isi penjelasan hasil kunjungan";
+    if (!form.janjiBayar) e.janjiBayar = "Isi jadwal janji bayar";
     return e;
-  }, [form.armadaList]);
+  }, [form.armadaList, form.hasilKunjungan, form.janjiBayar]);
 
   const step3Errors = useMemo(() => {
     const e = {};
+
+    // Minimal satu upload
     const anyUpload =
       form.fotoKunjungan ||
       (form.suratPernyataanEvidence || []).length > 0;
-    if (!anyUpload) e.minimal = "Unggah minimal satu dokumen/foto";
+    if (!anyUpload)
+      e.minimal = "Unggah minimal satu foto atau surat evidence.";
+
+    // Penilaian wajib diisi (1–5)
+    if (!form.nilaiKebersihan)
+      e.nilaiKebersihan = "Isi nilai respon pemilik/pengelola";
+    if (!form.nilaiKelengkapan)
+      e.nilaiKelengkapan = "Isi nilai keramaian penumpang";
+    if (!form.nilaiPelayanan)
+      e.nilaiPelayanan = "Isi nilai ketaatan pengurusan izin";
+
+    // Tanda tangan wajib
+    if (!form.tandaTanganPetugas)
+      e.tandaTanganPetugas = "Tanda tangan petugas wajib diisi";
+    if (!form.tandaTanganPemilik)
+      e.tandaTanganPemilik = "Tanda tangan pemilik wajib diisi";
+
     return e;
-  }, [form]);
+  }, [
+    form.fotoKunjungan,
+    form.suratPernyataanEvidence,
+    form.nilaiKebersihan,
+    form.nilaiKelengkapan,
+    form.nilaiPelayanan,
+    form.tandaTanganPetugas,
+    form.tandaTanganPemilik,
+  ]);
 
   const canNext1 = Object.keys(step1Errors).length === 0;
   const canNext2 = Object.keys(step2Errors).length === 0;
@@ -501,6 +535,7 @@ export default function FormCrm() {
   const guardNext = useCallback(() => {
     if ((step === 1 && !canNext1) || (step === 2 && !canNext2) || (step === 3 && !canNext3)) {
       focusFirstError();
+      showCutePopup(); // ✨ tampilkan popup kawaii
       return;
     }
     setStep(s => Math.min(4, s + 1));
@@ -527,27 +562,20 @@ export default function FormCrm() {
       // 1) Simpan ke Supabase
       const { reportId, reportCode } = await saveCrmToSupabase(form);
 
-      // 2) Kalau masih mau simpan juga ke localStorage (opsional)
+      // 2) Simpan ke localStorage (opsional)
       const newRow = buildCrmRowFromForm(form);
-      newRow.id = reportCode; // sinkron dengan report_code di DB
-
+      newRow.id = reportCode;
       const existing = loadCrmRows();
       const next = [newRow, ...existing];
       saveCrmRows(next);
 
-      // 3) Matikan flag "dirty" + bersihkan draft form
+      // 3) Bersihkan draft & matikan dirty flag
       setDirty(false);
       localStorage.removeItem("form_crm_draft_v5");
 
-      // 4) Info ke user
-      alert(
-        `Data CRM tersimpan di Supabase dengan kode ${reportCode}.\n` +
-          `ID record: ${reportId}\n\n` +
-          `Silakan buka halaman "Hasil Input Form CRM" untuk lihat rekap.`
-      );
+      // 4) Redirect otomatis ke halaman home
+      window.location.replace("/");
 
-      // (opsional) redirect kalau mau:
-      // window.location.href = "/crm/data";
     } catch (e) {
       console.error("Gagal menyimpan data CRM:", e);
       alert("Terjadi kesalahan saat menyimpan ke server. Coba lagi sebentar ya 🙏");
@@ -577,10 +605,18 @@ export default function FormCrm() {
       <style>{css}</style>
 
       <div className="crm-card">
-        <Header dirty={dirty} onReset={resetDraft} />
+        <Header dirty={dirty} onReset={resetDraft} onBeforeUnloadRef={onBeforeUnloadRef} />
 
         <div className="container">
-          <Stepper steps={steps} current={step} progressPct={progressPct} onJump={setStep} />
+          <Stepper
+            steps={steps}
+            current={step}
+            progressPct={progressPct}
+            onJump={setStep}
+            canNext1={canNext1}
+            canNext2={canNext2}
+            canNext3={canNext3}
+          />
         </div>
 
         <div className="container">
@@ -626,7 +662,6 @@ export default function FormCrm() {
                   <button
                     className="btn primary"
                     onClick={guardNext}
-                    disabled={(step === 1 && !canNext1) || (step === 2 && !canNext2) || (step === 3 && !canNext3)}
                     title="Ctrl+Enter untuk lanjut, Shift+Enter untuk kembali"
                   >
                     Lanjut ⟶
@@ -649,12 +684,30 @@ export default function FormCrm() {
           </div>
         </div>
       </div>
+      {showPopup && (
+        <div className="popup-cute">
+          <div className="popup-box">
+            <div className="popup-emoji">🌸</div>
+            <div className="popup-text">Isi dulu semua kolom yang wajib yaa 💕</div>
+            <button onClick={() => setShowPopup(false)} className="popup-btn">Oke deh~</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ================ SUBS ================ */
-function Header({ dirty, onReset }) {
+function Header({ dirty, onReset, onBeforeUnloadRef }) {
+  const handleGoHome = () => {
+    if (window.onbeforeunload) window.onbeforeunload = null;
+    if (onBeforeUnloadRef.current)
+      window.removeEventListener("beforeunload", onBeforeUnloadRef.current);
+
+    localStorage.removeItem("form_crm_draft_v5");
+    window.location.replace("/");
+  };
+
   return (
     <div className="crm-header">
       <div className="container header-inner">
@@ -662,26 +715,49 @@ function Header({ dirty, onReset }) {
           <span className="dot" /><span>Formulir CRM</span>
         </div>
         <div className="header-actions">
-          <button className="btn ghost sm" onClick={() => (window.location.href = "/")}>🏠 Kembali ke Home</button>
-          <button className="btn ghost sm" onClick={onReset}>Reset Draft</button>
+          <button className="btn ghost sm" onClick={handleGoHome}>
+            🏠 Kembali ke Home
+          </button>
+          {/* <button className="btn ghost sm" onClick={onReset}>
+            Reset Draft
+          </button> */}
         </div>
       </div>
       <div className="container">
-        <div className="subtitle">Isi data kunjungan, armada/kendaraan, lalu upload bukti & penilaian. Ikuti langkah-langkah di bawah ini.</div>
+        <div className="subtitle">
+          Isi data kunjungan, armada/kendaraan, lalu upload bukti & penilaian. 
+          Ikuti langkah-langkah di bawah ini.
+        </div>
       </div>
     </div>
   );
 }
 
-function Stepper({ steps, current, progressPct, onJump }) {
+function Stepper({ steps, current, progressPct, onJump, canNext1, canNext2, canNext3 }) {
+  const isStepAllowed = (id) => {
+    if (id === 1) return true;
+    if (id === 2) return canNext1;      // Step 2 hanya aktif jika step 1 valid
+    if (id === 3) return canNext1 && canNext2;
+    if (id === 4) return canNext1 && canNext2 && canNext3;
+    return false;
+  };
+
   return (
     <div className="stepper">
       <div className="progress"><div className="bar" style={{ width: `${progressPct}%` }} /></div>
       <div className="steps">
         {steps.map(s => {
-          const active = s.id === current; const done = s.id < current;
+          const active = s.id === current;
+          const done = s.id < current;
+          const allowed = isStepAllowed(s.id);
           return (
-            <button key={s.id} className={`step ${active ? "active" : ""} ${done ? "done" : ""}`} onClick={() => onJump(s.id)}>
+            <button
+              key={s.id}
+              className={`step ${active ? "active" : ""} ${done ? "done" : ""}`}
+              onClick={() => allowed && onJump(s.id)}
+              disabled={!allowed}
+              title={!allowed ? "Selesaikan langkah sebelumnya dulu ya 💕" : ""}
+            >
               <div className="circle">{done ? "✓" : s.id}</div>
               <div className="label">{s.title}</div>
             </button>
@@ -1316,19 +1392,18 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
         <h3 className="h2">B. Hasil Kunjungan</h3>
         <Field span="2" label="Penjelasan Hasil Kunjungan">
           <textarea
-            value={form.hasilKunjunganPenjelasan}
-            onChange={(e) =>
-              setField("hasilKunjunganPenjelasan", e.target.value)
-            }
-            placeholder="Tuliskan Nopol / Nama Kapal dan penjelasan berdasarkan hasil kunjungan..."
+            rows={3}
+            placeholder="Tuliskan hasil kunjungan…"
+            value={form?.hasilKunjungan || ""}
+            onChange={(e) => setField("hasilKunjungan", e.target.value)}
           />
         </Field>
         <Field label="Janji Bayar Tunggakan">
           <input
             type="datetime-local"
-            value={form.janjiBayarTunggakan}
+            value={form.janjiBayar}
             onChange={(e) =>
-              setField("janjiBayarTunggakan", e.target.value)
+              setField("janjiBayar", e.target.value)
             }
           />
         </Field>
@@ -1337,24 +1412,33 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
   );
 }
 
-/** SignaturePad sederhana (mouse & touch), mengekspor dataURL PNG */
+/** SignaturePad sederhana (mouse & touch) */
 function SignaturePad({ value, onChange, height = 160 }) {
   const canvasRef = useRef(null);
   const drawing = useRef(false);
   const last = useRef({ x: 0, y: 0 });
+  const ratioRef = useRef(1); // simpan ratio global
 
   const getPos = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
+    const ratio = ratioRef.current;
     if (e.touches && e.touches[0]) {
-      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+      return {
+        x: (e.touches[0].clientX - rect.left),
+        y: (e.touches[0].clientY - rect.top),
+      };
     }
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    return {
+      x: (e.clientX - rect.left),
+      y: (e.clientY - rect.top),
     };
+  };
 
   const start = (e) => {
     drawing.current = true;
     last.current = getPos(e);
   };
+
   const move = (e) => {
     if (!drawing.current) return;
     const ctx = canvasRef.current.getContext("2d");
@@ -1369,8 +1453,11 @@ function SignaturePad({ value, onChange, height = 160 }) {
     last.current = pos;
     e.preventDefault();
   };
+
   const end = () => {
     drawing.current = false;
+    const data = canvasRef.current.toDataURL("image/png");
+    onChange(data);
   };
 
   const clear = () => {
@@ -1378,23 +1465,32 @@ function SignaturePad({ value, onChange, height = 160 }) {
     c.getContext("2d").clearRect(0, 0, c.width, c.height);
     onChange("");
   };
-  const save = () => {
-    const data = canvasRef.current.toDataURL("image/png");
-    onChange(data);
-  };
 
-  // scale for crisp lines on HiDPI
+  // ✅ scale for crisp lines on HiDPI
   useEffect(() => {
     const c = canvasRef.current;
-    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const ratio = window.devicePixelRatio || 1;
+    ratioRef.current = ratio;
     const width = c.clientWidth;
     const heightCss = c.clientHeight;
-    c.width = Math.floor(width * ratio);
-    c.height = Math.floor(heightCss * ratio);
+    c.width = width * ratio;
+    c.height = heightCss * ratio;
     const ctx = c.getContext("2d");
     ctx.scale(ratio, ratio);
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, width, heightCss);
+  }, []);
+
+  // render ulang dari value (saat reload Step 3)
+  useEffect(() => {
+    if (!value || !canvasRef.current) return;
+    const ctx = canvasRef.current.getContext("2d");
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      ctx.drawImage(img, 0, 0, canvasRef.current.width, canvasRef.current.height);
+    };
+    if (value.startsWith("data:image")) img.src = value;
   }, []);
 
   return (
@@ -1409,20 +1505,25 @@ function SignaturePad({ value, onChange, height = 160 }) {
       >
         <canvas
           ref={canvasRef}
-          style={{ width: "100%", height, touchAction: "none", borderRadius: 12, display: "block" }}
-          onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
-          onTouchStart={start} onTouchMove={move} onTouchEnd={end}
+          style={{
+            width: "100%",
+            height,
+            touchAction: "none",
+            borderRadius: 12,
+            display: "block",
+          }}
+          onMouseDown={start}
+          onMouseMove={move}
+          onMouseUp={end}
+          onMouseLeave={end}
+          onTouchStart={start}
+          onTouchMove={move}
+          onTouchEnd={end}
         />
       </div>
       <div className="actions-right" style={{ gap: 8 }}>
         <button className="btn ghost" onClick={clear}>Hapus</button>
-        <button className="btn primary" onClick={save}>Simpan</button>
       </div>
-      {value && (
-        <div className="hint" style={{marginTop:6}}>
-          Tersimpan ✓ (PNG {Math.round((value.length*3/4)/1024)} KB)
-        </div>
-      )}
     </div>
   );
 }
@@ -1664,4 +1765,72 @@ select:-webkit-autofill{
 
 /* Kalau ada input yg masih terlalu tipis di Windows, paksa anti-aliasing */
 input, select, textarea { text-rendering: optimizeLegibility; }
+/* ====== Pop-up Kawaii untuk Validasi ====== */
+.popup-cute {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn .25s ease;
+}
+.popup-box {
+  background: linear-gradient(180deg, #fff, #fef9ff);
+  border: 2px solid #ffd6f5;
+  box-shadow: 0 10px 30px rgba(255, 0, 150, 0.15);
+  border-radius: 20px;
+  padding: 28px 36px;
+  text-align: center;
+  max-width: 320px;
+  animation: popIn .3s ease;
+}
+.popup-emoji {
+  font-size: 42px;
+  margin-bottom: 10px;
+  animation: bounce 1s infinite ease-in-out;
+}
+.popup-text {
+  font-weight: 700;
+  color: #8b2b83;
+  font-size: 15px;
+  margin-bottom: 14px;
+}
+.popup-btn {
+  background: linear-gradient(90deg, #ffc6f0, #ffd4b8);
+  color: #432d3c;
+  font-weight: 800;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 18px;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(0,0,0,.08);
+  transition: transform .1s;
+}
+.popup-btn:hover { transform: scale(1.05); }
+
+@keyframes popIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* efek shake ringan untuk field error */
+[data-error='true'] {
+  animation: shake .35s ease;
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
 `;
