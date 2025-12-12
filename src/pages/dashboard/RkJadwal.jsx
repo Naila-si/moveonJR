@@ -64,6 +64,16 @@ export default function RKJadwal() {
   const [newName, setNewName] = useState("");
   const [newLoket, setNewLoket] = useState("kanwil");
 
+  // modal edit pegawai
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editLoket, setEditLoket] = useState("kanwil");
+
+  // modal confirm hapus pegawai
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null); // {id, name}
+
   const totalDays = daysInMonth(year, month);
   const daysArr = useMemo(() => Array.from({ length: totalDays }, (_, i) => i + 1), [totalDays]);
 
@@ -193,31 +203,83 @@ export default function RKJadwal() {
     setNewName(""); setNewLoket("kanwil"); setAddOpen(false);
   };
 
-  const editPerson = async (pid) => {
+  const editPerson = (pid) => {
     const p = people.find(x => x.id === pid);
     if (!p) return;
-    const newLabel = window.prompt("Ubah nama pegawai:", p.name);
-    if (newLabel && newLabel.trim()) {
-      const { error } = await supabase.from("employees").update({ name: newLabel.trim() }).eq("id", pid);
-      if (error) {
-        console.error("edit person error:", error);
-      } else {
-        setPeople(prev => prev.map(x => x.id === pid ? { ...x, name:newLabel.trim() } : x));
-      }
-    }
+
+    setEditId(pid);
+    setEditName(p.name || "");
+    setEditLoket(p.loket || "kanwil");
+    setEditOpen(true);
   };
 
-  const deletePerson = async (pid) => {
+  const updatePerson = async (e) => {
+    e.preventDefault();
+    if (!editId) return;
+    if (!editName.trim()) return;
+
+    const payload = {
+      name: editName.trim(),
+      loket: editLoket,
+    };
+
+    const { error } = await supabase
+      .from("employees")
+      .update(payload)
+      .eq("id", editId);
+
+    if (error) {
+      console.error("update person error:", error);
+      return;
+    }
+
+    setPeople(prev =>
+      prev.map(p => p.id === editId ? { ...p, ...payload } : p)
+    );
+
+    setEditOpen(false);
+    setEditId(null);
+    setEditName("");
+    setEditLoket("kanwil");
+  };
+
+  const deletePerson = (pid) => {
     const p = people.find(x => x.id === pid);
     if (!p) return;
-    const ok = window.confirm(`Hapus pegawai "${p.name}"? Semua entri terkait juga akan dihapus.`);
-    if (!ok) return;
-    const { error } = await supabase.from("employees").delete().eq("id", pid);
+
+    setDeleteTarget({ id: pid, name: p.name });
+    setDeleteOpen(true);
+  };
+
+  const confirmDeletePerson = async () => {
+    if (!deleteTarget?.id) return;
+
+    const pid = deleteTarget.id;
+
+    const { error } = await supabase
+      .from("employees")
+      .delete()
+      .eq("id", pid);
+
     if (error) {
       console.error("delete person error:", error);
-    } else {
-      setPeople(prev => prev.filter(x => x.id !== pid));
-      setEntries(prev => prev.filter(e => e.pid !== pid));
+      return;
+    }
+
+    // update UI
+    setPeople(prev => prev.filter(x => x.id !== pid));
+    setEntries(prev => prev.filter(e => e.pid !== pid));
+
+    // close modal & reset
+    setDeleteOpen(false);
+    setDeleteTarget(null);
+
+    // kalau lagi buka modal edit dan yang dihapus itu orangnya → tutup juga
+    if (editId === pid) {
+      setEditOpen(false);
+      setEditId(null);
+      setEditName("");
+      setEditLoket("kanwil");
     }
   };
 
@@ -268,7 +330,6 @@ export default function RKJadwal() {
 .header, .row{ display:grid; grid-template-columns: var(--nameCol) 1fr 120px; }
 .header{ border-bottom:1px solid var(--border); background:var(--skySoft); }
 .h-left{ position: sticky; left: 0; z-index: 8; padding:10px; font-weight:900; color:var(--ink); border-right:1px solid var(--border); background: var(--skySoft); }
-.h-right{ overflow:visible; }
 .h-grid, .grid{ width: calc(var(--cellW) * var(--cols)); display:grid; grid-template-columns: repeat(var(--cols), var(--cellW)); border-left: 1px solid var(--border); }
 .hcell, .cell{ border-left:1px solid var(--border); }
 .h-grid > .hcell:first-child,
@@ -286,8 +347,6 @@ export default function RKJadwal() {
 .p-actions{ display:flex; gap:6px; }
 .p-btn{ border:1px solid var(--border); background:var(--cloud); border-radius:8px; padding:6px 8px; font-weight:900; color:#1a4a75; cursor:pointer; }
 .p-btn.danger{ color:#b91c1c; }
-.right{ overflow:visible; }
-.grid{ }
 .cell{ height:44px; position:relative; cursor:pointer; background:#fff; }
 .cell:nth-child(odd){ background:#fbfdff; }
 .cell:hover{ background:#f0f7ff; }
@@ -303,6 +362,17 @@ export default function RKJadwal() {
 .table::-webkit-scrollbar{ height:10px; width:10px; }
 .table::-webkit-scrollbar-thumb{ background:#93c5fd; border-radius:999px; }
 .table::-webkit-scrollbar-track{ background:#e0f2fe; border-radius:999px; }
+.header, .row{
+  grid-template-columns: var(--nameCol) minmax(0, 1fr) 120px;
+}
+
+/* middle column nge-clip isi yang kepanjangan */
+.h-right, .right{
+  overflow-x: auto;   /* kalau mau bisa scroll horizontal */
+  overflow-y: hidden;
+  min-width: 0;       /* penting untuk minmax(0,1fr) */
+}
+
 @media (max-width: 980px){
   .table{ max-height: 60vh; }
   :root{ --cellW: 64px; }
@@ -408,7 +478,18 @@ export default function RKJadwal() {
               </div>
 
               <div className="right">
-                <div className="grid" ref={i === 0 ? firstGridRef : null} style={{ gridTemplateColumns: `repeat(${totalDays}, var(--cellW))` }}>
+                <div
+                  className="grid"
+                  ref={i === 0 ? firstGridRef : null}
+                  style={{
+                    gridTemplateColumns: `repeat(${totalDays}, var(--cellW))`,
+                    gap: 0,
+                    columnGap: 0,
+                    rowGap: 0,
+                    width: "fit-content",
+                    justifyContent: "start",
+                  }}
+                >
                   {daysArr.map((d)=>{
                     const dk = dateKey(year, month, d);
                     const entry = entryMap.get(`${p.id}|${dk}`);
@@ -528,6 +609,90 @@ export default function RKJadwal() {
           </div>
         </div>
       )}
+
+      {/* Modal edit pegawai */}
+      {editOpen && (
+        <div className="modal" onClick={()=>setEditOpen(false)}>
+          <div className="sheet" onClick={(e)=>e.stopPropagation()}>
+            <h3>Edit Pegawai</h3>
+            <form onSubmit={updatePerson}>
+              <div className="field">
+                <label className="label">Nama lengkap</label>
+                <input
+                  className="input"
+                  value={editName}
+                  onChange={(e)=>setEditName(e.target.value)}
+                  placeholder="Nama lengkap"
+                />
+              </div>
+
+              <div className="field">
+                <label className="label">Loket</label>
+                <select
+                  className="select"
+                  value={editLoket}
+                  onChange={(e)=>setEditLoket(e.target.value)}
+                >
+                  <option value="kanwil">Loket Kanwil</option>
+                  <option value="dumai">Loket Dumai</option>
+                </select>
+              </div>
+
+              <div className="actions">
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={()=>setEditOpen(false)}
+                >
+                  Batal
+                </button>
+                <button className="btn primary" type="submit">
+                  Perbarui
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal konfirmasi hapus pegawai (kawaii) */}
+      {deleteOpen && deleteTarget && (
+        <div className="modal" onClick={() => setDeleteOpen(false)}>
+          <div className="sheet" onClick={(e)=>e.stopPropagation()}>
+            <h3 style={{ display:"flex", alignItems:"center", gap:8 }}>
+              🧁 Hapus Pegawai?
+            </h3>
+
+            <div style={{ color: THEME.muted, marginBottom: 12, lineHeight: 1.5 }}>
+              Kamu yakin mau hapus
+              {" "}
+              <strong style={{ color: THEME.ink }}>{deleteTarget.name}</strong>?
+              <br />
+              Semua entri jadwal pegawai ini juga akan ikut terhapus.
+            </div>
+
+            <div className="actions">
+              <button
+                className="btn"
+                type="button"
+                onClick={() => setDeleteOpen(false)}
+              >
+                Batal
+              </button>
+
+              <button
+                className="btn primary"
+                type="button"
+                onClick={confirmDeletePerson}
+                style={{ background:"#F7B594", borderColor:"#F7B594", color:"#5c2406" }}
+              >
+                Ya, hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   );
 }

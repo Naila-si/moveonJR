@@ -765,3 +765,10 @@ body{ background:var(--bg); font-family:"Poppins","Segoe UI",system-ui,sans-seri
   gap:12px;
   margin-top:10px !important;
 }
+.select-filter{
+  padding:6px 8px;
+  border-radius:8px;
+  border:1px solid #ddd;
+  background:#fff;
+  font-size:14px;
+}

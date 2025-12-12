@@ -495,7 +495,7 @@ export default function FormCrm() {
       form.fotoKunjungan ||
       (form.suratPernyataanEvidence || []).length > 0;
     if (!anyUpload)
-      e.minimal = "Unggah minimal satu foto atau surat evidence.";
+      e.minimal = "Unggah foto kunjungan.";
 
     // Penilaian wajib diisi (1–5)
     if (!form.nilaiKebersihan)
@@ -776,7 +776,7 @@ function ErrorSummary({ step, step1Errors, step2Errors, step3Errors }) {
   if (list.length === 0) return null;
   return (
     <div className="alert warn" style={{ marginBottom: 16 }}>
-      <div className="alert-title">Perlu diperbaiki</div>
+      <div className="alert-title">Perlu diisi</div>
       <ul>{list.map((v,i)=><li key={i}>{v}</li>)}</ul>
     </div>
   );
@@ -837,23 +837,6 @@ function MiniItem({ label, value }) {
 
 /* ================ STEPS ================ */
 function Step1Datakunjungan({ form, setField, errors, picMaster, companyMaster }) {
-  const ownedCompanies =
-    (companyMaster || []).filter(
-      (c) =>
-        form.namaPemilik &&
-        c.nama_pemilik &&
-        c.nama_pemilik.toLowerCase() === form.namaPemilik.trim().toLowerCase()
-    );
-
-  // Untuk datalist pemilik: unik & terurut
-  const uniqueOwners = Array.from(
-    new Set(
-      (companyMaster || [])
-        .map((c) => c.nama_pemilik)
-        .filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b, "id"));
-
   return (
     <>
       <h2 className="h2">Step 1 — Datakunjungan</h2>
@@ -924,47 +907,6 @@ function Step1Datakunjungan({ form, setField, errors, picMaster, companyMaster }
           </label>
         </Field> */}
 
-        <Field label="Nama Pemilik / Pengelola">
-          <input
-            list="pemilik-list"
-            value={form.namaPemilik}
-            onChange={(e) => {
-              const val = e.target.value;
-              setField("namaPemilik", val);
-
-              const ownerMatch =
-                companyMaster?.find(
-                  (c) =>
-                    c.nama_pemilik &&
-                    c.nama_pemilik.toLowerCase() === val.trim().toLowerCase()
-                ) || null;
-
-              // kalau ketemu di master → auto isi hp
-              if (ownerMatch?.hp) {
-                setField("telPemilik", ownerMatch.hp);
-              }
-
-              // kalau owner ini cuma punya 1 perusahaan → auto isi PT/CV
-              const companiesForOwner =
-                companyMaster?.filter(
-                  (c) =>
-                    c.nama_pemilik &&
-                    c.nama_pemilik.toLowerCase() === val.trim().toLowerCase()
-                ) || [];
-              if (companiesForOwner.length === 1) {
-                setField("badanUsahaNama", companiesForOwner[0].nama_perusahaan);
-              }
-            }}
-            placeholder="Nama pemilik atau pengelola"
-            autoComplete="off"
-          />
-          <datalist id="pemilik-list">
-            {uniqueOwners.map((name) => (
-              <option key={name} value={name} />
-            ))}
-          </datalist>
-        </Field>
-
         <Field label="Nama PT/CV yang Dikelola">
           <input
             list="perusahaan-list"
@@ -972,41 +914,33 @@ function Step1Datakunjungan({ form, setField, errors, picMaster, companyMaster }
             onChange={(e) => {
               const val = e.target.value;
               setField("badanUsahaNama", val);
-
-              const source =
-                ownedCompanies.length > 0 ? ownedCompanies : companyMaster;
-
-              const match =
-                source?.find(
-                  (c) =>
-                    c.nama_perusahaan &&
-                    c.nama_perusahaan.toLowerCase() === val.trim().toLowerCase()
-                ) || null;
-
-              if (match?.hp) {
-                setField("telPemilik", match.hp);
-              }
-              // kalau nama pemilik di form masih kosong tapi di data ada → isi
-              if (match?.nama_pemilik && !form.namaPemilik) {
-                setField("namaPemilik", match.nama_pemilik);
-              }
             }}
             placeholder="Pilih / ketik nama PT/CV"
             autoComplete="off"
           />
           <datalist id="perusahaan-list">
-            {(ownedCompanies.length > 0 ? ownedCompanies : companyMaster || []).map(
-              (c) => (
-                <option
-                  key={`${c.nama_perusahaan}-${c.nama_pemilik || "x"}`}
-                  value={c.nama_perusahaan}
-                >
-                  {c.nama_perusahaan}
-                  {c.nama_pemilik ? ` — (${c.nama_pemilik})` : ""}
-                </option>
-              )
-            )}
+            {(companyMaster || []).map((c) => (
+              <option
+                key={`${c.nama_perusahaan}-${c.nama_pemilik || "x"}`}
+                value={c.nama_perusahaan}
+              >
+                {c.nama_perusahaan}
+                {c.nama_pemilik ? ` — (${c.nama_pemilik})` : ""}
+              </option>
+            ))}
           </datalist>
+        </Field>
+        
+        <Field label="Nama Pemilik / Pengelola">
+          <input
+            value={form.namaPemilik}
+            onChange={(e) => {
+              const val = e.target.value;
+              setField("namaPemilik", val);
+            }}
+            placeholder="Nama pemilik atau pengelola"
+            autoComplete="off"
+          />
         </Field>
 
         <Field label="Jenis Angkutan" req error={errors.jenisAngkutan}>
@@ -1040,6 +974,7 @@ function Step1Datakunjungan({ form, setField, errors, picMaster, companyMaster }
             value={form.telPemilik}
             onChange={(e) => setField("telPemilik", e.target.value)}
             placeholder="08xxxxxxxxxx"
+            autoComplete="off"
           />
         </Field>
       </div>
@@ -1231,7 +1166,7 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
       )}
       {errors.list && (
         <div className="alert warn" style={{ marginBottom: 12 }}>
-          <div className="alert-title">Perlu diperbaiki</div>
+          <div className="alert-title">Perlu diisi</div>
           {errors.list}
         </div>
       )}
@@ -1288,7 +1223,7 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
               </Field>
 
               {/* TAHUN (otomatis dari iwkbu.tahun tapi bisa edit) */}
-              <Field label="Tahun" error={errors[`tahun_${i}`]}>
+              <Field label="Tahun Pembuatan" error={errors[`tahun_${i}`]}>
                 <input
                   data-error={!!errors[`tahun_${i}`]}
                   type="number"
@@ -1303,7 +1238,16 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
             {showBayarOs && (
               <div className="form-grid" style={{ marginTop: 8 }}>
                 <Field
-                  label="Jumlah OS yang mau dibayar"
+                  label={
+                    <div style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
+                      <span>Jumlah OS yang mau dibayar</span>
+                      {a.osTarif != null && (
+                        <small style={{ color: "#9CA3AF" }}>
+                          (minimal {idr(a.osTarif)})
+                        </small>
+                      )}
+                    </div>
+                  }
                   error={errors[`bayarOs_${i}`]}
                 >
                   <input
@@ -1312,12 +1256,9 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
                     min={0}
                     value={a.bayarOs}
                     onChange={(e) => update(i, { bayarOs: e.target.value })}
-                    placeholder={
-                      a.osTarif != null
-                        ? `Maksimal ${idr(a.osTarif)}`
-                        : "Masukkan jumlah yang dibayar"
-                    }
+                    placeholder="Masukkan jumlah yang dibayar"
                   />
+
                   {a.osTarif != null && (
                     <div className="hint">
                       Nilai OS penuh: <strong>{idr(a.osTarif)}</strong>
@@ -1400,11 +1341,9 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
         </Field>
         <Field label="Janji Bayar Tunggakan">
           <input
-            type="datetime-local"
+            type="date"
             value={form.janjiBayar}
-            onChange={(e) =>
-              setField("janjiBayar", e.target.value)
-            }
+            onChange={(e) => setField("janjiBayar", e.target.value)}
           />
         </Field>
       </div>
@@ -1536,15 +1475,13 @@ function Step3UploadPenilaian({ form, setField, errors, onPickMultiple }) {
       <h2 className="h2">Step 3 — Upload & Penilaian</h2>
       <p className="lead">Unggah bukti kunjungan, surat (maks 5 file), berikan penilaian, dan tanda tangan.</p>
 
-      {errors.minimal && <div className="alert warn" style={{marginBottom:12}}><div className="alert-title">Perlu diperbaiki</div>{errors.minimal}</div>}
-
       <div className="form-grid">
         <Field label="Upload Foto Kunjungan">
           <input type="file" accept="image/*" onChange={e => setField("fotoKunjungan", e.target.files?.[0] || null)} />
           <span className="hint">{form.fotoKunjungan ? `Terpilih: ${form.fotoKunjungan.name}` : "Belum ada file"}</span>
         </Field>
 
-        <Field label="Upload Surat Pernyataan & Evidence (max 5 file)">
+        <Field label="Upload Surat Pernyataan & Evidence (maks 5 file)">
           <input type="file" multiple accept="image/*,.pdf" onChange={onPickMultiple("suratPernyataanEvidence")} />
           <span className="hint">
             {totalSurat > 0 ? `${totalSurat} file terpilih` : "Belum ada file"}
@@ -1636,136 +1573,394 @@ const css = `
 }
 
 *{box-sizing:border-box}
-body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;color:var(--ink);background:var(--bb-50)}
+body{
+  margin:0;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+  color:var(--ink);
+  background:var(--bb-50);
+}
 
 .crm-wrap.full.kawai{
-  min-height:100dvh;width:100vw;overflow-x:hidden;
+  min-height:100dvh;
+  width:100vw;
+  overflow-x:hidden;
   background:
     radial-gradient(900px 520px at 8% -10%, var(--by-50), transparent 60%),
     radial-gradient(900px 520px at 110% 110%, var(--bb-50), transparent 60%),
     linear-gradient(180deg, var(--bb-25) 0%, var(--by-25) 100%);
 }
 
-.container{max-width:1120px;margin:0 auto;padding:0 var(--gutter);width:100%}
-.crm-card{width:100%;background:var(--card)}
+.container{
+  max-width:1120px;
+  margin:0 auto;
+  padding:0 var(--gutter);
+  width:100%;
+}
 
-.h2{margin:0 0 8px 0;font-size:22px;line-height:1.25}
-.lead{margin:0 0 14px 0;color:#334155}
+.crm-card{
+  width:100%;
+  background:var(--card);
+}
 
-.crm-header{position:sticky;top:0;z-index:10;border-bottom:1px solid var(--bb-200);
+.h2{
+  margin:0 0 8px 0;
+  font-size:22px;
+  line-height:1.25;
+}
+.lead{
+  margin:0 0 14px 0;
+  color:#334155;
+}
+
+/* ===== HEADER ===== */
+.crm-header{
+  position:sticky;
+  top:0;
+  z-index:10;
+  border-bottom:1px solid var(--bb-200);
   background:
     radial-gradient(160px 60px at 10% 0%, var(--by-50), transparent 70%),
     radial-gradient(200px 80px at 90% 0%, var(--bb-50), transparent 70%),
     linear-gradient(90deg, var(--by-300), var(--bb-400) 45%, var(--bb-600) 100%);
   box-shadow:0 8px 18px rgba(12,34,78,.06);
 }
-.header-inner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 0 10px}
-.crm-header .title{display:flex;align-items:center;gap:10px;font-weight:900;font-size:22px;color:#0e1b34}
-.crm-header .title .dot{width:10px;height:10px;border-radius:999px;background:var(--by-500);box-shadow:0 0 0 6px rgba(255,228,138,.35)}
-.crm-header .subtitle{font-size:13px;color:#2b3c66;opacity:.9;padding-bottom:12px}
-.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:800;color:#0f1f3a;background:linear-gradient(90deg,var(--bb-400),var(--by-300))}
-.header-actions .btn.sm{padding:8px 12px;border-radius:10px;font-weight:800}
+.header-inner{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:18px 0 10px;
+}
+.crm-header .title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:900;
+  font-size:22px;
+  color:#0e1b34;
+}
+.crm-header .title .dot{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  background:var(--by-500);
+  box-shadow:0 0 0 6px rgba(255,228,138,.35);
+}
+.crm-header .subtitle{
+  font-size:13px;
+  color:#2b3c66;
+  opacity:.9;
+  padding-bottom:12px;
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+  color:#0f1f3a;
+  background:linear-gradient(90deg,var(--bb-400),var(--by-300));
+}
+.header-actions .btn.sm{
+  padding:8px 12px;
+  border-radius:10px;
+  font-weight:800;
+}
 
-.stepper{padding:14px 0;background:linear-gradient(180deg,#fff,var(--bb-50));border-bottom:1px solid var(--bb-200)}
-.stepper .progress{height:8px;border-radius:999px;background:#fff;overflow:hidden;margin:0 var(--gutter) 12px}
-.stepper .bar{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--bb-400),var(--by-300));transition:width .35s ease}
-.stepper .steps{display:flex;gap:10px;overflow:auto;padding:0 var(--gutter) 6px}
+/* ===== STEPPER ===== */
+.stepper{
+  padding:14px 0;
+  background:linear-gradient(180deg,#fff,var(--bb-50));
+  border-bottom:1px solid var(--bb-200);
+}
+.stepper .progress{
+  height:8px;
+  border-radius:999px;
+  background:#fff;
+  overflow:hidden;
+  margin:0 var(--gutter) 12px;
+}
+.stepper .bar{
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg,var(--bb-400),var(--by-300));
+  transition:width .35s ease;
+}
+.stepper .steps{
+  display:flex;
+  gap:10px;
+  overflow:auto;
+  padding:0 var(--gutter) 6px;
+}
 .stepper .steps::-webkit-scrollbar{display:none}
-.stepper .step{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;transition:transform .08s,box-shadow .15s,border-color .15s,background .15s}
-.stepper .step.active{border-color:var(--bb-600);box-shadow:var(--ring);background:linear-gradient(180deg,#fff,#f8fbff)}
-.stepper .step.done{border-color:#bfead2;background:linear-gradient(180deg,#fff,#f5fff9)}
-.stepper .circle{width:26px;height:26px;border-radius:999px;display:grid;place-items:center;font-weight:800;background:var(--by-300)}
-.stepper .label{font-size:13px;font-weight:800;color:#243b6b}
+.stepper .step{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:#fff;
+  cursor:pointer;
+  transition:transform .08s,box-shadow .15s,border-color .15s,background .15s;
+  white-space:nowrap;
+}
+.stepper .step.active{
+  border-color:var(--bb-600);
+  box-shadow:var(--ring);
+  background:linear-gradient(180deg,#fff,#f8fbff);
+}
+.stepper .step.done{
+  border-color:#bfead2;
+  background:linear-gradient(180deg,#fff,#f5fff9);
+}
+.stepper .circle{
+  width:26px;
+  height:26px;
+  border-radius:999px;
+  display:grid;
+  place-items:center;
+  font-weight:800;
+  background:var(--by-300);
+}
+.stepper .label{
+  font-size:13px;
+  font-weight:800;
+  color:#243b6b;
+}
 
-.grid{display:grid;grid-template-columns: minmax(0,1fr) 360px; gap: 22px; align-items:start; padding: 22px 0 24px}
-.main{min-width:0}.aside{position:sticky;top:108px}
+/* ===== LAYOUT GRID ===== */
+.grid{
+  display:grid;
+  grid-template-columns: minmax(0,1fr) 360px;
+  gap:22px;
+  align-items:start;
+  padding:22px 0 24px;
+}
+.main{min-width:0}
+.aside{position:sticky;top:108px}
 
-.section{background:#fff;border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:0 8px 24px rgba(18,43,99,.05)}
-.card-sub{background:linear-gradient(180deg,#fff,var(--bb-50));border:1px solid var(--border);border-radius:14px;padding:12px;margin:0 0 12px 0}
-.actions-right{display:flex;justify-content:flex-end;margin-top:8px}
+/* ===== SECTIONS & CARDS ===== */
+.section{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:16px;
+  box-shadow:0 8px 24px rgba(18,43,99,.05);
+}
+.card-sub{
+  background:linear-gradient(180deg,#fff,var(--bb-50));
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:12px;
+  margin:0 0 12px 0;
+}
+.actions-right{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:8px;
+}
 
+/* ===== FORM GRID ===== */
 .form-grid{
   display:grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: var(--space);
 }
-.field{display:flex;flex-direction:column;gap:6px}
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
 .field.span-2{grid-column: span 2}
-.field .field-label{font-size:13px;font-weight:800;color:#334155}
+.field .field-label{
+  font-size:13px;
+  font-weight:800;
+  color:#334155;
+}
 .field .field-label .req{color:#ef4444;margin-left:4px}
 .field .hint{font-size:12px;color:#475569}
 .field .err{font-size:12px;color:#b91c1c;font-weight:800}
 
 input,select,textarea{
-  width:100%;min-height:44px;padding:10px 12px;border-radius:12px;
-  border:1.5px solid var(--border);background:#fff;
+  width:100%;
+  min-height:44px;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1.5px solid var(--border);
+  background:#fff;
   transition:border-color .15s,box-shadow .15s,background .15s;
 }
 input[data-error='true'], select[data-error='true'], textarea[data-error='true']{border-color:#ef4444}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bb-600);box-shadow:var(--ring)}
-textarea{resize:vertical;min-height:96px}
+input:focus,select:focus,textarea:focus{
+  outline:none;
+  border-color:var(--bb-600);
+  box-shadow:var(--ring);
+}
+textarea{
+  resize:vertical;
+  min-height:96px;
+}
 
 .check{display:inline-flex;gap:8px;align-items:center}
 
-.segmented{display:inline-flex;gap:8px;background:var(--bb-100);padding:4px;border-radius:999px;border:1px solid var(--border)}
-.segmented .seg{padding:8px 12px;border-radius:999px;font-weight:800;cursor:pointer;user-select:none}
-.segmented .seg.active{background:#fff;box-shadow:var(--ring)}
-
-.crm-footer{display:flex;align-items:center;gap:12px;margin-top:16px}
-.crm-footer.sticky{position:sticky;bottom:12px;background:linear-gradient(180deg,#ffffffaa,#ffffffee);backdrop-filter:blur(6px);padding:12px;border:1px solid var(--bb-200);border-radius:14px;box-shadow:0 10px 28px rgba(18,43,99,.12)}
+/* ===== FOOTER ===== */
+.crm-footer{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-top:16px;
+}
+.crm-footer.sticky{
+  position:sticky;
+  bottom:12px;
+  background:linear-gradient(180deg,#ffffffaa,#ffffffee);
+  backdrop-filter:blur(6px);
+  padding:12px;
+  border:1px solid var(--bb-200);
+  border-radius:14px;
+  box-shadow:0 10px 28px rgba(18,43,99,.12);
+}
 .spacer{flex:1}
 
-.btn{border:0;border-radius:14px;padding:12px 18px;font-weight:800;cursor:pointer;transition:transform .08s,box-shadow .15s}
-.btn.primary{background:linear-gradient(90deg,var(--bb-400),var(--by-300));color:#0f1f3a}
-.btn.success{background:linear-gradient(180deg,#b7f2d3,#79e2b4);color:#064e3b}
-.btn.ghost{background:#fff;border:1.5px dashed var(--bb-200);color:#334155}
-.btn:hover{transform:translateY(-1px);box-shadow:0 10px 18px rgba(0,0,0,.06)}
+/* ===== BUTTONS ===== */
+.btn{
+  border:0;
+  border-radius:14px;
+  padding:12px 18px;
+  font-weight:800;
+  cursor:pointer;
+  transition:transform .08s,box-shadow .15s;
+}
+.btn.primary{
+  background:linear-gradient(90deg,var(--bb-400),var(--by-300));
+  color:#0f1f3a;
+}
+.btn.success{
+  background:linear-gradient(180deg,#b7f2d3,#79e2b4);
+  color:#064e3b;
+}
+.btn.ghost{
+  background:#fff;
+  border:1.5px dashed var(--bb-200);
+  color:#334155;
+}
+.btn:hover{
+  transform:translateY(-1px);
+  box-shadow:0 10px 18px rgba(0,0,0,.06);
+}
 .btn:disabled{opacity:.55;cursor:not-allowed}
 
-.aside-card{background:linear-gradient(180deg,#fff,var(--bb-50));border:1.5px solid var(--border);border-radius:20px;padding:16px;box-shadow:0 8px 24px rgba(18,43,99,.06)}
-.aside-title{font-weight:900;font-size:16px;color:#1e3a8a;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+/* ===== ASIDE ===== */
+.aside-card{
+  background:linear-gradient(180deg,#fff,var(--bb-50));
+  border:1.5px solid var(--border);
+  border-radius:20px;
+  padding:16px;
+  box-shadow:0 8px 24px rgba(18,43,99,.06);
+}
+.aside-title{
+  font-weight:900;
+  font-size:16px;
+  color:#1e3a8a;
+  margin-bottom:12px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
 .aside-title::before{content:"📋"}
-.badges{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-.badge.stat{background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px}
+.badges{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:12px;
+}
+.badge.stat{
+  background:#fff;
+  border:1.5px solid var(--border);
+  border-radius:12px;
+  padding:10px 12px;
+}
 .badge.stat .x-label{font-size:11px;color:#334155}
 .badge.stat .x-value{font-size:14px;font-weight:900}
-.mini{margin-top:8px}.mini-title{font-weight:800;color:#0f1f3a;margin-bottom:8px}
-.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.mini-item{background:#fff;border:1.5px dashed var(--border);border-radius:12px;padding:10px}
-.mini-label{font-size:11px;color:#334155}.mini-value{font-weight:800;font-size:13px;color:#0f1b34}
-.alert{border-radius:14px;padding:10px 12px;margin-top:12px}
-.alert.warn{background:#fff7ed;border:1.5px solid #fed7aa}
-.alert-title{font-weight:900;margin-bottom:6px;color:#7c2d12}
-.tip{margin-top:12px;font-size:12px;color:#334155}
-kbd{background:#fff;border:1px solid var(--bb-200);border-bottom-width:2px;padding:2px 6px;border-radius:6px;font-weight:800}
+.mini{margin-top:8px}
+.mini-title{font-weight:800;color:#0f1f3a;margin-bottom:8px}
+.mini-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.mini-item{
+  background:#fff;
+  border:1.5px dashed var(--border);
+  border-radius:12px;
+  padding:10px;
+}
+.mini-label{font-size:11px;color:#334155}
+.mini-value{font-weight:800;font-size:13px;color:#0f1b34}
 
-@media (max-width: 980px){ .grid{grid-template-columns: 1fr} .aside{position:static} }
-@media (max-width: 520px){ .container{padding:0 14px} }
-/* ==== VISIBILITY FIX for inputs ==== */
-.crm-wrap { color-scheme: light; } /* cegah browser auto-darken field */
-
-input, select, textarea {
-  color: #0f172a !important;        /* teks selalu gelap */
-  -webkit-text-fill-color: #0f172a; /* penting utk Chrome/Edge */
-  caret-color: #0f172a;
-  font-weight: 600;                  /* sedikit lebih tebal biar jelas */
+/* ===== ALERT / TIP ===== */
+.alert{
+  border-radius:14px;
+  padding:10px 12px;
+  margin-top:12px;
+}
+.alert.warn{
+  background:#fff7ed;
+  border:1.5px solid #fed7aa;
+}
+.alert-title{
+  font-weight:900;
+  margin-bottom:6px;
+  color:#7c2d12;
+}
+.tip{
+  margin-top:12px;
+  font-size:12px;
+  color:#334155;
 }
 
-/* Placeholder jangan terlalu pucat */
-::placeholder { color: #475569; opacity: .95; font-weight: 500; }
+/* keyboard helper */
+kbd{
+  background:#fff;
+  border:1px solid var(--bb-200);
+  border-bottom-width:2px;
+  padding:2px 6px;
+  border-radius:6px;
+  font-weight:800;
+}
 
-/* Chrome/Edge autofill sering bikin teks putih/kuning — paksa normal */
+/* ===== INPUT VISIBILITY FIX ===== */
+.crm-wrap { color-scheme: light; }
+
+input, select, textarea {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a;
+  caret-color: #0f172a;
+  font-weight: 600;
+}
+
+/* Placeholder */
+::placeholder {
+  color: #475569;
+  opacity: .95;
+  font-weight: 500;
+}
+
+/* Auto-fill fix */
 input:-webkit-autofill,
 textarea:-webkit-autofill,
 select:-webkit-autofill{
   -webkit-text-fill-color: #0f172a !important;
-  box-shadow: 0 0 0 1000px #ffffff inset !important; /* balik ke putih */
-  transition: background-color 9999s ease-out 0s;     /* hilangkan efek kuning */
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  transition: background-color 9999s ease-out 0s;
 }
 
-/* Kalau ada input yg masih terlalu tipis di Windows, paksa anti-aliasing */
 input, select, textarea { text-rendering: optimizeLegibility; }
-/* ====== Pop-up Kawaii untuk Validasi ====== */
+
+/* ===== POPUP KAWAII ===== */
 .popup-cute {
   position: fixed;
   inset: 0;
@@ -1832,5 +2027,100 @@ input, select, textarea { text-rendering: optimizeLegibility; }
   0%,100% { transform: translateX(0); }
   25% { transform: translateX(-3px); }
   75% { transform: translateX(3px); }
+}
+
+/* ====== RESPONSIVE ====== */
+
+/* Tablet ke bawah: aside turun ke bawah, 1 kolom */
+@media (max-width: 980px){
+  .grid{
+    grid-template-columns: 1fr;
+    gap:18px;
+  }
+  .aside{
+    position:static;
+  }
+}
+
+/* HP besar (<= 768px) */
+@media (max-width: 768px){
+  .crm-card{
+    min-height:100dvh;
+    border-radius:0;
+    box-shadow:none;
+  }
+
+  .header-inner{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:6px;
+  }
+  .crm-header .title{
+    font-size:18px;
+  }
+  .crm-header .subtitle{
+    font-size:12px;
+    padding-bottom:10px;
+  }
+
+  .stepper .steps{
+    padding-inline:16px;
+    gap:8px;
+  }
+  .stepper .step{
+    padding:6px 10px;
+  }
+  .stepper .label{
+    font-size:12px;
+  }
+
+  /* footer dibikin fixed di bawah */
+  .crm-footer.sticky{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:0;
+    border-radius:16px 16px 0 0;
+    margin:0;
+    border-left:0;
+    border-right:0;
+    padding:10px 16px;
+  }
+  /* beri space bawah untuk konten biar ga ketutup footer */
+  .grid{
+    padding-bottom:80px;
+  }
+}
+
+/* HP kecil (<= 520px) */
+@media (max-width: 520px){
+  .container{
+    padding:0 14px;
+  }
+
+  .form-grid{
+    grid-template-columns:1fr;
+  }
+  .field.span-2{
+    grid-column: span 1;
+  }
+
+  .btn{
+    padding:10px 14px;
+    font-size:13px;
+  }
+  input,select,textarea{
+    min-height:40px;
+    font-size:13px;
+  }
+
+  .stepper .step:not(.active) .label{
+    display:none; /* tampilkan label lengkap cuma utk step aktif */
+  }
+
+  .popup-box{
+    max-width:90vw;
+    padding:20px 18px;
+  }
 }
 `;

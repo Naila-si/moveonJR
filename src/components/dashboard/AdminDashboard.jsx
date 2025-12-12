@@ -144,6 +144,19 @@ function DashboardInner() {
     return saved ? saved === "1" : false;
   });
 
+  const titleMap = [
+    { path: "/dashboard/admin/iwkbu", label: "Data IWKBU 🚍" },
+    { path: "/dashboard/admin/iwkl", label: "Data IWKL 🚢" },
+    { path: "/dashboard/admin/rkcrm", label: "RK CRM 📊" },
+    { path: "/dashboard/admin/crm-dtd", label: "CRM/DTD 📑" },
+    { path: "/dashboard/admin/manifest/data", label: "Manifest 🧾" },
+    { path: "/dashboard/admin/rk-jadwal", label: "RK Jadwal 📅" },
+    { path: "/dashboard/admin/settings", label: "Settings ⚙️" },
+  ];
+
+  const pageTitle =
+    titleMap.find(t => location.pathname.startsWith(t.path))?.label || "Dasbor ✨";
+
   useEffect(() => {
     localStorage.setItem("sb_collapsed", collapsed ? "1" : "0");
   }, [collapsed]);
@@ -169,8 +182,21 @@ function DashboardInner() {
   const content = useMemo(() => {
     if (!search) return (
       <div className="empty-state" role="status" aria-live="polite">
+        <div className="mascot" aria-hidden>✨</div>
         <h2>Selamat Datang kembali!</h2>
-        <p>Akses seluruh data dari sidebar kiri. Langit cerah, semangat penuh! ✨</p>
+        {/* <p>
+          Pilih menu di kiri yaa. Kalau bingung, ketik aja di pencarian.
+          Semoga harimu secerah langit Jasa Raharja ☁️💙
+        </p> */}
+
+        <div className="quick-actions" role="group" aria-label="Aksi cepat">
+          <button onClick={() => navigate("iwkbu")} className="qa">
+            <span>Ke IWKBU</span> <span aria-hidden>🚍</span>
+          </button>
+          <button onClick={() => navigate("rk-jadwal")} className="qa">
+            <span>Lihat Jadwal</span> <span aria-hidden>📅</span>
+          </button>
+        </div>
       </div>
     );
     return (
@@ -211,8 +237,73 @@ function DashboardInner() {
 
 /* Sidebar */
 .sidebar{ position:sticky; top:0; height:100vh; overflow:auto; padding:14px; border-right:1px solid var(--border); background:linear-gradient(180deg, rgba(196,222,247,.55), rgba(196,222,247,.35)); }
-.brand{ display:flex; align-items:center; gap:10px; padding:12px; border-radius:16px; background:#fff; border:1px solid var(--border) }
-.brand .logo{ width:38px; height:38px; border-radius:10px; overflow:hidden; border:1px solid var(--border); display:grid; place-items:center; background:#fff }
+/* ===== Brand / Logo area ===== */
+.brand{
+  display:flex; align-items:center; gap:12px;
+  padding:12px;
+  border-radius:18px;
+  background: linear-gradient(180deg,#ffffff,#f6fbff);
+  border:1px solid var(--border);
+  box-shadow: 0 10px 22px rgba(15,33,79,.06);
+  position: relative;
+}
+
+.logo-wrap{
+  width:54px; height:54px;
+  border-radius:16px;
+  display:grid; place-items:center;
+  background:#fff;
+  border:1px solid #e5effb;
+  position: relative;
+  overflow: hidden;
+}
+
+.logo-ring{
+  position:absolute; inset:-40%;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(196,222,247,1) 0%, transparent 55%),
+    radial-gradient(circle at 70% 70%, rgba(169,203,238,1) 0%, transparent 60%);
+  opacity:.9;
+  filter: blur(12px);
+  animation: logoFloat 5s ease-in-out infinite alternate;
+}
+
+@keyframes logoFloat{
+  from{ transform: translateY(2px); }
+  to{ transform: translateY(-2px); }
+}
+
+.logo-img{
+  width:40px; height:40px;
+  object-fit: contain;
+  z-index:1;
+  filter: drop-shadow(0 4px 6px rgba(15,33,79,.12));
+}
+
+/* teks brand */
+.brand-name{
+  display:flex; flex-direction:column;
+  line-height:1.05;
+}
+.brand-name strong{
+  font-size:14px;
+  letter-spacing:.3px;
+  color:#0f2b4b;
+  font-weight:900;
+}
+.brand-sub{
+  font-size:11px;
+  color:#5b6e87;
+  font-weight:700;
+  margin-top:2px;
+}
+
+/* saat collapsed: brand dipusatkan */
+.app-wrap.collapsed .brand{
+  justify-content:center;
+  padding:10px;
+}
+.app-wrap.collapsed .brand-name{ display:none; }
 .brand-name{ display:flex; flex-direction:column; line-height:1.05 }
 .brand-name strong{ font-size:13px; letter-spacing:.25px }
 .brand-sub{ font-size:11px; opacity:.8 }
@@ -221,9 +312,37 @@ function DashboardInner() {
 /* Sidebar items */
 .sb-section{ margin:16px 10px 8px; font-size:12px; letter-spacing:.4px; font-weight:800; opacity:.95; color:#1f3b59 }
 .sb-section.hide{ display:none }
-.sb-item{ width:100%; display:flex; align-items:center; gap:10px; padding:12px 12px; margin:6px 6px; border-radius:14px; color:#103252; background:#fff; border:1px solid var(--border); text-decoration:none; cursor:pointer; transition:background .12s, box-shadow .12s, transform .12s }
-.sb-item:hover{ background:var(--card); transform:translateY(-1px) }
-.sb-item.active{ box-shadow:0 8px 16px rgba(15,33,79,.08); border-color:#fff }
+.sb-item{
+  width:100%; display:flex; align-items:center; gap:10px;
+  padding:12px 12px; margin:6px 6px; border-radius:14px;
+  color:#103252; background:#fff; border:1px solid var(--border);
+  text-decoration:none; cursor:pointer;
+  transition: background .15s, box-shadow .15s, transform .15s, border-color .15s;
+  position: relative;
+  overflow: hidden;
+}
+.sb-item::after{
+  content:"";
+  position:absolute; inset:-40%;
+  background: radial-gradient(circle, rgba(196,222,247,.9) 0%, transparent 55%);
+  opacity:0; transform: translateY(20px);
+  transition: .25s ease;
+}
+.sb-item:hover{
+  background:var(--card);
+  transform:translateY(-2px);
+  box-shadow:0 10px 18px rgba(15,33,79,.10);
+  border-color:#dbeafe;
+}
+.sb-item:hover::after{
+  opacity:.6; transform: translateY(0);
+}
+
+.sb-item.active{
+  box-shadow:0 10px 22px rgba(15,33,79,.12);
+  border-color:#fff;
+  background: linear-gradient(180deg,#ffffff,#f6fbff);
+}
 .sb-icon{ display:grid; place-items:center; width:22px }
 .sb-label.hide{ display:none }
 .caret{ margin-left:auto; opacity:.85 }
@@ -303,16 +422,145 @@ function DashboardInner() {
   width: 100%;
   margin: 0 auto;     /* supaya ketengah */
 }
+/* ===== Fun background blobs ===== */
+.fun-bg{
+  position: fixed;
+  inset: -10% -10% auto auto;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle at 30% 30%, #d8ecff 0%, transparent 55%),
+              radial-gradient(circle at 70% 60%, #c4def7 0%, transparent 60%),
+              radial-gradient(circle at 40% 70%, #e9f4ff 0%, transparent 55%);
+  filter: blur(18px);
+  opacity: .9;
+  z-index: 0;
+  pointer-events: none;
+  animation: floaty 12s ease-in-out infinite alternate;
+}
+
+.fun-bg.fun-bg-2{
+  inset: auto auto -12% -12%;
+  width: 560px;
+  height: 560px;
+  opacity: .75;
+  animation-duration: 16s;
+}
+
+@keyframes floaty{
+  0%{ transform: translate(0,0) rotate(0deg); }
+  100%{ transform: translate(-24px, 18px) rotate(8deg); }
+}
+  .chip{
+  font-size:12px; font-weight:800; color:#0f2b4b;
+  background: #fff;
+  border:1px dashed #a9cbee;
+  padding:6px 10px; border-radius:999px;
+  box-shadow: 0 6px 14px rgba(15,33,79,.06);
+}
+.mascot{
+  width:72px; height:72px; margin:0 auto 10px;
+  display:grid; place-items:center;
+  font-size:34px;
+  background: radial-gradient(circle at 30% 30%, #fff, #eaf4ff);
+  border:1px solid var(--border);
+  border-radius:18px;
+  box-shadow: var(--shadow);
+  animation: pop 1.8s ease-in-out infinite;
+}
+@keyframes pop{
+  0%,100%{ transform: translateY(0) rotate(0deg); }
+  50%{ transform: translateY(-4px) rotate(4deg); }
+}
+
+.quick-actions{
+  margin-top:14px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;
+}
+.qa{
+  border:1px solid var(--border);
+  background:#fff; padding:8px 12px; border-radius:999px;
+  font-weight:800; cursor:pointer;
+  box-shadow: 0 8px 16px rgba(15,33,79,.06);
+  transition: .15s ease;
+}
+.qa:hover{ transform: translateY(-2px); background: var(--p25); }
+.page-anim{
+  animation: pageIn .22s ease;
+}
+@keyframes pageIn{
+  from{ opacity:0; transform: translateY(6px); }
+  to{ opacity:1; transform: translateY(0); }
+}
+.search:focus-within{
+  box-shadow: 0 0 0 4px var(--ring);
+  border-color:#cfe3f9;
+}
+.app-wrap.collapsed .sidebar:hover .brand{
+  justify-content:flex-start;
+  padding:12px;
+}
+  /* FIX: quick action text ga kelihatan */
+.empty-state .quick-actions{
+  margin-top:14px;
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+
+.empty-state .quick-actions .qa{
+  appearance: none;
+  -webkit-appearance: none;
+  border:1px solid var(--border);
+  background:#fff;
+  padding:10px 14px;
+  border-radius:999px;
+
+  /* ini yang penting */
+  color:#0f2b4b !important;
+  font-size:13px !important;
+  font-weight:900 !important;
+  line-height:1 !important;
+  text-decoration:none !important;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+
+  min-width:160px;
+  box-shadow: 0 8px 16px rgba(15,33,79,.06);
+  cursor:pointer;
+  transition:.15s ease;
+}
+
+.empty-state .quick-actions .qa:hover{
+  transform: translateY(-2px);
+  background: var(--p25);
+}
       `}</style>
 
       <div className={`app-wrap ${collapsed ? "collapsed" : ""}`}>
         {/* ===== Sidebar ===== */}
         <aside className="sidebar">
-          <div className="brand" role="banner">
-            <div className="logo">
-              <img src={JR_LOGO} alt="Logo Jasa Raharja" style={{ width: 34, height: 34, objectFit: "contain" }} />
-            </div>
+         <div className="brand" role="banner">
+          <div className="logo-wrap">
+            <div className="logo-ring" aria-hidden />
+            <img
+              src={JR_LOGO}
+              alt="Logo Jasa Raharja"
+              className="logo-img"
+              loading="lazy"
+            />
           </div>
+
+          {/* teks brand cuma muncul kalau sidebar nggak collapsed */}
+          {!collapsed && (
+            <div className="brand-name">
+              <strong>Jasa Raharja</strong>
+              <span className="brand-sub">Dashboard Administrasi</span>
+            </div>
+          )}
+        </div>
 
           <Item to="." end icon={Icon.dashboard} label="Dasbor" collapsed={collapsed} />
 
@@ -355,18 +603,19 @@ function DashboardInner() {
                 <span className={`bar ${collapsed ? "rot" : ""}`} />
                 <span className={`bar ${collapsed ? "rot" : ""}`} />
               </button>
-              <h1>Dasbor</h1>
+              <h1>{pageTitle}</h1>
+              <span className="chip">Admin Mode</span>
             </div>
-            <div className="search" role="search">
+            {/* <div className="search" role="search">
               <span className="search-icon">{Icon.search}</span>
               <input
                 type="text"
-                placeholder="Cari menu…"
+                placeholder="Cari menu… (contoh: manifest)"
                 value={search}
                 onChange={(e)=>setSearch(e.target.value)}
                 aria-label="Cari menu"
               />
-            </div>
+            </div> */}
             <div className="topbar-right">
               {/* Avatar header dari context (auto update setelah Simpan Profil) */}
               <HeaderAvatar />
@@ -374,7 +623,7 @@ function DashboardInner() {
           </header>
 
           <section className="page">
-            <div className="page-inner">
+            <div className="page-inner page-anim">
               <Outlet />
               {!isChildRouteActive && content}
             </div>

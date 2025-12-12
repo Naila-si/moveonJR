@@ -2,6 +2,25 @@ import React, { useMemo, useState, useEffect } from "react";
 import "../../views/dashboard/Iwkl.css";
 import { supabase } from "../../lib/supabaseClient"; // sesuaikan path-nya ya
 
+function usePersistentState(key, initialValue) {
+  const [state, setState] = useState(() => {
+    try {
+      const s = localStorage.getItem(key);
+      return s != null ? JSON.parse(s) : initialValue;
+    } catch {
+      return initialValue;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(state));
+    } catch {}
+  }, [key, state]);
+
+  return [state, setState];
+}
+
 const LOKET_OPTS = [
   "Kantor Wilayah",
   "Pelalawan",
@@ -155,7 +174,7 @@ const mapDbToRow = (dbRow) => ({
   rit: dbRow.rit || 0,
   tarifDasarIwkl: dbRow.tarif_dasar_iwkl || 0,
   hari: dbRow.hari || 0,
-  loadFactor: dbRow.load_factor || 0,          
+  loadFactor: dbRow.load_factor || 0,
   totalPerhitungan: dbRow.total_perhitungan || 0,
   tarifBoronganDisepakati: dbRow.tarif_borongan_disepakati || 0,
   keterangan: dbRow.keterangan,
@@ -273,6 +292,35 @@ export default function IwklSimple() {
   const [saving, setSaving] = useState(false);
   const [tahunAktif, setTahunAktif] = useState(2024);
 
+  // ================= FILTERS (persistent) =================
+  const [filterLoket, setFilterLoket] = usePersistentState(
+    "iwkl:filter:loket",
+    ""
+  );
+  const [filterKelas, setFilterKelas] = usePersistentState(
+    "iwkl:filter:kelas",
+    ""
+  );
+  const [filterStatusPKS, setFilterStatusPKS] = usePersistentState(
+    "iwkl:filter:statusPKS",
+    ""
+  );
+  const [filterStatusKapal, setFilterStatusKapal] = usePersistentState(
+    "iwkl:filter:statusKapal",
+    ""
+  );
+  const [filterTrayek, setFilterTrayek] = usePersistentState(
+    "iwkl:filter:trayek",
+    ""
+  );
+
+  const [LOKET_FILTER_OPTS, setLoketFilterOpts] = useState([]);
+  const [KELAS_FILTER_OPTS, setKelasFilterOpts] = useState([]);
+  const [STATUS_PKS_FILTER_OPTS, setStatusPksFilterOpts] = useState([]);
+  const [STATUS_KAPAL_FILTER_OPTS, setStatusKapalFilterOpts] = useState([]);
+  const [TRAYEK_FILTER_OPTS, setTrayekFilterOpts] = useState([]);
+  const [YEAR_OPTS, setYearOpts] = useState([]);
+
   // modal tambah
   const [showAddModal, setShowAddModal] = useState(false);
   const [newForm, setNewForm] = useState(makeEmptyRow());
@@ -281,6 +329,92 @@ export default function IwklSimple() {
 
   const computeTotal = (r) =>
     monthKeys.reduce((sum, k) => sum + (Number(r[k] || 0) || 0), 0);
+
+  const fetchYearOptions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("iwkl_bulanan")
+        .select("tahun")
+        .order("tahun", { ascending: false })
+        .limit(5000);
+
+      if (error) throw error;
+
+      const years = Array.from(
+        new Set((data || []).map((d) => Number(d.tahun)).filter(Boolean))
+      ).sort((a, b) => b - a);
+
+      // fallback kalau tabel kosong, tetap kasih tahun sekarang
+      const thisYear = new Date().getFullYear();
+      const merged = years.includes(thisYear) ? years : [thisYear, ...years];
+
+      setYearOpts(merged);
+    } catch (e) {
+      console.error("fetchYearOptions error:", e);
+      // fallback minimal
+      const thisYear = new Date().getFullYear();
+      setYearOpts([thisYear]);
+    }
+  };
+
+  useEffect(() => {
+    fetchYearOptions();
+  }, []);
+
+  const fetchFilterOptions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("iwkl")
+        .select("loket, kelas, status_pks, status_kapal, trayek")
+        .limit(10000);
+
+      if (error) throw error;
+
+      const safeUniq = (arr) =>
+        Array.from(
+          new Set(
+            (arr || [])
+              .map((x) => (x == null ? "" : String(x).trim()))
+              .filter(Boolean)
+          )
+        ).sort((a, b) => a.localeCompare(b));
+
+      // gabung seed + data DB
+      setLoketFilterOpts(
+        safeUniq([
+          ...LOKET_OPTS.filter((o) => o && o !== "-"),
+          ...data.map((d) => d.loket),
+        ])
+      );
+      setKelasFilterOpts(
+        safeUniq([
+          ...KELAS_OPTS.filter((o) => o && o !== "-"),
+          ...data.map((d) => d.kelas),
+        ])
+      );
+      setStatusPksFilterOpts(
+        safeUniq([
+          ...STATUS_PKS_OPTS.filter((o) => o && o !== "-"),
+          ...data.map((d) => d.status_pks),
+        ])
+      );
+      setStatusKapalFilterOpts(
+        safeUniq([
+          ...STATUS_KAPAL_OPTS.filter((o) => o && o !== "-"),
+          ...data.map((d) => d.status_kapal),
+        ])
+      );
+      setTrayekFilterOpts(safeUniq(data.map((d) => d.trayek)));
+    } catch (e) {
+      console.error("fetchFilterOptions IWKL error:", e);
+      // fallback seed aja
+      setLoketFilterOpts(LOKET_OPTS.filter((o) => o && o !== "-"));
+      setKelasFilterOpts(KELAS_OPTS.filter((o) => o && o !== "-"));
+      setStatusPksFilterOpts(STATUS_PKS_OPTS.filter((o) => o && o !== "-"));
+      setStatusKapalFilterOpts(STATUS_KAPAL_OPTS.filter((o) => o && o !== "-"));
+      setTrayekFilterOpts([]);
+    }
+  };
 
   // load data
   useEffect(() => {
@@ -291,8 +425,6 @@ export default function IwklSimple() {
         .from("iwkl")
         .select("*")
         .order("id", { ascending: false });
-
-      console.log("RAW iwkl dari Supabase:", iwklData?.slice(0, 5));
 
       if (errIwkl) {
         console.error("Error load IWKL:", errIwkl);
@@ -305,11 +437,7 @@ export default function IwklSimple() {
         .select("*")
         .eq("tahun", tahunAktif);
 
-      console.log("RAW iwkl_bulanan:", bulanData?.slice(0, 5));
-
-      if (errBulan) {
-        console.error("Error load iwkl_bulanan:", errBulan);
-      }
+      if (errBulan) console.error("Error load iwkl_bulanan:", errBulan);
 
       const grouped = {};
       (bulanData || []).forEach((row) => {
@@ -326,10 +454,11 @@ export default function IwklSimple() {
         return { ...base, ...bulan };
       });
 
-      console.log("HASIL map ke rows:", rowsMapped.slice(0, 5));
-
       setRows(rowsMapped);
       setLoading(false);
+
+      // ✅ refresh opsi filter setelah data kebaca
+      fetchFilterOptions();
     };
 
     fetchData();
@@ -337,9 +466,10 @@ export default function IwklSimple() {
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    if (!s) return rows;
-    return rows.filter((r) =>
-      [
+
+    return rows.filter((r) => {
+      // search text
+      const haystack = [
         r.loket,
         r.kelas,
         r.namaPerusahaan,
@@ -350,13 +480,49 @@ export default function IwklSimple() {
         r.trayek,
       ]
         .join(" ")
-        .toLowerCase()
-        .includes(s)
-    );
-  }, [rows, q]);
+        .toLowerCase();
+
+      if (s && !haystack.includes(s)) return false;
+
+      // dropdown filters
+      if (filterLoket && r.loket !== filterLoket) return false;
+      if (filterKelas && r.kelas !== filterKelas) return false;
+      if (filterStatusPKS && r.statusPKS !== filterStatusPKS) return false;
+      if (filterStatusKapal && r.statusKapal !== filterStatusKapal)
+        return false;
+
+      // trayek kadang beda casing / spasi → pakai compare clean
+      if (filterTrayek) {
+        const t1 = String(r.trayek || "")
+          .trim()
+          .toLowerCase();
+        const t2 = String(filterTrayek).trim().toLowerCase();
+        if (t1 !== t2) return false;
+      }
+
+      return true;
+    });
+  }, [
+    rows,
+    q,
+    filterLoket,
+    filterKelas,
+    filterStatusPKS,
+    filterStatusKapal,
+    filterTrayek,
+  ]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    filterLoket,
+    filterKelas,
+    filterStatusPKS,
+    filterStatusKapal,
+    filterTrayek,
+  ]);
 
   const totalPage = Math.max(1, Math.ceil(filtered.length / pageSize));
-
   const pageData = useMemo(
     () => filtered.slice((page - 1) * pageSize, page * pageSize),
     [filtered, page, pageSize]
@@ -535,7 +701,9 @@ export default function IwklSimple() {
             🛳️
           </span>
           <h1>Data IWKL</h1>
-          {loading && <span style={{ marginLeft: 8, fontSize: 12 }}>Loading…</span>}
+          {loading && (
+            <span style={{ marginLeft: 8, fontSize: 12 }}>Loading…</span>
+          )}
           {saving && !loading && (
             <span style={{ marginLeft: 8, fontSize: 12 }}>Menyimpan…</span>
           )}
@@ -568,20 +736,100 @@ export default function IwklSimple() {
 
           {/* ROW BAWAH: dropdown tahun */}
           <div className="actions-row bottom">
+            <button
+              className="btn ghost"
+              type="button"
+              onClick={() => {
+                setFilterLoket("");
+                setFilterKelas("");
+                setFilterStatusPKS("");
+                setFilterStatusKapal("");
+                setFilterTrayek("");
+                setQ("");
+                setPage(1);
+              }}
+            >
+              Reset Filter
+            </button>
+
             <select
               value={tahunAktif}
               onChange={(e) => setTahunAktif(Number(e.target.value))}
               className="year-select"
             >
-              <option value={2021}>2021</option>
-              <option value={2022}>2022</option>
-              <option value={2023}>2023</option>
-              <option value={2024}>2024</option>
-              <option value={2025}>2025</option>
+              {YEAR_OPTS.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterLoket}
+              onChange={(e) => setFilterLoket(e.target.value)}
+            >
+              <option value="">Semua Loket</option>
+              {LOKET_FILTER_OPTS.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterKelas}
+              onChange={(e) => setFilterKelas(e.target.value)}
+            >
+              <option value="">Semua Kelas</option>
+              {KELAS_FILTER_OPTS.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterStatusPKS}
+              onChange={(e) => setFilterStatusPKS(e.target.value)}
+            >
+              <option value="">Semua Status PKS</option>
+              {STATUS_PKS_FILTER_OPTS.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterStatusKapal}
+              onChange={(e) => setFilterStatusKapal(e.target.value)}
+            >
+              <option value="">Semua Status Kapal</option>
+              {STATUS_KAPAL_FILTER_OPTS.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterTrayek}
+              onChange={(e) => setFilterTrayek(e.target.value)}
+            >
+              <option value="">Semua Trayek</option>
+              {TRAYEK_FILTER_OPTS.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
             </select>
           </div>
         </div>
-
       </header>
 
       <div className="card">
@@ -674,11 +922,7 @@ export default function IwklSimple() {
                             type="text"
                             value={r.namaPerusahaan || ""}
                             onChange={(e) =>
-                              updateCell(
-                                r.id,
-                                "namaPerusahaan",
-                                e.target.value
-                              )
+                              updateCell(r.id, "namaPerusahaan", e.target.value)
                             }
                             placeholder="Nama Perusahaan"
                           />
@@ -1062,7 +1306,13 @@ export default function IwklSimple() {
                                           type="number"
                                           min={0}
                                           value={r.seat || 0}
-                                          onChange={(e) => updateCell(r.id, "seat", Number(e.target.value))}
+                                          onChange={(e) =>
+                                            updateCell(
+                                              r.id,
+                                              "seat",
+                                              Number(e.target.value)
+                                            )
+                                          }
                                         />
                                       </label>
 
@@ -1072,7 +1322,13 @@ export default function IwklSimple() {
                                           type="number"
                                           min={0}
                                           value={r.rit || 0}
-                                          onChange={(e) => updateCell(r.id, "rit", Number(e.target.value))}
+                                          onChange={(e) =>
+                                            updateCell(
+                                              r.id,
+                                              "rit",
+                                              Number(e.target.value)
+                                            )
+                                          }
                                         />
                                       </label>
 
@@ -1083,7 +1339,11 @@ export default function IwklSimple() {
                                           min={0}
                                           value={r.tarifDasarIwkl || 0}
                                           onChange={(e) =>
-                                            updateCell(r.id, "tarifDasarIwkl", Number(e.target.value))
+                                            updateCell(
+                                              r.id,
+                                              "tarifDasarIwkl",
+                                              Number(e.target.value)
+                                            )
                                           }
                                         />
                                       </label>
@@ -1094,7 +1354,13 @@ export default function IwklSimple() {
                                           type="number"
                                           min={0}
                                           value={r.hari || 0}
-                                          onChange={(e) => updateCell(r.id, "hari", Number(e.target.value))}
+                                          onChange={(e) =>
+                                            updateCell(
+                                              r.id,
+                                              "hari",
+                                              Number(e.target.value)
+                                            )
+                                          }
                                         />
                                       </label>
 
@@ -1106,12 +1372,21 @@ export default function IwklSimple() {
                                           max={100}
                                           value={r.loadFactor || 0}
                                           onChange={(e) =>
-                                            updateCell(r.id, "loadFactor", Number(e.target.value))
+                                            updateCell(
+                                              r.id,
+                                              "loadFactor",
+                                              Number(e.target.value)
+                                            )
                                           }
                                         />
                                       </label>
 
-                                      <div style={{ gridColumn: "1 / -1", marginTop: 8 }}>
+                                      <div
+                                        style={{
+                                          gridColumn: "1 / -1",
+                                          marginTop: 8,
+                                        }}
+                                      >
                                         Total:
                                         <strong>
                                           {" "}
@@ -1232,14 +1507,15 @@ export default function IwklSimple() {
 
       {/* MODAL TAMBAH DATA */}
       {showAddModal && (
-        <div
-          className="modal-backdrop"
-          onClick={() => setShowAddModal(false)}
-        >
+        <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
           <div
             className="modal-card"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxHeight: "80vh", display: "flex", flexDirection: "column" }}
+            style={{
+              maxHeight: "80vh",
+              display: "flex",
+              flexDirection: "column",
+            }}
           >
             <h3>Tambah Data IWKL</h3>
 
@@ -1477,10 +1753,7 @@ export default function IwklSimple() {
                   type="date"
                   value={newForm.tglJatuhTempoSertifikatKeselamatan || ""}
                   onChange={(e) =>
-                    setF(
-                      "tglJatuhTempoSertifikatKeselamatan",
-                      e.target.value
-                    )
+                    setF("tglJatuhTempoSertifikatKeselamatan", e.target.value)
                   }
                 />
               </label>
@@ -1507,9 +1780,7 @@ export default function IwklSimple() {
                 Sistem Pengutipan IWKL
                 <select
                   value={newForm.sistemPengutipanIWKL}
-                  onChange={(e) =>
-                    setF("sistemPengutipanIWKL", e.target.value)
-                  }
+                  onChange={(e) => setF("sistemPengutipanIWKL", e.target.value)}
                 >
                   {SISTEM_IWKL_OPTS.map((o) => (
                     <option key={o} value={o}>
@@ -1532,9 +1803,7 @@ export default function IwklSimple() {
                 Perhitungan Tarif
                 <select
                   value={newForm.perhitunganTarif}
-                  onChange={(e) =>
-                    setF("perhitunganTarif", e.target.value)
-                  }
+                  onChange={(e) => setF("perhitunganTarif", e.target.value)}
                 >
                   {PERHIT_TARIF_OPTS.map((o) => (
                     <option key={o} value={o}>

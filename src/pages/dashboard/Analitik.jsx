@@ -1,4 +1,3 @@
-// src/pages/dashboard/Analitik.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import "../../views/dashboard/Analitik.css";
 import { createClient } from "@supabase/supabase-js";
@@ -42,6 +41,25 @@ const number = (v) => (Number(v) || 0);
 // warna2 untuk grafik
 const COLORS = ["#1d4ed8", "#f97316", "#10b981", "#6366f1", "#ec4899"];
 
+// Tooltip custom yang lucu + rapi
+const CuteTooltip = ({ active, payload, label, formatterLabel }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="cute-tooltip">
+      <div className="ct-title">
+        {formatterLabel ? formatterLabel(label) : label}
+      </div>
+      {payload.map((p, i) => (
+        <div key={i} className="ct-row">
+          <span className="ct-dot" style={{ background: p.color }} />
+          <span className="ct-name">{p.name}</span>
+          <b className="ct-val">{idr(p.value)}</b>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export default function Analitik() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -71,35 +89,36 @@ export default function Analitik() {
           .toISOString()
           .slice(0, 10); // yyyy-mm-dd
 
-        const [empRes, rekapRes, iwkbuRes, iwklRes, rkjRes] = await Promise.all([
-          supabase.from("employees").select("id, name, loket, created_at"),
+        const [empRes, rekapRes, iwkbuRes, iwklRes, rkjRes] =
+          await Promise.all([
+            supabase.from("employees").select("id, name, loket, created_at"),
 
-          supabase
-            .from("rekap_os")
-            .select(
-              "id, employee_id, os_awal, os_sampai, target_crm, realisasi_po, target_rupiah, nominal_os_bayar"
-            ),
+            supabase
+              .from("rekap_os")
+              .select(
+                "id, employee_id, os_awal, os_sampai, target_crm, realisasi_po, target_rupiah, nominal_os_bayar"
+              ),
 
-          // batasi dari awal tahun biar nggak super berat
-          supabase
-            .from("iwkbu")
-            .select("id, nominal, outstanding, tgl_transaksi, loket")
-            .gte("tgl_transaksi", yearStart)
-            .limit(5000),
+            // batasi dari awal tahun biar nggak super berat
+            supabase
+              .from("iwkbu")
+              .select("id, nominal, outstanding, tgl_transaksi, loket")
+              .gte("tgl_transaksi", yearStart)
+              .limit(5000),
 
-          supabase
-            .from("iwkl")
-            .select(
-              "id, potensi_per_bulan, total_perhitungan, status_pks, status_pembayaran, status_kapal, created_at"
-            )
-            .limit(5000),
+            supabase
+              .from("iwkl")
+              .select(
+                "id, potensi_per_bulan, total_perhitungan, status_pks, status_pembayaran, status_kapal, created_at"
+              )
+              .limit(5000),
 
-          supabase
-            .from("rkj_entries")
-            .select("id, date, status, value")
-            .gte("date", yearStart)
-            .limit(5000),
-        ]);
+            supabase
+              .from("rkj_entries")
+              .select("id, date, status, value")
+              .gte("date", yearStart)
+              .limit(5000),
+          ]);
 
         if (empRes.error) throw empRes.error;
         if (rekapRes.error) throw rekapRes.error;
@@ -290,15 +309,29 @@ export default function Analitik() {
     );
   }, [rkj]);
 
+  // untuk insight otomatis
+  const iwkbuTopMonth = useMemo(() => {
+    if (!iwkbuMonthly.length) return null;
+    return iwkbuMonthly.reduce((a, b) =>
+      a.totalNominal > b.totalNominal ? a : b
+    );
+  }, [iwkbuMonthly]);
+
+  const rkjTopStatus = useMemo(() => {
+    if (!rkjStatus.length) return null;
+    return rkjStatus.reduce((a, b) => (a.count > b.count ? a : b));
+  }, [rkjStatus]);
+
   return (
     <div className="panel analitik-page">
       <div className="analitik-header">
         <div>
-          <h2>Dasbor Analitik</h2>
+          <h2>Dasbor Analitik ✨</h2>
           <p>
             Ringkasan cepat kinerja pegawai, OS, IWKBU/IWKL, dan RK Jadwal.
           </p>
         </div>
+
         {loading && <span className="pill pill-loading">Memuat data…</span>}
       </div>
 
@@ -307,7 +340,10 @@ export default function Analitik() {
       {/* === Kartu ringkasan utama === */}
       <section className="grid-cards">
         <div className="stat-card">
-          <div className="stat-label">Total Pegawai</div>
+          <div className="stat-top">
+            <div className="stat-emoji">👩‍💼</div>
+            <div className="stat-label">Total Pegawai</div>
+          </div>
           <div className="stat-value">{employeeStats.total}</div>
           <div className="stat-sub">
             Kanwil: {employeeStats.perLoket.kanwil || 0} • Dumai:{" "}
@@ -316,7 +352,10 @@ export default function Analitik() {
         </div>
 
         <div className="stat-card">
-          <div className="stat-label">Total OS Awal</div>
+          <div className="stat-top">
+            <div className="stat-emoji">💸</div>
+            <div className="stat-label">Total OS Awal</div>
+          </div>
           <div className="stat-value">{idr(osSummary.osAwal)}</div>
           <div className="stat-sub">
             OS Sampai: {idr(osSummary.osSampai)} ({pct(osSummary.persenOS)})
@@ -324,15 +363,10 @@ export default function Analitik() {
         </div>
 
         <div className="stat-card">
-          <div className="stat-label">CRM &amp; PO</div>
-          <div className="stat-value">
-            {osSummary.realisasiPO} / {osSummary.targetCRM}
+          <div className="stat-top">
+            <div className="stat-emoji">🚌</div>
+            <div className="stat-label">IWKBU (tahun berjalan)</div>
           </div>
-          <div className="stat-sub">Realisasi / Target CRM</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-label">IWKBU (tahun berjalan)</div>
           <div className="stat-value">{idr(iwkbuSummary.totalNominal)}</div>
           <div className="stat-sub">
             Outstanding: {idr(iwkbuSummary.totalOutstanding)}
@@ -340,7 +374,10 @@ export default function Analitik() {
         </div>
 
         <div className="stat-card">
-          <div className="stat-label">Potensi IWKL / bulan</div>
+          <div className="stat-top">
+            <div className="stat-emoji">🚢</div>
+            <div className="stat-label">Potensi IWKL / bulan</div>
+          </div>
           <div className="stat-value">{idr(iwklSummary.potensi)}</div>
           <div className="stat-sub">
             Kapal aktif: {iwklSummary.aktif} / {iwklSummary.total}
@@ -352,7 +389,11 @@ export default function Analitik() {
       <section className="grid-charts">
         {/* Pie distribusi pegawai per loket */}
         <div className="chart-card">
-          <div className="chart-title">Distribusi Pegawai per Loket</div>
+          <div className="chart-title">
+            Distribusi Pegawai per Loket
+            <span className="chart-badge">Distribusi</span>
+          </div>
+
           {employeeStats.total === 0 ? (
             <div className="chart-empty">Belum ada data pegawai.</div>
           ) : (
@@ -375,7 +416,7 @@ export default function Analitik() {
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={80}
+                  outerRadius={85}
                   label
                 >
                   {[0, 1].map((idx) => (
@@ -389,72 +430,125 @@ export default function Analitik() {
 
         {/* Area chart nominal IWKBU per bulan */}
         <div className="chart-card">
-          <div className="chart-title">Nominal IWKBU per Bulan</div>
+          <div className="chart-title">
+            Nominal IWKBU per Bulan
+            <span className="chart-badge">Trend</span>
+          </div>
+
           {iwkbuMonthly.length === 0 ? (
             <div className="chart-empty">
               Belum ada transaksi IWKBU tahun ini.
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={iwkbuMonthly}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip
-                  formatter={(value) => idr(value)}
-                  labelFormatter={(l) => `Bulan: ${l}`}
-                />
-                <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="totalNominal"
-                  name="Nominal"
-                  stroke={COLORS[0]}
-                  fill={COLORS[0]}
-                  fillOpacity={0.25}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="totalOutstanding"
-                  name="Outstanding"
-                  stroke={COLORS[1]}
-                  fill={COLORS[1]}
-                  fillOpacity={0.15}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={iwkbuMonthly}>
+                  <defs>
+                    <linearGradient id="gradNominal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={COLORS[0]} stopOpacity={0.55} />
+                      <stop offset="100%" stopColor={COLORS[0]} stopOpacity={0.05} />
+                    </linearGradient>
+                    <linearGradient id="gradOut" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={COLORS[1]} stopOpacity={0.45} />
+                      <stop offset="100%" stopColor={COLORS[1]} stopOpacity={0.04} />
+                    </linearGradient>
+                  </defs>
+
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip
+                    content={
+                      <CuteTooltip formatterLabel={(l) => `Bulan ${l}`} />
+                    }
+                  />
+                  <Legend />
+
+                  <Area
+                    type="monotone"
+                    dataKey="totalNominal"
+                    name="Nominal"
+                    stroke={COLORS[0]}
+                    fill="url(#gradNominal)"
+                    strokeWidth={2.5}
+                    dot={{ r: 2.5 }}
+                    activeDot={{ r: 5 }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="totalOutstanding"
+                    name="Outstanding"
+                    stroke={COLORS[1]}
+                    fill="url(#gradOut)"
+                    strokeWidth={2}
+                    dot={{ r: 2 }}
+                    activeDot={{ r: 4 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+
+              <div className="chart-insight">
+                {iwkbuTopMonth ? (
+                  <>
+                    📌 Bulan tertinggi: <b>{iwkbuTopMonth.month}</b> dengan
+                    nominal <b>{idr(iwkbuTopMonth.totalNominal)}</b>
+                  </>
+                ) : (
+                  "Belum ada insight."
+                )}
+              </div>
+            </>
           )}
         </div>
 
         {/* Bar chart status RKJ */}
         <div className="chart-card">
-          <div className="chart-title">Status RK Jadwal (rkj_entries)</div>
+          <div className="chart-title">
+            Status RK Jadwal (rkj_entries)
+            <span className="chart-badge">Status</span>
+          </div>
+
           {rkjStatus.length === 0 ? (
             <div className="chart-empty">
               Belum ada entri RK Jadwal tahun ini.
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={rkjStatus}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="status" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="count" name="Jumlah">
-                  {rkjStatus.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={rkjStatus}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="status" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="count" name="Jumlah">
+                    {rkjStatus.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+
+              <div className="chart-insight">
+                {rkjTopStatus ? (
+                  <>
+                    ✅ Status terbanyak: <b>{rkjTopStatus.status}</b> (
+                    {rkjTopStatus.count} entri)
+                  </>
+                ) : (
+                  "Belum ada insight."
+                )}
+              </div>
+            </>
           )}
         </div>
 
-        {/* Line-ish chart aktivitas nilai RKJ per hari */}
+        {/* Area chart aktivitas nilai RKJ per hari */}
         <div className="chart-card chart-full">
           <div className="chart-title">
             Aktivitas Nilai RKJ per Hari (tahun berjalan)
+            <span className="chart-badge">Aktivitas</span>
           </div>
+
           {rkjDaily.length === 0 ? (
             <div className="chart-empty">
               Belum ada nilai RKJ yang tercatat tahun ini.
@@ -462,6 +556,13 @@ export default function Analitik() {
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={rkjDaily}>
+                <defs>
+                  <linearGradient id="gradRKJ" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COLORS[2]} stopOpacity={0.6} />
+                    <stop offset="100%" stopColor={COLORS[2]} stopOpacity={0.06} />
+                  </linearGradient>
+                </defs>
+
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
@@ -474,21 +575,30 @@ export default function Analitik() {
                 />
                 <YAxis />
                 <Tooltip
-                  labelFormatter={(d) =>
-                    new Date(d).toLocaleDateString("id-ID", {
-                      day: "2-digit",
-                      month: "long",
-                      year: "numeric",
-                    })
+                  content={
+                    <CuteTooltip
+                      formatterLabel={(d) => {
+                        const dt = new Date(d);
+                        return dt.toLocaleDateString("id-ID", {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                        });
+                      }}
+                    />
                   }
                 />
+
                 <Area
                   type="monotone"
                   dataKey="total"
                   name="Nilai"
                   stroke={COLORS[2]}
-                  fill={COLORS[2]}
-                  fillOpacity={0.25}
+                  fill="url(#gradRKJ)"
+                  fillOpacity={1}
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 5 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -496,12 +606,12 @@ export default function Analitik() {
         </div>
       </section>
 
-      <p className="analitik-footnote">
+      {/* <p className="analitik-footnote">
         * Data diambil langsung dari tabel <code>employees</code>,{" "}
         <code>rekap_os</code>, <code>iwkbu</code>, <code>iwkl</code>, dan{" "}
         <code>rkj_entries</code>. Kalau nanti tabel CRM / Manifest mau ikut
         ditampilkan, bisa kita tambah satu section lagi khusus CRM.
-      </p>
+      </p> */}
     </div>
   );
 }

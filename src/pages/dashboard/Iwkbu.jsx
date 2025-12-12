@@ -110,10 +110,33 @@ export default function Iwkbu() {
   const [renameValue, setRenameValue]   = useState("");  
   const [totalCount, setTotalCount] = useState(0);
   const [loadingRows, setLoadingRows] = useState(false);
+
   const [filterWilayah, setFilterWilayah] = usePersistentState("iwkbu:filter:wilayah", "");
   const [filterLoket, setFilterLoket] = usePersistentState("iwkbu:filter:loket", "");
+  const [filterTrayek, setFilterTrayek] = usePersistentState("iwkbu:filter:trayek", "");
+  const [filterJenis, setFilterJenis] = usePersistentState("iwkbu:filter:jenis", "");
+  const [filterPIC, setFilterPIC] = usePersistentState("iwkbu:filter:pic", "");
+  const [filterBadanHukum, setFilterBadanHukum] = usePersistentState("iwkbu:filter:badanHukum", "");
+  const [filterNamaPerusahaan, setFilterNamaPerusahaan] =
+    usePersistentState("iwkbu:filter:namaPerusahaan", "");
+  const [filterStatusBayar, setFilterStatusBayar] =
+    usePersistentState("iwkbu:filter:statusBayar", "");
+  const [filterStatusKendaraan, setFilterStatusKendaraan] =
+    usePersistentState("iwkbu:filter:statusKendaraan", "");
+  const [filterKonfirmasi, setFilterKonfirmasi] =
+    usePersistentState("iwkbu:filter:konfirmasi", "");
+  
+  
   const [WILAYAH_FILTER_OPTS, setWilayahFilterOpts] = useState([]);
   const [LOKET_FILTER_OPTS, setLoketFilterOpts] = useState([]);
+  const [TRAYEK_FILTER_OPTS, setTrayekFilterOpts] = useState([]);
+  const [JENIS_FILTER_OPTS, setJenisFilterOpts] = useState([]);
+  const [PIC_FILTER_OPTS, setPicFilterOpts] = useState([]);
+  const [BADAN_FILTER_OPTS, setBadanFilterOpts] = useState([]);
+  const [PERUSAHAAN_FILTER_OPTS, setPerusahaanFilterOpts] = useState([]);
+  const [STATUS_BAYAR_FILTER_OPTS, setStatusBayarFilterOpts] = useState([]);
+  const [STATUS_KEND_FILTER_OPTS, setStatusKendFilterOpts] = useState([]);
+  const [KONF_FILTER_OPTS, setKonfFilterOpts] = useState([]);
 
   const { employees: EMP_OPTS, loading: employeesLoading } = useEmployees();
 
@@ -198,50 +221,103 @@ export default function Iwkbu() {
 
   const fetchFilterOptions = async () => {
     try {
-      const { data: wData, error: wErr } = await supabase
+      // ambil kolom yang kita butuhin aja biar ringan
+      const { data, error } = await supabase
         .from("iwkbu")
-        .select("wilayah")
-        .not("wilayah", "is", null)
+        .select(
+          "wilayah, loket, trayek, jenis, pic, badan_hukum, nama_perusahaan, status_bayar, status_kendaraan, konfirmasi"
+        )
         .limit(10000);
 
-      if (wErr) throw wErr;
+      if (error) throw error;
 
-      const wilayahUniq = Array.from(
-        new Set((wData || []).map(x => String(x.wilayah).trim().toUpperCase()).filter(Boolean))
-      ).sort((a,b)=>a.localeCompare(b));
+      const safeUniq = (arr, { upper = false } = {}) =>
+        Array.from(
+          new Set(
+            (arr || [])
+              .map((x) => (x == null ? "" : String(x).trim()))
+              .filter(Boolean)
+              .map((x) => (upper ? x.toUpperCase() : x))
+          )
+        ).sort((a, b) => a.localeCompare(b));
 
-      // ✅ gabung seed biar dropdown gak pernah kurang
-      const merged = Array.from(
-        new Set([...SEED_WILAYAH.filter(w => w && w !== "-"), ...wilayahUniq])
-      ).sort((a,b)=>a.localeCompare(b));
+      // Wilayah
+      const wilayahUniq = safeUniq(data.map((x) => x.wilayah), { upper: true });
+      const wilayahMerged = safeUniq(
+        [...SEED_WILAYAH.filter((w) => w && w !== "-"), ...wilayahUniq],
+        { upper: true }
+      );
+      setWilayahFilterOpts(wilayahMerged);
 
-      setWilayahFilterOpts(merged);
+      // Loket
+      setLoketFilterOpts(safeUniq(data.map((x) => x.loket)));
 
-      // Loket tetap sama
-      const { data: lData, error: lErr } = await supabase
-        .from("iwkbu")
-        .select("loket")
-        .not("loket", "is", null)
-        .limit(10000);
+      // ✅ Trayek
+      const trayekUniq = safeUniq(data.map((x) => x.trayek));
+      setTrayekFilterOpts(
+        safeUniq([...SEED_TRAYEK.filter((t) => t && t !== "-"), ...trayekUniq])
+      );
 
-      if (lErr) throw lErr;
+      // ✅ Jenis
+      const jenisUniq = safeUniq(data.map((x) => x.jenis), { upper: true });
+      setJenisFilterOpts(
+        safeUniq([...SEED_JENIS.filter((j) => j && j !== "-"), ...jenisUniq], {
+          upper: true,
+        })
+      );
 
-      const loketUniq = Array.from(
-        new Set((lData || []).map(x => String(x.loket).trim()).filter(Boolean))
-      ).sort((a,b)=>a.localeCompare(b));
+      // ✅ PIC (gabung dari employees juga biar lengkap)
+      const picUniqDB = safeUniq(data.map((x) => x.pic));
+      const picUniqEmp = safeUniq((EMP_OPTS || []).map((e) => e.name));
+      setPicFilterOpts(safeUniq([...picUniqDB, ...picUniqEmp]));
 
-      setLoketFilterOpts(loketUniq);
+      // ✅ Badan Hukum
+      const badanUniq = safeUniq(data.map((x) => x.badan_hukum));
+      setBadanFilterOpts(
+        safeUniq([...SEED_BADAN.filter((b) => b && b !== "-"), ...badanUniq])
+      );
 
+      // ✅ Nama Perusahaan
+      setPerusahaanFilterOpts(safeUniq(data.map((x) => x.nama_perusahaan)));
+
+      // ✅ Status Bayar
+      const sbUniq = safeUniq(data.map((x) => x.status_bayar));
+      setStatusBayarFilterOpts(
+        safeUniq([...SEED_STATUS_BAYAR.filter((s) => s && s !== "-"), ...sbUniq])
+      );
+
+      // ✅ Status Kendaraan
+      const skUniq = safeUniq(data.map((x) => x.status_kendaraan));
+      setStatusKendFilterOpts(
+        safeUniq([...SEED_STATUS_KEND.filter((s) => s && s !== "-"), ...skUniq])
+      );
+
+      // ✅ Hasil Konfirmasi
+      const konfUniq = safeUniq(data.map((x) => x.konfirmasi));
+      setKonfFilterOpts(
+        safeUniq([...SEED_HASIL_KONF.filter((k) => k && k !== "-"), ...konfUniq])
+      );
     } catch (e) {
       console.error("fetchFilterOptions error:", e);
-      setWilayahFilterOpts(SEED_WILAYAH.filter(w => w && w !== "-")); // fallback 12
+
+      // fallback minimal biar dropdown tetap hidup
+      setWilayahFilterOpts(SEED_WILAYAH.filter((w) => w && w !== "-"));
+      setTrayekFilterOpts(SEED_TRAYEK.filter((w) => w && w !== "-"));
+      setJenisFilterOpts(SEED_JENIS.filter((w) => w && w !== "-"));
+      setBadanFilterOpts(SEED_BADAN.filter((w) => w && w !== "-"));
+      setStatusBayarFilterOpts(SEED_STATUS_BAYAR.filter((w) => w && w !== "-"));
+      setStatusKendFilterOpts(SEED_STATUS_KEND.filter((w) => w && w !== "-"));
+      setKonfFilterOpts(SEED_HASIL_KONF.filter((w) => w && w !== "-"));
+
       setLoketFilterOpts([]);
+      setPicFilterOpts([]);
+      setPerusahaanFilterOpts([]);
     }
   };
 
   useEffect(() => {
     fetchFilterOptions();
-  }, []);
+  }, [EMP_OPTS?.length]);
 
   const fetchRows = async () => {
     setLoadingRows(true);
@@ -279,6 +355,46 @@ export default function Iwkbu() {
         query = query.eq("loket", filterLoket);
         // kalau butuh partial match:
         // query = query.ilike("loket", `%${filterLoket}%`);
+      }
+
+      // filter trayek
+      if (filterTrayek) {
+        query = query.eq("trayek", filterTrayek);
+      }
+
+      // filter jenis
+      if (filterJenis) {
+        query = query.eq("jenis", filterJenis);
+      }
+
+      // filter PIC
+      if (filterPIC) {
+        query = query.eq("pic", filterPIC);
+      }
+
+      // filter badan hukum
+      if (filterBadanHukum) {
+        query = query.eq("badan_hukum", filterBadanHukum);
+      }
+
+      // filter nama perusahaan (lebih cocok ilike biar fleksibel)
+      if (filterNamaPerusahaan) {
+        query = query.ilike("nama_perusahaan", `%${filterNamaPerusahaan}%`);
+      }
+
+      // filter status bayar
+      if (filterStatusBayar) {
+        query = query.eq("status_bayar", filterStatusBayar);
+      }
+
+      // filter status kendaraan
+      if (filterStatusKendaraan) {
+        query = query.eq("status_kendaraan", filterStatusKendaraan);
+      }
+
+      // filter hasil konfirmasi
+      if (filterKonfirmasi) {
+        query = query.eq("konfirmasi", filterKonfirmasi);
       }
 
       const from = (page - 1) * pageSize;
@@ -371,7 +487,20 @@ export default function Iwkbu() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, q, filterWilayah, filterLoket]);
+  }, [
+    page,
+    q,
+    filterWilayah,
+    filterLoket,
+    filterTrayek,
+    filterJenis,
+    filterPIC,
+    filterBadanHukum,
+    filterNamaPerusahaan,
+    filterStatusBayar,
+    filterStatusKendaraan,
+    filterKonfirmasi,
+  ]);
 
   const totalPage = Math.max(1, Math.ceil(totalCount / pageSize));
   const pageData = rows;
@@ -511,19 +640,31 @@ export default function Iwkbu() {
                 setQ("");
                 setFilterWilayah("");
                 setFilterLoket("");
+                setFilterTrayek("");
+                setFilterJenis("");
+                setFilterPIC("");
+                setFilterBadanHukum("");
+                setFilterNamaPerusahaan("");
+                setFilterStatusBayar("");
+                setFilterStatusKendaraan("");
+                setFilterKonfirmasi("");
                 setPage(1);
               }}
             >
               Reset Filter
             </button>
 
+            {/* --- Baris 1 --- */}
             <select
               className="select-filter"
               value={filterWilayah}
-              onChange={(e) => { setFilterWilayah(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setFilterWilayah(e.target.value);
+                setPage(1);
+              }}
             >
               <option value="">Semua Wilayah</option>
-              {WILAYAH_FILTER_OPTS.map(w => (
+              {WILAYAH_FILTER_OPTS.map((w) => (
                 <option key={w} value={w}>{w}</option>
               ))}
             </select>
@@ -531,11 +672,128 @@ export default function Iwkbu() {
             <select
               className="select-filter"
               value={filterLoket}
-              onChange={(e) => { setFilterLoket(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setFilterLoket(e.target.value);
+                setPage(1);
+              }}
             >
               <option value="">Semua Loket</option>
-              {LOKET_FILTER_OPTS.map(l => (
+              {LOKET_FILTER_OPTS.map((l) => (
                 <option key={l} value={l}>{l}</option>
+              ))}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterTrayek}
+              onChange={(e) => {
+                setFilterTrayek(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Semua Trayek</option>
+              {TRAYEK_FILTER_OPTS.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterJenis}
+              onChange={(e) => {
+                setFilterJenis(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Semua Jenis</option>
+              {JENIS_FILTER_OPTS.map((j) => (
+                <option key={j} value={j}>{j}</option>
+              ))}
+            </select>
+
+            {/* --- Baris 2 --- */}
+            <select
+              className="select-filter"
+              value={filterPIC}
+              onChange={(e) => {
+                setFilterPIC(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Semua PIC</option>
+              {PIC_FILTER_OPTS.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterBadanHukum}
+              onChange={(e) => {
+                setFilterBadanHukum(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Semua Badan</option>
+              {BADAN_FILTER_OPTS.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterStatusBayar}
+              onChange={(e) => {
+                setFilterStatusBayar(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Semua Status Bayar</option>
+              {STATUS_BAYAR_FILTER_OPTS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterStatusKendaraan}
+              onChange={(e) => {
+                setFilterStatusKendaraan(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Semua Status Kendaraan</option>
+              {STATUS_KEND_FILTER_OPTS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterKonfirmasi}
+              onChange={(e) => {
+                setFilterKonfirmasi(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Semua Hasil Konfirmasi</option>
+              {KONF_FILTER_OPTS.map((k) => (
+                <option key={k} value={k}>{k}</option>
+              ))}
+            </select>
+
+            {/* Nama Perusahaan (dropdown searchable versi simple) */}
+            <select
+              className="select-filter"
+              value={filterNamaPerusahaan}
+              onChange={(e) => {
+                setFilterNamaPerusahaan(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Semua Perusahaan</option>
+              {PERUSAHAAN_FILTER_OPTS.map((p) => (
+                <option key={p} value={p}>{p}</option>
               ))}
             </select>
           </div>
