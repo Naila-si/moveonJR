@@ -570,7 +570,7 @@ function DashboardInner() {
           <Folder label="Data" defaultOpen collapsed={collapsed}>
             <Item to="iwkbu" icon={Icon.truckBus} label="Data IWKBU" collapsed={collapsed} />
             <Item to="iwkl"  icon={Icon.ship}     label="Data IWKL"  collapsed={collapsed} />
-            <Item to="rkcrm" icon={Icon.table}    label="Data RK CRM" collapsed={collapsed} />
+            {/* <Item to="rkcrm" icon={Icon.table}    label="Data RK CRM" collapsed={collapsed} /> */}
             <Item to="crm-dtd" icon={Icon.table}  label="CRM/DTD Data" collapsed={collapsed} />
             <Item to="manifest/data" icon={Icon.list}  label="Data Manifest" collapsed={collapsed} />
           </Folder>
@@ -578,8 +578,8 @@ function DashboardInner() {
           <Section title="PERENCANAAN EVALUASI" collapsed={collapsed} />
           <Item to="rk-jadwal" icon={Icon.calendar} label="RK Jadwal" collapsed={collapsed} />
 
-          <Section title="LAINNYA" collapsed={collapsed} />
-          <Item to="settings" icon={Icon.settings} label="Settings" collapsed={collapsed} />
+          {/* <Section title="LAINNYA" collapsed={collapsed} />
+          <Item to="settings" icon={Icon.settings} label="Settings" collapsed={collapsed} /> */}
 
           <button type="button" className="logout" onClick={onLogout} title="Keluar">
             {Icon.logout} <span className="sb-label">Keluar</span>

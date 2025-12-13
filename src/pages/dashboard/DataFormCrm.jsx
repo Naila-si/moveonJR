@@ -18,7 +18,9 @@ const saveCrmLs = (rows) => localStorage.setItem(LS_KEY, JSON.stringify(rows));
 const DEFAULT_ROWS = (() => {
   const ts = (d) => {
     const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+      d.getDate()
+    )} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
   const base = new Date();
   const d = (offsetDays, hh = 9, mm = 30) => {
@@ -50,7 +52,9 @@ const DEFAULT_ROWS = (() => {
         tunggakan: 0,
         janjiBayar: "-",
         rekomendasi: "Pertahankan kepatuhan.",
-        rincianArmada: [{ nopol: "B 1234 SJR", status: "Aktif", tindakLanjut: "-" }],
+        rincianArmada: [
+          { nopol: "B 1234 SJR", status: "Aktif", tindakLanjut: "-" },
+        ],
       },
       step3: {
         fotoKunjungan: ["https://picsum.photos/seed/crm1/600/360"],
@@ -93,7 +97,13 @@ const DEFAULT_ROWS = (() => {
         tunggakan: 2500000,
         janjiBayar: "2025-10-25",
         rekomendasi: "Bayar tunggakan sebelum keberangkatan berikutnya.",
-        rincianArmada: [{ nopol: "KM Nusantara 8", status: "Aktif", tindakLanjut: "Pantau pembayaran" }],
+        rincianArmada: [
+          {
+            nopol: "KM Nusantara 8",
+            status: "Aktif",
+            tindakLanjut: "Pantau pembayaran",
+          },
+        ],
       },
       step3: {
         fotoKunjungan: ["https://picsum.photos/seed/crm2/600/360"],
@@ -138,7 +148,13 @@ const DEFAULT_ROWS = (() => {
         tunggakan: 1250000,
         janjiBayar: "2025-10-26",
         rekomendasi: "Perpanjang STNK, lanjutkan uji KIR.",
-        rincianArmada: [{ nopol: "B 9090 AR", status: "Non-aktif", tindakLanjut: "Perpanjang dokumen" }],
+        rincianArmada: [
+          {
+            nopol: "B 9090 AR",
+            status: "Non-aktif",
+            tindakLanjut: "Perpanjang dokumen",
+          },
+        ],
       },
       step3: {
         fotoKunjungan: ["https://picsum.photos/seed/crm3/600/360"],
@@ -183,7 +199,9 @@ const DEFAULT_ROWS = (() => {
         tunggakan: 0,
         janjiBayar: "-",
         rekomendasi: "Jadwalkan uji KIR rutin.",
-        rincianArmada: [{ nopol: "B 4455 MJ", status: "Aktif", tindakLanjut: "-" }],
+        rincianArmada: [
+          { nopol: "B 4455 MJ", status: "Aktif", tindakLanjut: "-" },
+        ],
       },
       step3: {
         fotoKunjungan: ["https://picsum.photos/seed/crm4/600/360"],
@@ -228,7 +246,13 @@ const DEFAULT_ROWS = (() => {
         tunggakan: 350000,
         janjiBayar: "2025-10-27",
         rekomendasi: "Selesaikan iuran tepat waktu.",
-        rincianArmada: [{ nopol: "B 7788 BTG", status: "Aktif", tindakLanjut: "Follow-up pembayaran" }],
+        rincianArmada: [
+          {
+            nopol: "B 7788 BTG",
+            status: "Aktif",
+            tindakLanjut: "Follow-up pembayaran",
+          },
+        ],
       },
       step3: {
         fotoKunjungan: ["https://picsum.photos/seed/crm5/600/360"],
@@ -255,36 +279,29 @@ const DEFAULT_ROWS = (() => {
   ];
 })();
 
-// ==== Notifikasi verifikasi (local only) ====
-const NOTIF_KEY = "crm:notif";
-function loadNotif() {
-  try { return JSON.parse(localStorage.getItem(NOTIF_KEY) || "[]"); }
-  catch { return []; }
-}
-function saveNotif(rows) {
-  localStorage.setItem(NOTIF_KEY, JSON.stringify(rows));
-}
-function addVerificationNotificationLocal({ reportId, status, note, waktuValidasi }) {
-  // pakai ISO biar aman diparse Date
-  const iso = waktuValidasi
+async function addVerificationNotification({
+  reportId,
+  status,
+  note,
+  waktuValidasi,
+  perusahaan,
+}) {
+  const ts = waktuValidasi
     ? new Date(waktuValidasi).toISOString()
     : new Date().toISOString();
 
-  const all = loadNotif();
-  const item = {
-    id: `notif-${Date.now()}`,            // unik
-    kind: "verification",
-    title: "Laporan diverifikasi",
-    message: `ID ${reportId} → ${status}${note ? ` — ${note}` : ""}`,
-    ts: iso,                              // <-- ISO string
-    read: false,
-    meta: { reportId, status, note }
-  };
-  const next = [item, ...all].slice(0, 200);
-  saveNotif(next);
+  const { data, error } = await supabase.from("crm_notifikasi").insert([
+    {
+      report_id: reportId,
+      perusahaan,
+      status,
+      note,
+      ts,
+      payload: { reportId, status, note, perusahaan },
+    },
+  ]);
 
-  // beri tahu halaman yang sama tab (storage event hanya cross-tab)
-  window.dispatchEvent(new Event("crm:notif:update"));
+  if (error) console.error("Gagal insert notif:", error);
 }
 
 export default function DataFormCrm({ data = [] }) {
@@ -365,11 +382,11 @@ export default function DataFormCrm({ data = [] }) {
             step2: {
               ...(r.step2 || {}),
               hasilKunjungan:
-              r.step2?.hasilKunjungan ||
-              r.step2?.penjelasanKunjungan ||
-              r.step2?.penjelasanHasil ||
-              "",
-            janjiBayar: r.step2?.janjiBayar || r.step2?.janji_bayar || "-",
+                r.step2?.hasilKunjungan ||
+                r.step2?.penjelasanKunjungan ||
+                r.step2?.penjelasanHasil ||
+                "",
+              janjiBayar: r.step2?.janjiBayar || r.step2?.janji_bayar || "-",
               rincianArmada, // <-- full list dari crm_armada
             },
             step3: r.step3 || {},
@@ -403,7 +420,6 @@ export default function DataFormCrm({ data = [] }) {
     if (!el) return;
     if (!e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
       el.scrollLeft += e.deltaY;
-      e.preventDefault();
     }
   }
 
@@ -434,6 +450,14 @@ export default function DataFormCrm({ data = [] }) {
 
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [verifyNote, setVerifyNote] = useState("");
+  const [verifyStatus, setVerifyStatus] = useState("Tervalidasi");
+  useEffect(() => {
+    if (!selected) return;
+
+    setVerifyOpen(false);
+    setVerifyNote(selected?.step4?.catatanValidasi || "");
+    setVerifyStatus(selected?.step4?.statusValidasi || "Pending");
+  }, [selected]);
 
   useEffect(() => {
     if (!selected) return;
@@ -463,7 +487,7 @@ export default function DataFormCrm({ data = [] }) {
     const newStep4 = {
       ...(selected.step4 || {}),
       validasiOleh: "Petugas",
-      statusValidasi: "Tervalidasi",
+      statusValidasi: verifyStatus,   // ⬅️ LANGSUNG DARI DROPDOWN
       catatanValidasi: verifyNote || "",
       waktuValidasi: ts,
     };
@@ -476,30 +500,29 @@ export default function DataFormCrm({ data = [] }) {
       .single();
 
     if (error) {
-      console.error("Gagal update verifikasi:", error);
       alert("Gagal menyimpan verifikasi.");
       return;
     }
 
     const finalStep4 = updated?.step4 || newStep4;
 
-    // sinkron state
     setRows((prev) =>
       prev.map((row) =>
         row.dbId === selected.dbId ? { ...row, step4: finalStep4 } : row
       )
     );
+
     setSelected((prev) => (prev ? { ...prev, step4: finalStep4 } : prev));
 
-    setVerifyOpen(false);
-
-    // 🔔 1) simpan notifikasi ke localStorage (dibaca NotifikasiBerkas)
-    addVerificationNotificationLocal({
-      reportId: selected.id,                // kode laporan yang kamu tampilkan
+    await addVerificationNotification({
+      reportId: selected.id,
       status: finalStep4.statusValidasi,
-      note: finalStep4.catatanValidasi,
+      note: finalStep4.catatanValidasi || "",
       waktuValidasi: finalStep4.waktuValidasi,
+      perusahaan: selected.step1?.perusahaan || "-",
     });
+
+    setVerifyOpen(false);
   };
 
   useEffect(() => {
@@ -545,7 +568,7 @@ export default function DataFormCrm({ data = [] }) {
     });
   }, [rows, query, filterJenis, filterValidasi]);
 
-    const PAGE_SIZE = 50;
+  const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
 
   // reset ke halaman 1 kalau filter / search berubah
@@ -559,132 +582,483 @@ export default function DataFormCrm({ data = [] }) {
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, page]);
 
-  function handleDownloadPdf(row) {
+  async function loadImageAsDataURL(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous"; // penting kalau src dari url
+      img.onload = () => {
+        const c = document.createElement("canvas");
+        c.width = img.naturalWidth;
+        c.height = img.naturalHeight;
+        const ctx = c.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        resolve(c.toDataURL("image/png"));
+      };
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  function drawKeyValue(doc, pad, y, label, value) {
+    const lineGap = 14;
+    const labelText = `${label}:`;
+    const valText = value ?? "-";
+
+    doc.setFont("helvetica", "bold");
+    doc.text(labelText, pad, y);
+
+    doc.setFont("helvetica", "normal");
+    const wrapped = doc.splitTextToSize(String(valText), 360);
+    doc.text(wrapped, pad + 140, y);
+
+    const lines = Math.max(1, wrapped.length);
+    return y + lineGap * lines;
+  }
+
+  function ensureSpace(doc, neededHeight, pad, y) {
+    const pageHeight = doc.internal.pageSize.height;
+    if (y + neededHeight > pageHeight - pad) {
+      doc.addPage();
+      return pad; // reset y di halaman baru
+    }
+    return y;
+  }
+
+  function checkPage(doc, y, pad, needed = 40) {
+    const pageHeight = doc.internal.pageSize.height;
+    if (y + needed >= pageHeight - pad) {
+      doc.addPage();
+      return pad;
+    }
+    return y;
+  }
+
+  function isImageFile(name = "") {
+    return /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
+  }
+
+  async function handleDownloadPdf(row) {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     const pad = 36;
     let y = pad;
 
-    // Header kawaii
-    doc.setDrawColor(147, 197, 253);
-    doc.setFillColor(224, 242, 254);
-    doc.roundedRect(pad, pad, 523, 60, 10, 10, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(14, 116, 144);
-    doc.setFontSize(16);
-    doc.text("LAPORAN CRM / DTD", pad + 12, y + 22);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(30, 41, 59);
+    // -----------------------------------------------------------
+    // HEADER
+    // -----------------------------------------------------------
+    const logoDataUrl = await loadImageAsDataURL("/assets/logo-bulat.png");
+    const logoSize = 34;
+
+    doc.addImage(
+      logoDataUrl,
+      "PNG",
+      pad + 523 - logoSize,
+      y,
+      logoSize,
+      logoSize
+    );
+
+    doc.setFont("times", "bold");
+    doc.setFontSize(14);
+    doc.text("LAPORAN CRM / DTD", pad, y + 14);
+
+    doc.setFont("times", "normal");
     doc.setFontSize(10);
     doc.text(
       `ID: ${row.id}  •  Validasi: ${row.step4.statusValidasi}`,
-      pad + 12,
-      y + 40
+      pad,
+      y + 28
     );
-    y += 80;
 
+    doc.line(pad, y + 36, pad + 523, y + 36);
+    y += 50;
+
+    // -----------------------------------------------------------
     // STEP 1
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(2, 132, 199);
-    doc.text("1) Tanggal, Petugas & Pemilik", pad, y);
-    y += 10;
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(30, 41, 59);
-    const s1 = [
+    // -----------------------------------------------------------
+    doc.setFont("times", "bold");
+    doc.setFontSize(11);
+    y = checkPage(doc, y, pad);
+    doc.text("1. Data Kunjungan", pad, y);
+    y += 16;
+
+    doc.setFont("times", "normal");
+    doc.setFontSize(10);
+
+    const step1Fields = [
       ["Tanggal & Waktu", row.step1.tanggalWaktu],
       ["Loket", row.step1.loket],
       [
         "Nama Petugas",
         `${row.step1.petugasDepan} ${row.step1.petugasBelakang}`,
       ],
-      ["Nama Perusahaan (PT/CV)", row.step1.perusahaan],
+      ["Perusahaan", row.step1.perusahaan],
       ["Jenis Angkutan", row.step1.jenisAngkutan],
-      ["Nama Pemilik/Pengelola", row.step1.namaPemilik],
+      ["Nama Pemilik", row.step1.namaPemilik],
       ["Alamat", row.step1.alamat],
-      ["No. Telepon/HP", row.step1.telepon],
+      ["No. Telepon", row.step1.telepon],
     ];
-    autoTable(doc, {
-      startY: y + 6,
-      head: [["Field", "Nilai"]],
-      body: s1,
-      theme: "grid",
-      styles: { fontSize: 9, cellPadding: 4 },
-      headStyles: { fillColor: [186, 230, 253], textColor: 30 },
-    });
-    y = doc.lastAutoTable.finalY + 18;
 
-    // STEP 2
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(2, 132, 199);
-    doc.text("2) Armada", pad, y);
+    for (let [label, val] of step1Fields) {
+      y = checkPage(doc, y, pad, 20);
+      y = drawKeyValue(doc, pad, y, label, val);
+    }
     y += 10;
-    const armadaRows = (row.step2.rincianArmada || []).map((r) => [
-      r.nopol,
-      r.status,
-      r.tindakLanjut,
-    ]);
-    autoTable(doc, {
-      startY: y + 6,
-      head: [["Nopol/Kapal", "Status", "Rekomendasi/Tindak Lanjut"]],
-      body: armadaRows.length ? armadaRows : [["-", "-", "-"]],
-      theme: "grid",
-      styles: { fontSize: 9, cellPadding: 4 },
-      headStyles: { fillColor: [186, 230, 253], textColor: 30 },
-    });
-    y = doc.lastAutoTable.finalY + 10;
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(30, 41, 59);
-    const step2Text = [
-      `Hasil Kunjungan: ${row.step2.hasilKunjungan || "-"}`,
-      `Penjelasan: ${row.step2.penjelasanHasil || "-"}`,
-      `Jumlah Tunggakan: ${formatRupiah(row.step2.tunggakan || 0)}`,
-      `Janji Bayar: ${row.step2.janjiBayar || "-"}`,
-    ];
-    step2Text.forEach((t, i) => doc.text(t, pad, y + 14 * (i + 1)));
-    y += 14 * (step2Text.length + 1);
 
-    // STEP 3
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(2, 132, 199);
-    doc.text("3) Upload & Penilaian", pad, y);
-    y += 10;
-    const s3 = [
-      ["Respon Pemilik/Pengelola", row.step3.responPemilik || "-"],
-      ["Ketaatan Perizinan", `${row.step3.ketaatanPerizinan || "-"}/5`],
-      ["Keramaian Penumpang", `${row.step3.keramaianPenumpang || "-"}/5`],
-    ];
-    autoTable(doc, {
-      startY: y + 6,
-      head: [["Aspek", "Nilai"]],
-      body: s3,
-      theme: "grid",
-      styles: { fontSize: 9, cellPadding: 4 },
-      headStyles: { fillColor: [186, 230, 253], textColor: 30 },
-    });
-    y = doc.lastAutoTable.finalY + 18;
+    // -----------------------------------------------------------
+    // STEP 2 - ARMADA
+    // -----------------------------------------------------------
+    doc.setFont("times", "bold");
+    doc.setFontSize(11);
+    y = checkPage(doc, y, pad);
+    doc.text("2. Armada", pad, y);
+    y += 16;
 
-    // STEP 4 & 5
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(2, 132, 199);
-    doc.text("4) Validasi", pad, y);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(30, 41, 59);
+    const rincian = row.step2.rincianArmada || [];
+    // ==== STEP 2 - ARMADA ====
+
+// Build table text (basic)
+const armadaBody = rincian.map((r, i) => [
+  i + 1,
+  r.nopol || "-",
+  r.status || "-",
+  `${r.tipeArmada || "-"}${r.tahun ? " (" + r.tahun + ")" : ""}`,
+  formatRupiah(Number(r.bayarOs || 0)),
+  r.rekomendasi || r.tindakLanjut || "-",
+  (Array.isArray(r.bukti) && r.bukti.length) ? "" : "-"
+]);
+
+  // ==== PRELOAD BUKTI Gambar untuk ARMADA ====
+  const buktiImages = {}; // { "row-file": dataURL }
+
+  for (let rIndex = 0; rIndex < rincian.length; rIndex++) {
+    const buktiList = rincian[rIndex]?.bukti || [];
+
+    for (let bIndex = 0; bIndex < buktiList.length; bIndex++) {
+      const f = buktiList[bIndex];
+
+      if (isImageFile(f.name)) {
+        try {
+          buktiImages[`${rIndex}-${bIndex}`] = await loadImageAsDataURL(f.url);
+        } catch {}
+      }
+    }
+  }
+
+  autoTable(doc, {
+    startY: y,
+    head: [[
+      "No", "Nopol", "Status", "Tipe/Tahun",
+      "OS Dibayar", "Rekomendasi", "Bukti"
+    ]],
+    body: armadaBody,
+    theme: "grid",
+    styles: { font: "times", fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [230, 230, 230] },
+
+    // 1) INI PENTING → BESARKAN ROW HEIGHT SEBELUM GAMBAR
+    willDrawCell: (data) => {
+      if (data.column.index === 6 && data.section === "body") {
+        const rIndex = data.row.index;
+        const buktiList = rincian[rIndex]?.bukti || [];
+
+        if (buktiList.length > 0) {
+          data.row.height = 48; // tinggi cell fix yang MUAT GAMBAR
+        }
+      }
+    },
+
+    // 2) GAMBAR BUKTI DALAM CELL
+    didDrawCell: (data) => {
+      // Hanya kolom Bukti
+      if (data.column.index !== 6 || data.cell.section !== "body") return;
+
+      const rIndex = data.row.index;
+      const buktiList = rincian[rIndex]?.bukti || [];
+      if (!buktiList.length) return;
+
+      // ---- batas cell ----
+      const cellX = data.cell.x;
+      const cellY = data.cell.y;
+      const cellW = data.cell.width;
+      const cellH = data.cell.height;
+
+      let dx = cellX + 2; // padding kiri
+      const maxH = cellH - 4; // tinggi maksimum dalam cell
+      const maxW = cellW - 4; // lebar maksimum dalam cell
+
+      buktiList.forEach((f, i) => {
+        const key = `${rIndex}-${i}`;
+        const url = f.url;
+
+        // ---- jika PDF ----
+        if (/\.pdf$/i.test(f.name)) {
+          const size = Math.min(maxW, maxH);
+
+          doc.setFontSize(7);
+          doc.text("PDF", dx + size / 2, cellY + size / 2 + 2, { align: "center" });
+
+          doc.rect(dx, cellY + 2, size, size);
+          doc.link(dx, cellY + 2, size, size, { url });
+
+          dx += size + 3;
+          return;
+        }
+
+        // ---- jika Gambar ----
+        const img = buktiImages[key];
+        if (!img) return;
+
+        // hitung ratio gambar
+        const temp = new Image();
+        temp.src = img;
+
+        let iw = temp.naturalWidth || 100;
+        let ih = temp.naturalHeight || 100;
+
+        let ratio = iw / ih;
+        let w = maxH * ratio;
+        let h = maxH;
+
+        // Jika terlalu lebar → kecilkan lagi
+        if (w > maxW) {
+          w = maxW;
+          h = w / ratio;
+        }
+
+        // gambar di posisi aman dalam cell
+        const cx = dx;
+        const cy = cellY + (cellH - h) / 2;
+
+        doc.addImage(img, "JPEG", cx, cy, w, h);
+        doc.link(cx, cy, w, h, { url });
+
+        dx += w + 3;
+      });
+    }
+  });
+
+  y = doc.lastAutoTable.finalY + 12;
+
+    // Summary
+    doc.setFont("times", "normal");
+    y = checkPage(doc, y, pad);
     doc.text(
-      `Validasi oleh: ${row.step4.validasiOleh}  •  Status: ${row.step4.statusValidasi}  •  Waktu: ${row.step4.waktuValidasi}`,
+      `Total OS Harus Dibayar: ${formatRupiah(row.totalOS || 0)}`,
       pad,
-      y + 14
+      y
     );
-    doc.text(`Wilayah: ${row.step4.wilayah || "-"}`, pad, y + 28);
-    y += 44;
+    y += 14;
+    doc.text(`Hasil Kunjungan : ${row.step2.hasilKunjungan || "-"}`, pad, y);
+    y += 14;
+    doc.text(`Penjelasan      : ${row.step2.penjelasanHasil || "-"}`, pad, y);
+    y += 14;
+    doc.text(`Janji Bayar     : ${row.step2.janjiBayar || "-"}`, pad, y);
+    y += 24;
 
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(2, 132, 199);
-    doc.text("5) Pesan & Saran", pad, y);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(30, 41, 59);
-    doc.text(`Pesan: ${row.step5.pesan || "-"}`.substring(0, 150), pad, y + 14);
-    doc.text(`Saran: ${row.step5.saran || "-"}`.substring(0, 150), pad, y + 28);
+    // -----------------------------------------------------------
+    // STEP 3 – Upload & Penilaian
+    // -----------------------------------------------------------
+    doc.setFont("times", "bold");
+    doc.text("3. Upload & Penilaian", pad, y);
+    y += 18;
 
-    doc.save(`${row.id}_Laporan_CRM.pdf`);
+    // ====== FILE TERLAMPIR ======
+    doc.text("File Terlampir:", pad, y);
+    y += 14;
+
+    const files = [
+      ...(row.step3.suratPernyataan || []),
+      ...(row.step3.evidence || []),
+    ];
+
+    if (!files.length) {
+      doc.setFont("times", "normal");
+      doc.text("- Tidak ada file", pad, y);
+      y += 14;
+    } else {
+      for (let f of files) {
+        y = checkPage(doc, y, pad, 16);
+
+        if (isImageFile(f.name)) {
+          // tampilkan gambar
+          const dataURL = await loadImageAsDataURL(f.url);
+          const maxW = 140;
+          const maxH = 110;
+
+          const img2 = new Image();
+
+          await new Promise((resolve, reject) => {
+            img2.onload = resolve;
+            img2.onerror = reject;
+            img2.src = dataURL;
+          });
+
+          // ukuran asli
+          let iw = img2.naturalWidth;
+          let ih = img2.naturalHeight;
+          if (!iw || !ih) { iw = 100; ih = 100; } // fallback
+
+          let ratio2 = iw / ih;
+          if (!isFinite(ratio2) || ratio2 <= 0) ratio2 = 1;
+
+          // scaling aman
+          let w2 = maxW;
+          let h2 = w2 / ratio2;
+
+          if (h2 > maxH) {
+            h2 = maxH;
+            w2 = h2 * ratio2;
+          }
+
+          doc.addImage(dataURL, "JPEG", pad, y, w2, h2);
+          y += h2 + 12;
+        } else {
+          // tampilkan link PDF / file
+          doc.setFont("times", "normal");
+          doc.text(`• ${f.name}`, pad, y);
+          doc.link(pad, y - 10, 200, 20, { url: f.url });
+          y += 18;
+        }
+      }
+    }
+
+    y += 10;
+
+    // ====== PENILAIAN ======
+    doc.setFont("times", "bold");
+    doc.text("Penilaian:", pad, y);
+    y += 16;
+
+    doc.setFont("times", "normal");
+    const penilaian = [
+      `Respon Pemilik/Pengelola: ${row.step3.responPemilik || "-"}`,
+      `Ketaatan Perizinan      : ${row.step3.ketaatanPerizinan || "-"}/5`,
+      `Keramaian Penumpang     : ${row.step3.keramaianPenumpang || "-"}/5`,
+    ];
+
+    penilaian.forEach((t) => {
+      y = checkPage(doc, y, pad, 16);
+      doc.text(t, pad, y);
+      y += 14;
+    });
+
+    y += 10;
+
+    // -----------------------------------------------------------
+    // FOTO KUNJUNGAN
+    // -----------------------------------------------------------
+    const maxW = 180;
+    const maxH = 130;
+
+    if (row.step3.fotoKunjungan?.length) {
+      doc.setFont("times", "bold");
+      y = checkPage(doc, y, pad, 20);
+      doc.text("Foto Kunjungan:", pad, y);
+      y += 10;
+
+      let x = pad;
+
+      for (let src of row.step3.fotoKunjungan) {
+        try {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+
+          await new Promise((res, rej) => {
+            img.onload = res;
+            img.onerror = rej;
+            img.src = src;
+          });
+
+          const ratio = img.naturalWidth / img.naturalHeight;
+
+          let w = maxW;
+          let h = w / ratio;
+
+          if (h > maxH) {
+            h = maxH;
+            w = h * ratio;
+          }
+
+          const dataURL = await loadImageAsDataURL(src);
+
+          // cek halaman
+          y = checkPage(doc, y, pad, h + 20);
+
+          // cek horizontal overflow
+          if (x + w > pad + 523) {
+            x = pad;
+            y += maxH + 20;
+          }
+
+          doc.addImage(dataURL, "JPEG", x, y, w, h);
+          x += w + 15;
+        } catch (e) {
+          console.warn("Gagal load foto:", src, e);
+        }
+      }
+
+      y += maxH + 20;
+    }
+
+    // -----------------------------------------------------------
+    // STEP 4 – Validasi
+    // -----------------------------------------------------------
+    doc.setFont("times", "bold");
+    doc.text("4. Validasi", pad, y);
+    y += 16;
+
+    doc.setFont("times", "normal");
+
+    const val = [
+      `Validasi oleh : ${row.step4.validasiOleh || "-"}`,
+      `Status        : ${row.step4.statusValidasi || "-"}`,
+      `Waktu         : ${row.step4.waktuValidasi || "-"}`,
+      `Wilayah       : ${row.step4.wilayah || "-"}`,
+      `Catatan       : ${row.step4.catatanValidasi || "-"}`,
+    ];
+
+    for (let t of val) {
+      y = checkPage(doc, y, pad, 16);
+      doc.text(t, pad, y);
+      y += 14;
+    }
+
+    y += 20;
+
+    // -----------------------------------------------------------
+    // STEP 5 – Pesan & Saran
+    // -----------------------------------------------------------
+    doc.setFont("times", "bold");
+    doc.text("5. Pesan & Saran", pad, y);
+    y += 16;
+
+    doc.setFont("times", "normal");
+
+    const p = doc.splitTextToSize(`Pesan: ${row.step5.pesan || "-"}`, 523);
+    const s = doc.splitTextToSize(`Saran: ${row.step5.saran || "-"}`, 523);
+
+    p.forEach((line) => {
+      y = checkPage(doc, y, pad, 16);
+      doc.text(line, pad, y);
+      y += 14;
+    });
+
+    y += 6;
+
+    s.forEach((line) => {
+      y = checkPage(doc, y, pad, 16);
+      doc.text(line, pad, y);
+      y += 14;
+    });
+
+    // -----------------------------------------------------------
+    // SAVE
+    // -----------------------------------------------------------
+    const perusahaanSafe = (row.step1.perusahaan || "Perusahaan")
+      .replace(/[^a-z0-9 ]/gi, "")
+      .replace(/\s+/g, "_");
+
+    doc.save(`Laporan_CRM_${perusahaanSafe}.pdf`);
   }
 
   return (
@@ -764,18 +1138,18 @@ export default function DataFormCrm({ data = [] }) {
           <tbody>
             {paginated.map((d) => {
               const s2 = d.step2 || {};
-              const rincian = Array.isArray(s2.rincianArmada) ? s2.rincianArmada : [];
+              const rincian = Array.isArray(s2.rincianArmada)
+                ? s2.rincianArmada
+                : [];
 
-              const semuaNopol = rincian
-                .map((r) => r.nopol)
-                .filter(Boolean);
+              const semuaNopol = rincian.map((r) => r.nopol).filter(Boolean);
 
               const totalArmada =
                 semuaNopol.length || (s2.nopolAtauNamaKapal ? 1 : 0);
 
               const nopolDisplay =
                 semuaNopol.length === 0
-                  ? (s2.nopolAtauNamaKapal || "-")
+                  ? s2.nopolAtauNamaKapal || "-"
                   : semuaNopol.length <= 2
                   ? semuaNopol.join(", ")
                   : `${semuaNopol[0]}, ${semuaNopol[1]} (+${
@@ -784,7 +1158,7 @@ export default function DataFormCrm({ data = [] }) {
 
               const statusDisplay =
                 totalArmada <= 1
-                  ? (s2.statusKendaraan || "-")
+                  ? s2.statusKendaraan || "-"
                   : `Lihat detail (${totalArmada} armada)`;
 
               const statusTone =
@@ -828,13 +1202,16 @@ export default function DataFormCrm({ data = [] }) {
                   <td>{d.step2.janjiBayar}</td>
                   <td>
                     {d.step3.ketertibanOperasional}/5 •{" "}
-                    {d.step3.ketaatanPerizinan}/5 • {d.step3.keramaianPenumpang}/5
+                    {d.step3.ketaatanPerizinan}/5 • {d.step3.keramaianPenumpang}
+                    /5
                   </td>
                   <td>
                     <Badge
                       tone={
                         d.step4.statusValidasi === "Tervalidasi"
                           ? "green"
+                          : d.step4.statusValidasi === "Pending"
+                          ? "blue"
                           : d.step4.statusValidasi === "Menunggu"
                           ? "amber"
                           : "red"
@@ -865,24 +1242,31 @@ export default function DataFormCrm({ data = [] }) {
           </tbody>
         </table>
       </section>
-            {/* Pagination */}
+      {/* Pagination */}
       {filtered.length > PAGE_SIZE && (
-        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12}}>
-          <div style={{fontSize:12, color:"#475569"}}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginTop: 12,
+          }}
+        >
+          <div style={{ fontSize: 12, color: "#475569" }}>
             Halaman {page} / {totalPages} • Total data: {filtered.length}
           </div>
-          <div style={{display:"flex", gap:8}}>
+          <div style={{ display: "flex", gap: 8 }}>
             <button
               className="btn btn-soft"
               disabled={page <= 1}
-              onClick={() => setPage(p => Math.max(1, p - 1))}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               ← Prev
             </button>
             <button
               className="btn btn-soft"
               disabled={page >= totalPages}
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             >
               Next →
             </button>
@@ -912,9 +1296,14 @@ export default function DataFormCrm({ data = [] }) {
                 >
                   Download PDF
                 </button>
-                <button className="btn success" onClick={() => setVerifyOpen(v => !v)}>
-                  {verifyOpen ? "Tutup Verifikasi" : "Verifikasi"}
+
+                <button
+                  className="btn primary"
+                  onClick={() => setVerifyOpen((v) => !v)}
+                >
+                  {verifyOpen ? "Tutup Panel" : "Verifikasi"}
                 </button>
+
                 <button className="btn" onClick={() => setSelected(null)}>
                   Tutup
                 </button>
@@ -924,7 +1313,19 @@ export default function DataFormCrm({ data = [] }) {
             <div className="dfc-modal-body">
               {verifyOpen && (
                 <Section title="Verifikasi">
-                  <div className="field" style={{gridColumn: "1 / -1"}}>
+                  <div className="field" style={{ gridColumn: "1 / -1" }}>
+                    <label>Status Validasi</label>
+
+                    <select
+                      className={`verify-select ${verifyStatus.toLowerCase()}`}
+                      value={verifyStatus}
+                      onChange={(e) => setVerifyStatus(e.target.value)}
+                    >
+                      <option value="Tervalidasi">✅ Tervalidasi</option>
+                      <option value="Pending">⏳ Pending</option>
+                    </select>
+                  </div>
+                  <div className="field" style={{ gridColumn: "1 / -1" }}>
                     <label>Catatan Verifikasi (opsional)</label>
                     <textarea
                       rows={3}
@@ -936,9 +1337,19 @@ export default function DataFormCrm({ data = [] }) {
                       Menyimpan akan mengubah status menjadi <b>Tervalidasi</b>.
                     </small>
                   </div>
-                  <div className="dfc-modal-actions" style={{marginTop: 8}}>
-                    <button className="btn ghost" onClick={() => setVerifyOpen(false)}>Batal</button>
-                    <button className="btn primary" onClick={handleSaveVerification}>Simpan Verifikasi</button>
+                  <div className="dfc-modal-actions" style={{ marginTop: 8 }}>
+                    <button
+                      className="btn ghost"
+                      onClick={() => setVerifyOpen(false)}
+                    >
+                      Batal
+                    </button>
+                    <button
+                      className="btn primary"
+                      onClick={handleSaveVerification}
+                    >
+                      Simpan Verifikasi
+                    </button>
                   </div>
                 </Section>
               )}
@@ -954,7 +1365,10 @@ export default function DataFormCrm({ data = [] }) {
                     label="Nama Petugas"
                     value={`${selected.step1.petugasDepan} ${selected.step1.petugasBelakang}`}
                   />
-                  <Item label="Nama Perusahaan (PT/CV)" value={selected.step1.perusahaan} />
+                  <Item
+                    label="Nama Perusahaan (PT/CV)"
+                    value={selected.step1.perusahaan}
+                  />
                   <Item
                     label="Jenis Angkutan"
                     value={selected.step1.jenisAngkutan}
@@ -986,7 +1400,11 @@ export default function DataFormCrm({ data = [] }) {
                       <dl className="grid-2">
                         <Item
                           label="Hasil Kunjungan"
-                          value={selected.step2.hasilKunjungan || selected.step2.penjelasanKunjungan || "-"}
+                          value={
+                            selected.step2.hasilKunjungan ||
+                            selected.step2.penjelasanKunjungan ||
+                            "-"
+                          }
                         />
                         <Item
                           label="Total OS yang harus dibayar"
@@ -1016,7 +1434,9 @@ export default function DataFormCrm({ data = [] }) {
                             <tbody>
                               {rincian.map((a, idx) => {
                                 const rawOs = Number(a.bayarOs);
-                                const osValue = Number.isFinite(rawOs) ? rawOs : 0;
+                                const osValue = Number.isFinite(rawOs)
+                                  ? rawOs
+                                  : 0;
 
                                 const tipe = a.tipeArmada || "Tidak diisi";
                                 const tahun = a.tahun ? ` (${a.tahun})` : "";
@@ -1028,18 +1448,32 @@ export default function DataFormCrm({ data = [] }) {
                                     <td>{a.status || "-"}</td>
                                     <td>{`${tipe}${tahun}`}</td>
                                     <td>{formatRupiah(osValue)}</td>
-                                    <td>{a.rekomendasi || a.tindakLanjut || "-"}</td>
                                     <td>
-                                      {Array.isArray(a.bukti) && a.bukti.length > 0 ? (
+                                      {a.rekomendasi || a.tindakLanjut || "-"}
+                                    </td>
+                                    <td>
+                                      {Array.isArray(a.bukti) &&
+                                      a.bukti.length > 0 ? (
                                         a.bukti.map((f, i) => (
                                           <div key={i}>
-                                            <a href={f.url} target="_blank" rel="noreferrer">
+                                            <a
+                                              href={f.url}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                            >
                                               {f.name || `Bukti ${i + 1}`}
                                             </a>
                                           </div>
                                         ))
                                       ) : (
-                                        <span style={{ fontSize: 11, color: "#94a3b8" }}>Tidak ada</span>
+                                        <span
+                                          style={{
+                                            fontSize: 11,
+                                            color: "#94a3b8",
+                                          }}
+                                        >
+                                          Tidak ada
+                                        </span>
                                       )}
                                     </td>
                                   </tr>
@@ -1099,7 +1533,8 @@ export default function DataFormCrm({ data = [] }) {
                     value={`${selected.step3.keramaianPenumpang}/5`}
                   />
                 </div>
-                {(selected.step3.tandaTanganPetugas || selected.step3.tandaTanganPemilik) && (
+                {(selected.step3.tandaTanganPetugas ||
+                  selected.step3.tandaTanganPemilik) && (
                   <div className="signatures">
                     {selected.step3.tandaTanganPetugas && (
                       <div className="sig-card">
@@ -1112,7 +1547,9 @@ export default function DataFormCrm({ data = [] }) {
                     )}
                     {selected.step3.tandaTanganPemilik && (
                       <div className="sig-card">
-                        <div className="sig-label">Tanda Tangan Pemilik/Pengelola</div>
+                        <div className="sig-label">
+                          Tanda Tangan Pemilik/Pengelola
+                        </div>
                         <img
                           src={selected.step3.tandaTanganPemilik}
                           alt="Tanda tangan pemilik/pengelola"
@@ -1518,6 +1955,57 @@ table.dfc-table{
 .btn.btn-soft {
   color: #0284c7 !important;  /* biru, biar kebaca di background putih */
 }
+.badge.blue.dot::before {
+  background: #3b82f6;
+}
+/* === VERIFICATION SELECT === */
+.verify-select{
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+
+  width:100%;
+  padding:12px 44px 12px 14px;
+  border-radius:18px;
+  font-size:14px;
+  font-weight:700;
+  cursor:pointer;
+
+  border:2px solid var(--sky-200);
+  background:
+    linear-gradient(180deg, #ffffff, #f0f9ff),
+    url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230284c7' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>")
+    no-repeat right 14px center / 16px;
+
+  transition:all .15s ease;
+  box-shadow:var(--shadow);
+}
+
+.verify-select:focus{
+  outline:none;
+  border-color:var(--sky-400);
+  box-shadow:0 0 0 3px rgba(59,130,246,.25);
+}
+
+/* === STATUS COLORS === */
+.verify-select.tervalidasi{
+  background-color:#ecfeff;
+  border-color:#22c55e;
+  color:#166534;
+}
+
+.verify-select.pending{
+  background-color:#eff6ff;
+  border-color:#3b82f6;
+  color:#1e3a8a;
+}
+
+.verify-select.ditolak{
+  background-color:#fff1f2;
+  border-color:#ef4444;
+  color:#7f1d1d;
+}
 `}</style>
     </div>
   );
@@ -1646,14 +2134,23 @@ function KawaiiCloud() {
   );
 }
 
-function formatRupiah(n) {
-  try {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(n);
-  } catch {
-    return `Rp ${n}`;
-  }
+function formatRupiah(value) {
+  if (value == null) return "Rp 0";
+
+  // ubah string jadi angka aman
+  let str = String(value).replace(/[^0-9,-]/g, ""); // buang huruf
+  str = str.replace(/\./g, ""); // buang separator ribuan seperti 100.000
+  str = str.replace(/,/g, "."); // kalau ada koma → ganti jadi titik
+
+  const num = Number(str);
+
+  if (isNaN(num)) return "Rp 0";
+
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(num);
 }
+
