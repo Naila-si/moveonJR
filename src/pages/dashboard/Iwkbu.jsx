@@ -126,7 +126,6 @@ export default function Iwkbu() {
   const [filterKonfirmasi, setFilterKonfirmasi] =
     usePersistentState("iwkbu:filter:konfirmasi", "");
   
-  
   const [WILAYAH_FILTER_OPTS, setWilayahFilterOpts] = useState([]);
   const [LOKET_FILTER_OPTS, setLoketFilterOpts] = useState([]);
   const [TRAYEK_FILTER_OPTS, setTrayekFilterOpts] = useState([]);
@@ -218,6 +217,18 @@ export default function Iwkbu() {
     nilai_pemeliharaan_os: Number(r.nilaiPemeliharaanOs || 0),
     keterangan: r.keterangan || null,
   });
+
+  //Hitung Total Tarif
+  const totalTarif = rows.reduce(
+    (sum, r) => sum + Number(r.tarif || 0),
+    0
+  );
+
+  //Hitung Total Nominal
+  const totalNominal = rows.reduce(
+    (sum, r) => sum + Number(r.nominal || 0),
+    0
+  );
 
   const fetchFilterOptions = async () => {
     try {
@@ -1469,6 +1480,31 @@ export default function Iwkbu() {
               )}
             </tbody>
           </table>
+          <div className="df-summary">
+            <div
+              style={{
+                padding: "4px 8px",
+                borderRadius: "8px",
+                background: "#e8f4fd",
+                border: "1px solid #bee3f8",
+                fontWeight: 600,
+              }}
+            >
+              💸 Total Tarif: <b>{idr(totalTarif)}</b>
+            </div>
+
+            <div
+              style={{
+                padding: "4px 8px",
+                borderRadius: "8px",
+                background: "#fff4e5",
+                border: "1px solid #ffd8a8",
+                fontWeight: 600,
+              }}
+            >
+              🧾 Total IWKBU: <b>{idr(totalNominal)}</b>
+            </div>
+          </div>
         </div>
 
         {/* Pagination */}
