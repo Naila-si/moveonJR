@@ -718,6 +718,72 @@ const armadaBody = rincian.map((r, i) => [
     }
 
     // -----------------------------------------------------------
+    // TANDA TANGAN (PETUGAS & PEMILIK)
+    // -----------------------------------------------------------
+    const ttdPetugas = row.step3?.tandaTanganPetugas;
+    const ttdPemilik = row.step3?.tandaTanganPemilik;
+
+    if (ttdPetugas || ttdPemilik) {
+      doc.setFont("times", "bold");
+      y = checkPage(doc, y, pad, 40);
+      doc.text("Tanda Tangan", pad, y);
+      y += 12;
+
+      const maxW = 140;
+      const maxH = 90;
+      let x = pad;
+
+      // === TTD PETUGAS ===
+      if (ttdPetugas) {
+        try {
+          const imgPetugas = await loadImageAsDataURL(ttdPetugas);
+
+          doc.setFont("times", "normal");
+          doc.text("Petugas", x, y + 12);
+
+          doc.addImage(
+            imgPetugas,
+            "PNG",
+            x,
+            y + 18,
+            maxW,
+            maxH,
+            undefined,
+            "FAST"
+          );
+
+          x += maxW + 40;
+        } catch (e) {
+          console.warn("Gagal load TTD Petugas", e);
+        }
+      }
+
+      // === TTD PEMILIK ===
+      if (ttdPemilik) {
+        try {
+          const imgPemilik = await loadImageAsDataURL(ttdPemilik);
+
+          doc.setFont("times", "normal");
+          doc.text("Pemilik / Pengelola", x, y + 12);
+
+          doc.addImage(
+            imgPemilik,
+            "PNG",
+            x,
+            y + 18,
+            maxW,
+            maxH,
+            undefined,
+            "FAST"
+          );
+        } catch (e) {
+          console.warn("Gagal load TTD Pemilik", e);
+        }
+      }
+
+      y += maxH + 30;
+    }
+    // -----------------------------------------------------------
     // STEP 4 – Validasi
     // -----------------------------------------------------------
     doc.setFont("times", "bold");

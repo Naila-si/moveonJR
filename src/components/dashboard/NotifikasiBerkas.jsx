@@ -479,6 +479,41 @@ async function downloadPdfFromRow(row) {
     y += maxH + 20;
   }
 
+  // -----------------------------------------------------------
+  // TANDA TANGAN (PETUGAS & PEMILIK)
+  // -----------------------------------------------------------
+  const ttdPetugas = row.step3?.tandaTanganPetugas;
+  const ttdPemilik  = row.step3?.tandaTanganPemilik;
+
+  if (ttdPetugas || ttdPemilik) {
+    doc.setFont("times", "bold");
+    y = checkPage(doc, y, pad, 40);
+    doc.text("Tanda Tangan", pad, y);
+    y += 12;
+
+    const maxW = 140;
+    const maxH = 90;
+    let x = pad;
+
+    // === TTD PETUGAS ===
+    if (ttdPetugas) {
+      const imgPetugas = await loadImageAsDataURL(ttdPetugas);
+      doc.setFont("times", "normal");
+      doc.text("Petugas", x, y + 12);
+      doc.addImage(imgPetugas, "PNG", x, y + 18, maxW, maxH);
+      x += maxW + 40;
+    }
+
+    // === TTD PEMILIK ===
+    if (ttdPemilik) {
+      const imgPemilik = await loadImageAsDataURL(ttdPemilik);
+      doc.text("Pemilik / Pengelola", x, y + 12);
+      doc.addImage(imgPemilik, "PNG", x, y + 18, maxW, maxH);
+    }
+
+    y += maxH + 30;
+  }
+
   /* STEP 4 */
   doc.setFont("times", "bold");
   doc.text("4. Validasi", pad, y);
@@ -510,6 +545,26 @@ async function downloadPdfFromRow(row) {
     .replace(/\s+/g, "_");
 
   doc.save(`Laporan_CRM_${perusahaanSafe}.pdf`);
+}
+
+function mapStatusLabel(status) {
+  if (!status) return "Diproses";
+
+  const s = String(status).toLowerCase();
+
+  if (s === "pending" || s === "menunggu") return "Pending";
+
+  if (
+    s === "tervalidasi" ||
+    s === "validated" ||
+    s === "approved" ||
+    s === "selesai"
+  )
+    return "Selesai";
+
+  if (s === "ditolak" || s === "rejected") return "Ditolak";
+
+  return "Diproses";
 }
 
 export default function NotifikasiBerkas() {
@@ -671,7 +726,19 @@ export default function NotifikasiBerkas() {
                   filtered.map((it) => (
                     <tr key={it.id}>
                       <td>{it?.perusahaan || "-"}</td>
-                      <td><span className="badge">{it?.status || "-"}</span></td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            mapStatusLabel(it?.status) === "Selesai"
+                              ? "badge-success"
+                              : mapStatusLabel(it?.status) === "Pending"
+                              ? "badge-pending"
+                              : "badge-process"
+                          }`}
+                        >
+                          {mapStatusLabel(it?.status)}
+                        </span>
+                      </td>
                       <td>{it?.note || "-"}</td>
                       <td>{new Date(it.ts).toLocaleString()}</td>
 
@@ -1013,5 +1080,19 @@ html, body, .notif-page {
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
+}
+  .badge-success {
+  background: linear-gradient(180deg, #e6fff0, #bdf5d1);
+  color: #1e7a3d;
+}
+
+.badge-pending {
+  background: linear-gradient(180deg, #fff8e1, #ffe29a);
+  color: #8a6d00;
+}
+
+.badge-process {
+  background: linear-gradient(180deg, #eef5ff, #cfe0ff);
+  color: #274c9b;
 }
 `;
