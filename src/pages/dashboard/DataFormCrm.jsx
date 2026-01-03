@@ -173,13 +173,14 @@ export default function DataFormCrm() {
 
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [verifyNote, setVerifyNote] = useState("");
-  const [verifyStatus, setVerifyStatus] = useState("Tervalidasi");
+  const [verifyStatus, setVerifyStatus] = useState("");
+
   useEffect(() => {
     if (!selected) return;
 
     setVerifyOpen(false);
     setVerifyNote(selected?.step4?.catatanValidasi || "");
-    setVerifyStatus(selected?.step4?.statusValidasi || "Pending");
+    setVerifyStatus(selected?.step4?.statusValidasi ?? "");
   }, [selected]);
 
   useEffect(() => {
@@ -201,6 +202,11 @@ export default function DataFormCrm() {
   const handleSaveVerification = async () => {
     if (!selected || !selected.dbId) return;
 
+    if (!verifyStatus) {
+      alert("Silakan pilih status validasi.");
+      return;
+    }
+    
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
@@ -1073,14 +1079,17 @@ const armadaBody = rincian.map((r, i) => [
                   <div className="field" style={{ gridColumn: "1 / -1" }}>
                     <label>Status Validasi</label>
 
-                    <select
-                      className={`verify-select ${verifyStatus.toLowerCase()}`}
-                      value={verifyStatus}
-                      onChange={(e) => setVerifyStatus(e.target.value)}
-                    >
-                      <option value="Tervalidasi">✅ Tervalidasi</option>
-                      <option value="Pending">⏳ Pending</option>
-                    </select>
+                   <select
+                    className={`verify-select ${verifyStatus.toLowerCase()}`}
+                    value={verifyStatus}
+                    onChange={(e) => setVerifyStatus(e.target.value)}
+                  >
+                    {/* OPTION KOSONG → TIDAK KELIHATAN */}
+                    <option value="" hidden />
+
+                    <option value="Tervalidasi">✅ Tervalidasi</option>
+                    <option value="Pending">⏳ Pending</option>
+                  </select>
                   </div>
                   <div className="field" style={{ gridColumn: "1 / -1" }}>
                     <label>Catatan Verifikasi (opsional)</label>
