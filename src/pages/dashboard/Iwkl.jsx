@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import "../../views/dashboard/Iwkl.css";
-import { supabase } from "../../lib/supabaseClient"; // sesuaikan path-nya ya
+import { supabase } from "../../lib/supabaseClient";
+import * as XLSX from "xlsx";
 
 function usePersistentState(key, initialValue) {
   const [state, setState] = useState(() => {
@@ -291,6 +292,143 @@ export default function IwklSimple() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tahunAktif, setTahunAktif] = useState(2024);
+
+  const exportIwklToExcel = async () => {
+    try {
+      // ===============================
+      // 1. Ambil data IWKL (pakai filter)
+      // ===============================
+      let query = supabase
+        .from("iwkl")
+        .select("*")
+        .order("id", { ascending: true });
+
+      if (filterLoket) query = query.eq("loket", filterLoket);
+      if (filterKelas) query = query.eq("kelas", filterKelas);
+      if (filterStatusPKS) query = query.eq("status_pks", filterStatusPKS);
+      if (filterStatusKapal) query = query.eq("status_kapal", filterStatusKapal);
+      if (filterTrayek) query = query.eq("trayek", filterTrayek);
+
+      const { data: iwklData, error } = await query;
+      if (error) throw error;
+
+      // ===============================
+      // 2. Ambil data BULANAN (tahun aktif)
+      // ===============================
+      const { data: bulanData, error: errBulan } = await supabase
+        .from("iwkl_bulanan")
+        .select("*")
+        .eq("tahun", tahunAktif);
+
+      if (errBulan) throw errBulan;
+
+      // kelompokkan bulanan per iwkl_id
+      const grouped = {};
+      (bulanData || []).forEach((b) => {
+        if (!grouped[b.iwkl_id]) grouped[b.iwkl_id] = {};
+        const key = monthFromIndex[b.bulan];
+        if (key) grouped[b.iwkl_id][key] = Number(b.nilai) || 0;
+      });
+
+      // ===============================
+      // 3. Bentuk data Excel
+      // ===============================
+      const excelData = (iwklData || []).map((r, i) => {
+        const bulan = grouped[r.id] || {};
+        const totalJanDes = monthKeys.reduce(
+          (sum, k) => sum + Number(bulan[k] || 0),
+          0
+        );
+
+        return {
+          "No": i + 1,
+          "Loket": r.loket,
+          "Kelas": r.kelas,
+          "Nama Kapal": r.nama_kapal,
+          "Nama Perusahaan": r.nama_perusahaan,
+          "Nama Pemilik": r.nama_pemilik,
+          "Status PKS": r.status_pks,
+          "Status Kapal": r.status_kapal,
+          "Trayek": r.trayek,
+          "Potensi / Bulan (Rp)": r.potensi_per_bulan,
+          "Total Jan–Des (Rp)": totalJanDes,
+          "% Akt 24–23": r.persen_akt_24_23,
+
+          // Bulanan
+          "Jan": bulan.jan || 0,
+          "Feb": bulan.feb || 0,
+          "Mar": bulan.mar || 0,
+          "Apr": bulan.apr || 0,
+          "Mei": bulan.mei || 0,
+          "Jun": bulan.jun || 0,
+          "Jul": bulan.jul || 0,
+          "Agust": bulan.agust || 0,
+          "Sept": bulan.sept || 0,
+          "Okt": bulan.okt || 0,
+          "Nov": bulan.nov || 0,
+          "Des": bulan.des || 0,
+
+          "Keterangan": r.keterangan,
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(excelData);
+
+      // ===============================
+      // 4. AUTO WIDTH KOLOM
+      // ===============================
+      ws["!cols"] = Object.keys(excelData[0] || {}).map((key) => ({
+        wch:
+          Math.max(
+            key.length,
+            ...excelData.map((r) => String(r[key] ?? "").length)
+          ) + 2,
+      }));
+
+      // ===============================
+      // 5. HEADER BOLD
+      // ===============================
+      const range = XLSX.utils.decode_range(ws["!ref"]);
+      for (let C = range.s.c; C <= range.e.c; C++) {
+        const cell = ws[XLSX.utils.encode_cell({ r: 0, c: C })];
+        if (cell) {
+          cell.s = {
+            font: { bold: true },
+            alignment: { horizontal: "center" },
+          };
+        }
+      }
+
+      // ===============================
+      // 6. FORMAT RUPIAH
+      // ===============================
+      Object.keys(ws).forEach((k) => {
+        if (k.startsWith("!")) return;
+        const cell = ws[k];
+        if (typeof cell.v === "number") {
+          cell.t = "n";
+          cell.z = '"Rp"#,##0';
+        }
+      });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(
+        wb,
+        ws,
+        `IWKL_${tahunAktif}`
+      );
+
+      XLSX.writeFile(
+        wb,
+        `Data_IWKL_${tahunAktif}_${new Date()
+          .toISOString()
+          .slice(0, 10)}.xlsx`
+      );
+    } catch (e) {
+      console.error(e);
+      alert("Gagal export Excel IWKL");
+    }
+  };
 
   // ================= FILTERS (persistent) =================
   const [filterLoket, setFilterLoket] = usePersistentState(
@@ -731,6 +869,9 @@ export default function IwklSimple() {
               }}
             >
               + Tambah Data IWKL
+            </button>
+            <button className="btn ghost" onClick={exportIwklToExcel}>
+              📥 Export Excel
             </button>
           </div>
 

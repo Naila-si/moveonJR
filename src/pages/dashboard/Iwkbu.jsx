@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import "../../views/dashboard/Iwkbu.css";
 import { supabase } from "../../lib/supabaseClient";
+import * as XLSX from "xlsx";
 
 function usePersistentState(key, initialValue) {
   const [state, setState] = useState(() => {
@@ -217,6 +218,116 @@ export default function Iwkbu() {
     nilai_pemeliharaan_os: Number(r.nilaiPemeliharaanOs || 0),
     keterangan: r.keterangan || null,
   });
+
+  const exportToExcel = async () => {
+    try {
+      let query = supabase
+        .from("iwkbu")
+        .select("*")
+        .order("id", { ascending: true });
+
+      // 🔹 PAKAI FILTER AKTIF (SAMA PERSIS SEPERTI fetchRows)
+      if (filterWilayah) query = query.eq("wilayah", filterWilayah);
+      if (filterLoket) query = query.eq("loket", filterLoket);
+      if (filterTrayek) query = query.eq("trayek", filterTrayek);
+      if (filterJenis) query = query.eq("jenis", filterJenis);
+      if (filterPIC) query = query.eq("pic", filterPIC);
+      if (filterBadanHukum) query = query.eq("badan_hukum", filterBadanHukum);
+      if (filterNamaPerusahaan)
+        query = query.ilike("nama_perusahaan", `%${filterNamaPerusahaan}%`);
+      if (filterStatusBayar) query = query.eq("status_bayar", filterStatusBayar);
+      if (filterStatusKendaraan)
+        query = query.eq("status_kendaraan", filterStatusKendaraan);
+      if (filterKonfirmasi) query = query.eq("konfirmasi", filterKonfirmasi);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // 🔹 FORMAT DATA EXCEL
+      const excelData = (data || []).map((r, i) => ({
+        "No": i + 1,
+        "Wilayah": r.wilayah,
+        "Nomor Polisi": r.nopol,
+        "Tarif (Rp)": r.tarif,
+        "Golongan": r.golongan,
+        "Nominal IWKBU (Rp)": r.nominal,
+        "Trayek": r.trayek,
+        "Jenis": r.jenis,
+        "Tahun": r.tahun,
+        "PIC": r.pic,
+        "Badan Hukum": r.badan_hukum,
+        "Nama Perusahaan": r.nama_perusahaan,
+        "Alamat": r.alamat,
+        "Kelurahan": r.kelurahan,
+        "Kecamatan": r.kecamatan,
+        "Kota": r.kota,
+        "Tanggal Transaksi": r.tgl_transaksi,
+        "Loket": r.loket,
+        "Masa Berlaku IWKBU": r.masa_berlaku,
+        "Masa SWDKLLJ": r.masa_swdkllj,
+        "Status Bayar": r.status_bayar,
+        "Status Kendaraan": r.status_kendaraan,
+        "Outstanding (Rp)": r.outstanding,
+        "Hasil Konfirmasi": r.konfirmasi,
+        "No HP": r.hp,
+        "Nama Pemilik": r.nama_pemilik,
+        "NIK": r.nik,
+        "Dok Perizinan": r.dok_perizinan,
+        "Tgl Bayar OS": r.tgl_bayar_os,
+        "Nilai Bayar OS (Rp)": r.nilai_bayar_os,
+        "Tgl Pemeliharaan": r.tgl_pemeliharaan,
+        "Nilai Pemeliharaan (Rp)": r.nilai_pemeliharaan_os,
+        "Keterangan": r.keterangan,
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+      // 🔥 AUTO WIDTH KOLOM
+      const colWidths = Object.keys(excelData[0] || {}).map((key) => ({
+        wch: Math.max(
+          key.length,
+          ...excelData.map((row) => String(row[key] ?? "").length)
+        ) + 2,
+      }));
+      worksheet["!cols"] = colWidths;
+
+      // 🔥 FORMAT HEADER BOLD
+      const range = XLSX.utils.decode_range(worksheet["!ref"]);
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cell = worksheet[XLSX.utils.encode_cell({ r: 0, c: C })];
+        if (cell && !cell.s) {
+          cell.s = {
+            font: { bold: true },
+            alignment: { horizontal: "center" },
+          };
+        }
+      }
+
+      // 🔥 FORMAT RUPIAH
+      Object.keys(worksheet).forEach((cellKey) => {
+        if (cellKey.startsWith("!")) return;
+        const cell = worksheet[cellKey];
+        if (
+          typeof cell.v === "number" &&
+          /Rp|IWKBU|Outstanding|Tarif/i.test(cellKey)
+        ) {
+          cell.t = "n";
+          cell.z = '"Rp"#,##0';
+        }
+      });
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data IWKBU");
+
+      XLSX.writeFile(
+        workbook,
+        `Data_IWKBU_${new Date().toISOString().slice(0, 10)}.xlsx`
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Gagal export Excel");
+    }
+  };
 
   //Hitung Total Tarif
   const totalTarif = rows.reduce(
@@ -640,6 +751,12 @@ export default function Iwkbu() {
               onClick={() => { setNewForm(emptyForm); setShowNopolModal(true); }}
             >
               + Tambah Nomor Polisi
+            </button>
+            <button
+              className="btn ghost"
+              onClick={exportToExcel}
+            >
+              📥 Export Excel
             </button>
           </div>
 
