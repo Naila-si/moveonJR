@@ -431,7 +431,7 @@ export default function FormCrm() {
   // ================== URL SYNC (?step=1..4) ==================
   useEffect(() => {
     const s = Number(new URLSearchParams(location.search).get("step"));
-    if (s >= 1 && s <= 4) setStep(s);
+    if (s >= 1 && s <= 3) setStep(s);
   }, []);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -457,7 +457,6 @@ export default function FormCrm() {
     { id: 1, title: "Data Kunjungan" },
     { id: 2, title: "Armada" },
     { id: 3, title: "Upload & Penilaian" },
-    { id: 4, title: "Pesan & Saran" },
   ];
 
   const progressPct = useMemo(() => (step - 1) * (100 / (steps.length - 1)), [step]);
@@ -538,7 +537,7 @@ export default function FormCrm() {
       showCutePopup(); // ✨ tampilkan popup kawaii
       return;
     }
-    setStep(s => Math.min(4, s + 1));
+    setStep(s => Math.min(3, s + 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step, canNext1, canNext2, canNext3, focusFirstError]);
 
@@ -652,13 +651,12 @@ export default function FormCrm() {
                     }}
                   />
                 )}
-                {step === 4 && <Step4PesanSaran form={form} setField={setField} />}
               </div>
 
               <div className="crm-footer sticky">
                 <button className="btn ghost" disabled={step === 1} onClick={prev}>⟵ Kembali</button>
                 <div className="spacer" />
-                {step < 4 ? (
+                {step < 3 ? (
                   <button
                     className="btn primary"
                     onClick={guardNext}
@@ -667,7 +665,9 @@ export default function FormCrm() {
                     Lanjut ⟶
                   </button>
                 ) : (
-                  <button className="btn success" onClick={handleSubmit}>🚀 Submit</button>
+                  <button className="btn success" onClick={handleSubmit}>
+                    🚀 Submit
+                  </button>
                 )}
               </div>
             </main>
@@ -736,9 +736,8 @@ function Header({ dirty, onReset, onBeforeUnloadRef }) {
 function Stepper({ steps, current, progressPct, onJump, canNext1, canNext2, canNext3 }) {
   const isStepAllowed = (id) => {
     if (id === 1) return true;
-    if (id === 2) return canNext1;      // Step 2 hanya aktif jika step 1 valid
+    if (id === 2) return canNext1; 
     if (id === 3) return canNext1 && canNext2;
-    if (id === 4) return canNext1 && canNext2 && canNext3;
     return false;
   };
 
@@ -786,7 +785,7 @@ function SidebarSummary({ form, step, step1Errors, step2Errors, step3Errors }) {
   const totalArmada = form.armadaList?.length || 0;
   const totalFiles = [form.fotoKunjungan, ...(form.suratPernyataanEvidence||[])].filter(Boolean).length;
   const badges = [
-    { label: "Langkah", value: `${step}/4` },
+    { label: "Langkah", value: `${step}/3` },
     { label: "Armada", value: totalArmada },
     { label: "Berkas", value: totalFiles },
   ];
@@ -1298,7 +1297,7 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
                   onChange={(e) =>
                     update(i, { rekomendasi: e.target.value })
                   }
-                  placeholder="Contoh: disarankan segera membayar OS & perpanjang IWKBU, atau kendaraan direncanakan dijual, dll."
+                  placeholder="Contoh : Bayar IWKBU / Pemeliharaan Data KBU / Kunjungan Kembali"
                 />
               </Field>
             </div>
@@ -1476,7 +1475,7 @@ function Step3UploadPenilaian({ form, setField, errors, onPickMultiple }) {
       <p className="lead">Unggah bukti kunjungan, surat (maks 5 file), berikan penilaian, dan tanda tangan.</p>
 
       <div className="form-grid">
-        <Field label="Upload Foto Kunjungan">
+        <Field label="Upload Foto Kunjungan (wajib)">
           <input type="file" accept="image/*" onChange={e => setField("fotoKunjungan", e.target.files?.[0] || null)} />
           <span className="hint">{form.fotoKunjungan ? `Terpilih: ${form.fotoKunjungan.name}` : "Belum ada file"}</span>
         </Field>
@@ -1520,25 +1519,6 @@ function Step3UploadPenilaian({ form, setField, errors, onPickMultiple }) {
             value={form.tandaTanganPemilik}
             onChange={(dataUrl) => setField("tandaTanganPemilik", dataUrl)}
           />
-        </Field>
-      </div>
-    </>
-  );
-}
-
-function Step4PesanSaran({ form, setField }) {
-  return (
-    <>
-      <h2 className="h2">Step 4 — Pesan & Saran</h2>
-      <p className="lead">Tulis ringkasan pesan petugas dan saran untuk pemilik/pengelola.</p>
-
-      <div className="form-grid">
-        <Field span="2" label="Pesan Petugas">
-          <textarea value={form.pesanPetugas} onChange={e=>setField("pesanPetugas", e.target.value)} placeholder="Catatan hasil kunjungan, temuan, dsb." />
-        </Field>
-
-        <Field span="2" label="Saran untuk Pemilik">
-          <textarea value={form.saranUntukPemilik} onChange={e=>setField("saranUntukPemilik", e.target.value)} placeholder="Saran perbaikan, prioritas, dan tindak lanjut." />
         </Field>
       </div>
     </>

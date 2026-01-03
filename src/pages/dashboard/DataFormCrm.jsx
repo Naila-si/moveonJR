@@ -4,281 +4,6 @@ import autoTable from "jspdf-autotable";
 import { supabase } from "../../lib/supabaseClient";
 import { useNavigate } from "react-router-dom";
 
-const LS_KEY = "crmData";
-
-function loadCrmLs() {
-  try {
-    return JSON.parse(localStorage.getItem(LS_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-const saveCrmLs = (rows) => localStorage.setItem(LS_KEY, JSON.stringify(rows));
-const DEFAULT_ROWS = (() => {
-  const ts = (d) => {
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-      d.getDate()
-    )} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-  const base = new Date();
-  const d = (offsetDays, hh = 9, mm = 30) => {
-    const t = new Date(base);
-    t.setDate(t.getDate() + offsetDays);
-    t.setHours(hh, mm, 0, 0);
-    return ts(t);
-  };
-
-  return [
-    {
-      id: "CRM-2025-001",
-      step1: {
-        tanggalWaktu: d(-2, 9, 15),
-        loket: "Loket A",
-        petugasDepan: "Rani",
-        petugasBelakang: "Putra",
-        perusahaan: "PT Sinar Jaya",
-        jenisAngkutan: "Bus",
-        namaPemilik: "Bpk. Andika",
-        alamat: "Jl. Melati No. 12, Bekasi",
-        telepon: "0812-1111-2222",
-      },
-      step2: {
-        nopolAtauNamaKapal: "B 1234 SJR",
-        statusKendaraan: "Beroperasi",
-        hasilKunjungan: "Armada siap operasi, admin tertib.",
-        penjelasanHasil: "Dokumen lengkap, trayek aktif.",
-        tunggakan: 0,
-        janjiBayar: "-",
-        rekomendasi: "Pertahankan kepatuhan.",
-        rincianArmada: [
-          { nopol: "B 1234 SJR", status: "Aktif", tindakLanjut: "-" },
-        ],
-      },
-      step3: {
-        fotoKunjungan: ["https://picsum.photos/seed/crm1/600/360"],
-        suratPernyataan: [{ name: "Surat_Pernyataan.pdf", url: "#" }],
-        evidence: [{ name: "Foto_Stiker.jpg", url: "#" }],
-        responPemilik: "Kooperatif",
-        ketaatanPerizinan: 5,
-        keramaianPenumpang: 4,
-      },
-      step4: {
-        validasiOleh: "Petugas",
-        statusValidasi: "Tervalidasi",
-        catatanValidasi: "Data lengkap.",
-        wilayah: "Bekasi",
-        waktuValidasi: d(-2, 10, 5),
-      },
-      step5: {
-        pesan: "Tetap jaga ketertiban antrian.",
-        saran: "Evaluasi load akhir pekan.",
-      },
-    },
-    {
-      id: "CRM-2025-002",
-      step1: {
-        tanggalWaktu: d(-1, 14, 40),
-        loket: "Loket B",
-        petugasDepan: "Dewi",
-        petugasBelakang: "Akbar",
-        perusahaan: "CV Laut Nusantara",
-        jenisAngkutan: "Kapal",
-        namaPemilik: "Ibu Sari",
-        alamat: "Pelabuhan Muara Baru, Jakarta",
-        telepon: "0813-3333-4444",
-      },
-      step2: {
-        nopolAtauNamaKapal: "KM Nusantara 8",
-        statusKendaraan: "Aktif",
-        hasilKunjungan: "Operasional normal, manifest rapi.",
-        penjelasanHasil: "Dokumen pelayaran valid.",
-        tunggakan: 2500000,
-        janjiBayar: "2025-10-25",
-        rekomendasi: "Bayar tunggakan sebelum keberangkatan berikutnya.",
-        rincianArmada: [
-          {
-            nopol: "KM Nusantara 8",
-            status: "Aktif",
-            tindakLanjut: "Pantau pembayaran",
-          },
-        ],
-      },
-      step3: {
-        fotoKunjungan: ["https://picsum.photos/seed/crm2/600/360"],
-        suratPernyataan: [],
-        evidence: [{ name: "Manifest.pdf", url: "#" }],
-        responPemilik: "Baik",
-        ketertibanOperasional: 4,
-        ketaatanPerizinan: 4,
-        keramaianPenumpang: 3,
-        ketaatanUjiKir: 4,
-      },
-      step4: {
-        validasiOleh: "Petugas",
-        statusValidasi: "Menunggu",
-        catatanValidasi: "Menunggu pelunasan.",
-        wilayah: "Jakarta Utara",
-        waktuValidasi: d(-1, 15, 10),
-      },
-      step5: {
-        pesan: "Mohon kepastian jadwal pembayaran.",
-        saran: "Otomasi pengecekan manifest.",
-      },
-    },
-    {
-      id: "CRM-2025-003",
-      step1: {
-        tanggalWaktu: d(-3, 11, 5),
-        loket: "Loket C",
-        petugasDepan: "Iqbal",
-        petugasBelakang: "Nina",
-        perusahaan: "PT Angkasa Raya",
-        jenisAngkutan: "Kendaraan Bermotor Umum",
-        namaPemilik: "Bpk. Dodi",
-        alamat: "Jl. Kenanga No. 5, Depok",
-        telepon: "0812-7777-9999",
-      },
-      step2: {
-        nopolAtauNamaKapal: "B 9090 AR",
-        statusKendaraan: "Tidak Beroperasi",
-        hasilKunjungan: "Armada parkir karena perbaikan.",
-        penjelasanHasil: "STNK mati, perlu perpanjangan.",
-        tunggakan: 1250000,
-        janjiBayar: "2025-10-26",
-        rekomendasi: "Perpanjang STNK, lanjutkan uji KIR.",
-        rincianArmada: [
-          {
-            nopol: "B 9090 AR",
-            status: "Non-aktif",
-            tindakLanjut: "Perpanjang dokumen",
-          },
-        ],
-      },
-      step3: {
-        fotoKunjungan: ["https://picsum.photos/seed/crm3/600/360"],
-        suratPernyataan: [{ name: "Komitmen_Perbaikan.pdf", url: "#" }],
-        evidence: [],
-        responPemilik: "Kooperatif",
-        ketertibanOperasional: 3,
-        ketaatanPerizinan: 2,
-        keramaianPenumpang: 2,
-        ketaatanUjiKir: 2,
-      },
-      step4: {
-        validasiOleh: "Petugas",
-        statusValidasi: "Ditolak",
-        catatanValidasi: "Dokumen belum lengkap.",
-        wilayah: "Depok",
-        waktuValidasi: d(-3, 12, 0),
-      },
-      step5: {
-        pesan: "Segera lengkapi dokumen agar bisa beroperasi kembali.",
-        saran: "Buat checklist legalitas.",
-      },
-    },
-    {
-      id: "CRM-2025-004",
-      step1: {
-        tanggalWaktu: d(0, 10, 20),
-        loket: "Loket D",
-        petugasDepan: "Rika",
-        petugasBelakang: "Yoga",
-        perusahaan: "PT Mega Jaya",
-        jenisAngkutan: "Truk",
-        namaPemilik: "Bpk. Surya",
-        alamat: "Kawasan Industri MM2100",
-        telepon: "0812-5555-6666",
-      },
-      step2: {
-        nopolAtauNamaKapal: "B 4455 MJ",
-        statusKendaraan: "Beroperasi",
-        hasilKunjungan: "Distribusi lancar.",
-        penjelasanHasil: "Unit dalam kondisi baik.",
-        tunggakan: 0,
-        janjiBayar: "-",
-        rekomendasi: "Jadwalkan uji KIR rutin.",
-        rincianArmada: [
-          { nopol: "B 4455 MJ", status: "Aktif", tindakLanjut: "-" },
-        ],
-      },
-      step3: {
-        fotoKunjungan: ["https://picsum.photos/seed/crm4/600/360"],
-        suratPernyataan: [],
-        evidence: [{ name: "Checklist_KIR.xlsx", url: "#" }],
-        responPemilik: "Sangat baik",
-        ketertibanOperasional: 5,
-        ketaatanPerizinan: 4,
-        keramaianPenumpang: 1,
-        ketaatanUjiKir: 5,
-      },
-      step4: {
-        validasiOleh: "Petugas",
-        statusValidasi: "Tervalidasi",
-        catatanValidasi: "OK.",
-        wilayah: "Cikarang",
-        waktuValidasi: d(0, 11, 0),
-      },
-      step5: {
-        pesan: "Pertahankan kondisi armada.",
-        saran: "Tambahkan pelatihan safety.",
-      },
-    },
-    {
-      id: "CRM-2025-005",
-      step1: {
-        tanggalWaktu: d(1, 13, 0),
-        loket: "Loket E",
-        petugasDepan: "Alya",
-        petugasBelakang: "Fadil",
-        perusahaan: "Blue Taxi Group",
-        jenisAngkutan: "Taksi",
-        namaPemilik: "Ibu Reni",
-        alamat: "Jl. Panglima Polim, Jakarta Selatan",
-        telepon: "0812-8888-0000",
-      },
-      step2: {
-        nopolAtauNamaKapal: "B 7788 BTG",
-        statusKendaraan: "Beroperasi",
-        hasilKunjungan: "Unit bersih, sopir patuh SOP.",
-        penjelasanHasil: "Argometer terkalibrasi.",
-        tunggakan: 350000,
-        janjiBayar: "2025-10-27",
-        rekomendasi: "Selesaikan iuran tepat waktu.",
-        rincianArmada: [
-          {
-            nopol: "B 7788 BTG",
-            status: "Aktif",
-            tindakLanjut: "Follow-up pembayaran",
-          },
-        ],
-      },
-      step3: {
-        fotoKunjungan: ["https://picsum.photos/seed/crm5/600/360"],
-        suratPernyataan: [],
-        evidence: [{ name: "Bukti_Kalibrasi.pdf", url: "#" }],
-        responPemilik: "Baik",
-        ketertibanOperasional: 4,
-        ketaatanPerizinan: 4,
-        keramaianPenumpang: 3,
-        ketaatanUjiKir: 4,
-      },
-      step4: {
-        validasiOleh: "Petugas",
-        statusValidasi: "Menunggu",
-        catatanValidasi: "Tunggu pelunasan iuran.",
-        wilayah: "Jakarta Selatan",
-        waktuValidasi: d(1, 13, 45),
-      },
-      step5: {
-        pesan: "Mohon konfirmasi pembayaran setelah transfer.",
-        saran: "Aktifkan pengingat iuran bulanan.",
-      },
-    },
-  ];
-})();
-
 async function addVerificationNotification({
   reportId,
   status,
@@ -304,7 +29,7 @@ async function addVerificationNotification({
   if (error) console.error("Gagal insert notif:", error);
 }
 
-export default function DataFormCrm({ data = [] }) {
+export default function DataFormCrm() {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const [filterJenis, setFilterJenis] = useState("Semua");
@@ -391,8 +116,6 @@ export default function DataFormCrm({ data = [] }) {
             },
             step3: r.step3 || {},
             step4: r.step4 || {},
-            step5: r.step5 || {},
-            // boleh tetap pakai kolom agregat view kalau nanti sudah benar
             totalOS: Number(r.total_os_dibayar || 0),
           };
         });
@@ -408,7 +131,7 @@ export default function DataFormCrm({ data = [] }) {
     }
 
     fetchReports();
-  }, [data]);
+  }, []);
 
   const wrapRef = useRef(null);
   const isDown = useRef(false);
@@ -534,12 +257,6 @@ export default function DataFormCrm({ data = [] }) {
       };
     }
   }, [selected]);
-
-  useEffect(() => {
-    const sync = () => setRows([...loadCrmLs(), ...data]);
-    window.addEventListener("storage", sync);
-    return () => window.removeEventListener("storage", sync);
-  }, [data]);
 
   const filtered = useMemo(() => {
     return rows.filter((d) => {
@@ -1024,32 +741,6 @@ const armadaBody = rincian.map((r, i) => [
     }
 
     y += 20;
-
-    // -----------------------------------------------------------
-    // STEP 5 – Pesan & Saran
-    // -----------------------------------------------------------
-    doc.setFont("times", "bold");
-    doc.text("5. Pesan & Saran", pad, y);
-    y += 16;
-
-    doc.setFont("times", "normal");
-
-    const p = doc.splitTextToSize(`Pesan: ${row.step5.pesan || "-"}`, 523);
-    const s = doc.splitTextToSize(`Saran: ${row.step5.saran || "-"}`, 523);
-
-    p.forEach((line) => {
-      y = checkPage(doc, y, pad, 16);
-      doc.text(line, pad, y);
-      y += 14;
-    });
-
-    y += 6;
-
-    s.forEach((line) => {
-      y = checkPage(doc, y, pad, 16);
-      doc.text(line, pad, y);
-      y += 14;
-    });
 
     // -----------------------------------------------------------
     // SAVE
@@ -1558,14 +1249,6 @@ const armadaBody = rincian.map((r, i) => [
                     )}
                   </div>
                 )}
-              </Section>
-
-              {/* Step 4 */}
-              <Section title="4) Pesan & Saran">
-                <div className="notes">
-                  <Note label="Pesan" text={selected.step5.pesan} />
-                  <Note label="Saran" text={selected.step5.saran} />
-                </div>
               </Section>
             </div>
           </div>

@@ -103,7 +103,6 @@ async function fetchReportFull(reportCode) {
     },
     step3: report.step3 || {},
     step4: report.step4 || {},
-    step5: report.step5 || {},
     totalOS: totalOsHarusDibayar,
   };
 }
@@ -502,32 +501,6 @@ async function downloadPdfFromRow(row) {
   }
 
   y += 20;
-
-  // -----------------------------------------------------------
-  // STEP 5 – Pesan & Saran
-  // -----------------------------------------------------------
-  doc.setFont("times", "bold");
-  doc.text("5. Pesan & Saran", pad, y);
-  y += 16;
-
-  doc.setFont("times", "normal");
-
-  const p = doc.splitTextToSize(`Pesan: ${row.step5.pesan || "-"}`, 523);
-  const s = doc.splitTextToSize(`Saran: ${row.step5.saran || "-"}`, 523);
-
-  p.forEach((line) => {
-    y = checkPage(doc, y, pad, 16);
-    doc.text(line, pad, y);
-    y += 14;
-  });
-
-  y += 6;
-
-  s.forEach((line) => {
-    y = checkPage(doc, y, pad, 16);
-    doc.text(line, pad, y);
-    y += 14;
-  });
 
   // -----------------------------------------------------------
   // SAVE

@@ -1,12 +1,8 @@
-// src/components/dashboard/AdminDashboard.jsx
 import React, { useState, useMemo, useEffect } from "react";
 import { NavLink, useNavigate, Outlet, useLocation } from "react-router-dom";
-
-// === Profil context untuk sinkron nama & avatar header ===
 import { ProfileProvider, useProfile, initialsFrom } from "../../context/ProfileContext";
 
 const JR_LOGO = "/assets/jasaraharja.png";
-
 const SESSION_KEY = "session";
 
 /* ================== Icons ================== */
@@ -392,30 +388,6 @@ function DashboardInner() {
 .collapse-btn .bar.rot:nth-child(1){ transform:translateY(5px) rotate(45deg); }
 .collapse-btn .bar.rot:nth-child(2){ opacity:0; }
 .collapse-btn .bar.rot:nth-child(3){ transform:translateY(-5px) rotate(-45deg); }
-
-/* ===== Collapsed hover "peek" ===== */
-/* saat collapsed, grid kolom tetap 84px → sidebar bisa overflow melebar di atas content */
-.app-wrap{ position:relative; }
-.sidebar{ width:100%; transition: width .18s ease, box-shadow .18s ease; z-index: 3; }
-.app-wrap.collapsed .sidebar{ width:84px; }
-.app-wrap.collapsed .sidebar:hover{
-  width:292px;                /* melebar sementara */
-  box-shadow: 0 18px 40px rgba(15,33,79,.12);
-}
-
-/* Saat hover-peek, tunjukkan label & section walau state collapsed masih true */
-.app-wrap.collapsed .sidebar:hover .sb-label{ display:inline; }
-.app-wrap.collapsed .sidebar:hover .sb-section.hide{ display:block; }
-.app-wrap.collapsed .sidebar:hover .brand-name{ display:flex; }
-.app-wrap.collapsed .sidebar:hover .sb-sub.collapsed{ margin-left:10px; }
-
-/* Biar overlay rapi di atas konten saat hover */
-.app-wrap.collapsed .sidebar{ overflow: visible; }
-.page, .topbar{ position:relative; z-index:1; }
-
-/* Opsional: sembunyikan scrollbar sidebar yang melebar */
-.sidebar::-webkit-scrollbar{ width:8px; height:8px; }
-.sidebar::-webkit-scrollbar-thumb{ background: rgba(0,0,0,.08); border-radius: 8px; }
 
 .page-inner{
   max-width: 1100px;  /* ubah angka sesuai kebutuhan */
