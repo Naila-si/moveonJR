@@ -397,7 +397,7 @@ export default function Analitik() {
           {employeeStats.total === 0 ? (
             <div className="chart-empty">Belum ada data pegawai.</div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={260}>
               <PieChart>
                 <Tooltip />
                 <Legend />
@@ -441,7 +441,7 @@ export default function Analitik() {
             </div>
           ) : (
             <>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={iwkbuMonthly}>
                   <defs>
                     <linearGradient id="gradNominal" x1="0" y1="0" x2="0" y2="1">
@@ -514,7 +514,7 @@ export default function Analitik() {
             </div>
           ) : (
             <>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={rkjStatus}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="status" />
@@ -554,7 +554,7 @@ export default function Analitik() {
               Belum ada nilai RKJ yang tercatat tahun ini.
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={rkjDaily}>
                 <defs>
                   <linearGradient id="gradRKJ" x1="0" y1="0" x2="0" y2="1">
