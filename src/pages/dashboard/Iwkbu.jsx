@@ -76,7 +76,17 @@ function useEmployees() {
       try {
         const { data, error } = await supabase
           .from("employees")
-          .select("id,name,loket,handle")
+          .select(`
+            id,
+            name,
+            handle,
+            loket,
+            samsat:samsat_id (
+              id,
+              name,
+              loket
+            )
+          `)
           .order("name", { ascending: true });
         if (!alive) return;
         if (error) throw error;
@@ -140,12 +150,27 @@ export default function Iwkbu() {
 
   const { employees: EMP_OPTS, loading: employeesLoading } = useEmployees();
 
+  const SAMSAT_OPTS = useMemo(() => {
+    return Array.from(
+      new Set(
+        (EMP_OPTS || [])
+          .map(e => e.samsat?.name)
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+  }, [EMP_OPTS]);
+
   const LOKET_OPTS = useMemo(() => {
     const fromRows = rows.map(r => r.loket).filter(Boolean);
-    const fromEmp  = (EMP_OPTS || []).map(e => e.loket).filter(Boolean);
-    const uniq = Array.from(new Set([...fromRows, ...fromEmp].map(x => String(x).trim()).filter(Boolean)));
-    uniq.sort((a,b) => a.localeCompare(b));
-    return ["", ...uniq]; // "" = semua
+    const fromEmpSamsat = (EMP_OPTS || [])
+      .map(e => e.samsat?.name)
+      .filter(Boolean);
+
+    const uniq = Array.from(
+      new Set([...fromRows, ...fromEmpSamsat].map(x => x.trim()))
+    ).sort((a, b) => a.localeCompare(b));
+
+    return ["", ...uniq];
   }, [rows, EMP_OPTS]);
 
   const fromDB = (r) => ({
@@ -1150,19 +1175,31 @@ export default function Iwkbu() {
                       list="pic-list"
                       type="text"
                       value={r.pic || ""}
-                      onChange={(e) => updateRow(r.id, { pic: e.target.value })}
-                      onBlur={(e) => saveCell(r.id, "pic", e.target.value)}
-                      placeholder="Ketik atau pilih PIC"
+                      onChange={(e) => {
+                        const picName = e.target.value;
+                        const emp = EMP_OPTS.find(
+                          (x) => x.name.toLowerCase() === picName.toLowerCase()
+                        );
+                        updateRow(r.id, {
+                          pic: picName,
+                          loket: emp?.samsat?.name ?? "",
+                        });
+                      }}
+                      onBlur={(e) => {
+                        const picName = e.target.value;
+
+                        const emp = EMP_OPTS.find(
+                          (x) => x.name.toLowerCase() === picName.toLowerCase()
+                        );
+
+                        saveCell(r.id, "pic", picName);
+
+                        if (emp?.samsat?.name) {
+                          saveCell(r.id, "loket", emp.samsat.name);
+                        }
+                      }}
+                      placeholder="Pilih PIC"
                     />
-                    <datalist id="pic-list">
-                      {EMP_OPTS.map(emp => (
-                        <option key={emp.id} value={emp.name}>
-                          {emp.name}
-                          {emp.loket ? ` — ${emp.loket}` : ""}
-                          {emp.handle ? ` (@${emp.handle})` : ""}
-                        </option>
-                      ))}
-                    </datalist>
                   </td>
 
                   {/* Badan Hukum */}
@@ -1274,11 +1311,22 @@ export default function Iwkbu() {
                   {/* Loket */}
                   <td>
                     <input
+                      list="loket-list"
                       type="text"
-                      value={r.loket}
+                      value={r.loket || ""}
                       onChange={(e) => updateRow(r.id, { loket: e.target.value })}
-                      onBlur={(e) => saveCell(r.id, "loket", e.target.value)}
+                      onBlur={(e) => {
+                        const val = e.target.value;
+                        saveCell(r.id, "loket", val);
+                      }}
+                      placeholder="Pilih / ketik samsat"
                     />
+
+                    <datalist id="loket-list">
+                      {LOKET_OPTS.map((l) => (
+                        <option key={l} value={l} />
+                      ))}
+                    </datalist>
                   </td>
 
                   {/* Masa Berlaku IWKBU */}
@@ -1418,6 +1466,15 @@ export default function Iwkbu() {
                         <option key={s} value={s} />
                       ))}
                     </datalist>
+                   <datalist id="pic-list">
+                    {EMP_OPTS.map((emp) => (
+                      <option key={emp.id} value={emp.name}>
+                        {emp.name}
+                        {emp.samsat?.name ? ` — ${emp.samsat.name}` : ""}
+                        {emp.handle ? ` (@${emp.handle})` : ""}
+                      </option>
+                    ))}
+                  </datalist>
                   </td>
 
                   {/* No HP */}
@@ -1775,18 +1832,27 @@ export default function Iwkbu() {
                   list="pic-list-modal"
                   type="text"
                   value={newForm.pic}
-                  onChange={(e) => setF("pic", e.target.value)}
+                  onChange={(e) => {
+                    const picName = e.target.value;
+                    const emp = EMP_OPTS.find(
+                      (x) => x.name.toLowerCase() === picName.toLowerCase()
+                    );
+                    setF("pic", picName);
+                    if (emp?.samsat?.name) {
+                      setF("loket", emp.samsat.name);
+                    }
+                  }}
                   placeholder={
                     employeesLoading
                       ? "Memuat daftar pegawai…"
-                      : "Ketik atau pilih nama"
+                      : "Klik atau ketik nama PIC"
                   }
                 />
                 <datalist id="pic-list-modal">
                   {EMP_OPTS.map((emp) => (
                     <option key={emp.id} value={emp.name}>
                       {emp.name}
-                      {emp.loket ? ` — ${emp.loket}` : ""}
+                      {emp.samsat?.name ? ` — ${emp.samsat.name}` : ""}
                       {emp.handle ? ` (@${emp.handle})` : ""}
                     </option>
                   ))}
@@ -1872,10 +1938,18 @@ export default function Iwkbu() {
               <label>
                 Loket Pembayaran
                 <input
+                  list="loket-list-modal"
                   type="text"
                   value={newForm.loket}
                   onChange={(e) => setF("loket", e.target.value)}
+                  placeholder="Pilih atau ketik samsat"
                 />
+
+                <datalist id="loket-list-modal">
+                  {LOKET_OPTS.map((l) => (
+                    <option key={l} value={l} />
+                  ))}
+                </datalist>
               </label>
 
               <label>

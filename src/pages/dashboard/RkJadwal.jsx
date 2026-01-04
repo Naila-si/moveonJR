@@ -50,8 +50,15 @@ export default function RKJadwal() {
   }, []);
 
   // ==== STATE dari Supabase ====
-  const [people, setPeople] = useState([]);      // employees: [{id,name,handle,loket}]
-  const [entries, setEntries] = useState([]);    // rkj_entries: [{id,pid,date,status,value,note}]
+  const [people, setPeople] = useState([]);
+  const [entries, setEntries] = useState([]);
+  const [samsats, setSamsats] = useState([]);
+  const normalizePeople = (rows = []) =>
+  rows.map(p => ({
+    ...p,
+    loket: p.samsat?.loket || p.loket,
+    samsat_name: p.samsat?.name || null,
+  }));
 
   // UI & filter
   const [loketTab, setLoketTab] = useState("kanwil");
@@ -59,16 +66,41 @@ export default function RKJadwal() {
 
   // modal entry
   const [entryModal, setEntryModal] = useState(null);
+
   // modal tambah pegawai
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newLoket, setNewLoket] = useState("kanwil");
+  const [newSamsatId, setNewSamsatId] = useState("");
+  const [newSamsatText, setNewSamsatText] = useState("");
+  const [newLoket, setNewLoket] = useState("");  
+  const selectedSamsat = useMemo(
+    () => samsats.find(s => String(s.id) === String(newSamsatId)),
+    [samsats, newSamsatId]
+  );
+
+  useEffect(() => {
+    if (selectedSamsat?.loket) {
+      setNewLoket(selectedSamsat.loket);
+    }
+  }, [selectedSamsat]);
 
   // modal edit pegawai
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editLoket, setEditLoket] = useState("kanwil");
+  const [editSamsatId, setEditSamsatId] = useState("");
+  const [editSamsatText, setEditSamsatText] = useState("");
+  const selectedEditSamsat = useMemo(
+    () => samsats.find(s => String(s.id) === String(editSamsatId)),
+    [samsats, editSamsatId]
+  );
+
+  useEffect(() => {
+    if (selectedEditSamsat?.loket) {
+      setEditLoket(selectedEditSamsat.loket);
+    }
+  }, [selectedEditSamsat]);
 
   // modal confirm hapus pegawai
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -115,13 +147,23 @@ export default function RKJadwal() {
   const loadPeople = async () => {
     const { data, error } = await supabase
       .from("employees")
-      .select("id,name,handle,loket")
+      .select(`
+        id,
+        name,
+        handle,
+        loket,
+        samsat:samsat_id (
+          id,
+          name,
+          loket
+        )
+      `)
       .order("name", { ascending: true });
     if (error) {
       console.error("loadPeople error:", error);
       return;
     }
-    setPeople(data || []);
+    setPeople(normalizePeople(data));
   };
 
   const loadEntriesForMonth = async (y, m) => {
@@ -139,7 +181,24 @@ export default function RKJadwal() {
     setEntries(data || []);
   };
 
-  useEffect(() => { loadPeople(); }, []);
+  const loadSamsat = async () => {
+    const { data, error } = await supabase
+      .from("samsat")
+      .select("id,name,loket")
+      .order("name", { ascending: true });
+
+    if (error) {
+      console.error("loadSamsat error:", error);
+      return;
+    }
+
+    setSamsats(data || []);
+  };
+
+  useEffect(() => {
+    loadPeople();
+    loadSamsat();
+  }, []);
   useEffect(() => { loadEntriesForMonth(year, month); }, [year, month]);
 
   /* ===== CRUD entry (Supabase) ===== */
@@ -193,14 +252,27 @@ export default function RKJadwal() {
   const addPerson = async (e) => {
     e.preventDefault();
     if (!newName.trim()) return;
-    const payload = { name: newName.trim(), handle: "", loket: newLoket };
+    if (!newLoket) {
+      alert("Loket wajib diisi");
+      return;
+    }
+    const payload = {
+      name: newName.trim(),
+      handle: "",
+      samsat_id: newSamsatId || null,
+      loket: newLoket,
+    };
     const { data, error } = await supabase.from("employees").insert(payload).select();
     if (error) {
       console.error("add person error:", error);
       return;
     }
     if (data?.length) setPeople(prev => [...prev, data[0]]);
-    setNewName(""); setNewLoket("kanwil"); setAddOpen(false);
+    setNewName("");
+    setNewSamsatId("");
+    setNewSamsatText("");
+    setNewLoket("");
+    setAddOpen(false);
   };
 
   const editPerson = (pid) => {
@@ -209,7 +281,9 @@ export default function RKJadwal() {
 
     setEditId(pid);
     setEditName(p.name || "");
-    setEditLoket(p.loket || "kanwil");
+    setEditLoket(p.loket || "");
+    setEditSamsatId(p.samsat_id || "");
+    setEditSamsatText(p.samsat_name || "");
     setEditOpen(true);
   };
 
@@ -217,10 +291,14 @@ export default function RKJadwal() {
     e.preventDefault();
     if (!editId) return;
     if (!editName.trim()) return;
-
+    if (!editLoket) {
+      alert("Loket wajib diisi");
+      return;
+    }
     const payload = {
       name: editName.trim(),
       loket: editLoket,
+      samsat_id: editSamsatId || null,
     };
 
     const { error } = await supabase
@@ -240,7 +318,9 @@ export default function RKJadwal() {
     setEditOpen(false);
     setEditId(null);
     setEditName("");
-    setEditLoket("kanwil");
+    setEditLoket("");
+    setEditSamsatId("");
+    setEditSamsatText("");
   };
 
   const deletePerson = (pid) => {
@@ -595,11 +675,48 @@ export default function RKJadwal() {
                 <input className="input" value={newName} onChange={(e)=>setNewName(e.target.value)} placeholder="Nama lengkap" />
               </div>
               <div className="field">
+                <label className="label">Samsat</label>
+
+                <select
+                  className="select"
+                  value={newSamsatId}
+                  onChange={(e) => {
+                    setNewSamsatId(e.target.value);
+                    setNewSamsatText("");
+                  }}
+                >
+                  <option value="">-- Pilih Samsat (opsional) --</option>
+                  {samsats.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+
+                <input
+                  className="input"
+                  placeholder="Atau ketik samsat manual"
+                  value={newSamsatText}
+                  onChange={(e) => {
+                    setNewSamsatText(e.target.value);
+                    setNewSamsatId("");
+                  }}
+                />
+              </div>
+              <div className="field">
                 <label className="label">Loket</label>
-                <select className="select" value={newLoket} onChange={(e)=>setNewLoket(e.target.value)}>
+                <select
+                  className="select"
+                  value={newLoket}
+                  onChange={(e)=>setNewLoket(e.target.value)}
+                  required
+                >
+                  <option value="">-- Pilih Loket --</option>
                   <option value="kanwil">Loket Kanwil</option>
                   <option value="dumai">Loket Dumai</option>
                 </select>
+
+                <small style={{ color: THEME.muted }}>
+                  Loket bisa otomatis dari samsat, tapi tetap bisa diubah
+                </small>
               </div>
               <div className="actions">
                 <button className="btn" type="button" onClick={()=>setAddOpen(false)}>Batal</button>
@@ -625,17 +742,49 @@ export default function RKJadwal() {
                   placeholder="Nama lengkap"
                 />
               </div>
+              <div className="field">
+                <label className="label">Samsat</label>
 
+                <select
+                  className="select"
+                  value={editSamsatId}
+                  onChange={(e) => {
+                    setEditSamsatId(e.target.value);
+                    setEditSamsatText("");
+                  }}
+                >
+                  <option value="">-- Pilih Samsat (opsional) --</option>
+                  {samsats.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+
+                <input
+                  className="input"
+                  placeholder="Atau ketik samsat manual"
+                  value={editSamsatText}
+                  onChange={(e) => {
+                    setEditSamsatText(e.target.value);
+                    setEditSamsatId("");
+                  }}
+                />
+              </div>
               <div className="field">
                 <label className="label">Loket</label>
                 <select
                   className="select"
                   value={editLoket}
                   onChange={(e)=>setEditLoket(e.target.value)}
+                  required
                 >
+                  <option value="">-- Pilih Loket --</option>
                   <option value="kanwil">Loket Kanwil</option>
                   <option value="dumai">Loket Dumai</option>
                 </select>
+
+                <small style={{ color: THEME.muted }}>
+                  Loket bisa otomatis dari samsat, tapi tetap bisa diubah
+                </small>
               </div>
 
               <div className="actions">
