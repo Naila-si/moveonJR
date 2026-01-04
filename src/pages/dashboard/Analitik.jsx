@@ -63,14 +63,25 @@ const CuteTooltip = ({ active, payload, label, formatterLabel }) => {
 export default function Analitik() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-
   const [employees, setEmployees] = useState([]);
   const [rekapOS, setRekapOS] = useState([]);
   const [iwkbu, setIwkbu] = useState([]);
   const [iwkl, setIwkl] = useState([]);
   const [rkj, setRkj] = useState([]);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
 
-  // === Ambil data dari Supabase sekali di awal ===
+  const yearOptions = useMemo(() => {
+    const startYear = 2000;
+    const endYear = new Date().getFullYear();
+
+    const years = [];
+    for (let y = endYear; y >= startYear; y--) {
+      years.push(y);
+    }
+    return years;
+  }, []);
+
   useEffect(() => {
     const fetchAll = async () => {
       if (!supabase) {
@@ -85,9 +96,13 @@ export default function Analitik() {
 
       try {
         const now = new Date();
-        const yearStart = new Date(now.getFullYear(), 0, 1)
+        const yearStart = new Date(selectedYear, 0, 1)
           .toISOString()
-          .slice(0, 10); // yyyy-mm-dd
+          .slice(0, 10);
+
+        const yearEnd = new Date(selectedYear + 1, 0, 1)
+          .toISOString()
+          .slice(0, 10);
 
         const [empRes, rekapRes, iwkbuRes, iwklRes, rkjRes] =
           await Promise.all([
@@ -99,11 +114,11 @@ export default function Analitik() {
                 "id, employee_id, os_awal, os_sampai, target_crm, realisasi_po, target_rupiah, nominal_os_bayar"
               ),
 
-            // batasi dari awal tahun biar nggak super berat
             supabase
               .from("iwkbu")
               .select("id, nominal, outstanding, tgl_transaksi, loket")
               .gte("tgl_transaksi", yearStart)
+              .lt("tgl_transaksi", yearEnd)
               .limit(5000),
 
             supabase
@@ -117,6 +132,7 @@ export default function Analitik() {
               .from("rkj_entries")
               .select("id, date, status, value")
               .gte("date", yearStart)
+              .lt("date", yearEnd)
               .limit(5000),
           ]);
 
@@ -171,9 +187,7 @@ export default function Analitik() {
     };
 
     fetchAll();
-  }, []);
-
-  // === DERIVED METRICS ===
+  }, [selectedYear]);
 
   // Pegawai
   const employeeStats = useMemo(() => {
@@ -325,15 +339,29 @@ export default function Analitik() {
   return (
     <div className="panel analitik-page">
       <div className="analitik-header">
-        <div>
-          <h2>Dasbor Analitik ✨</h2>
-          <p>
-            Ringkasan cepat kinerja pegawai, OS, IWKBU/IWKL, dan RK Jadwal.
-          </p>
-        </div>
+      <div>
+        <h2>Dasbor Analitik ✨</h2>
+        <p>
+          Ringkasan cepat kinerja pegawai, OS, IWKBU/IWKL, dan RK Jadwal.
+        </p>
+      </div>
+
+      <div className="analitik-actions">
+        <select
+          className="year-filter"
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(Number(e.target.value))}
+        >
+          {yearOptions.map((y) => (
+            <option key={y} value={y}>
+              Tahun {y}
+            </option>
+          ))}
+        </select>
 
         {loading && <span className="pill pill-loading">Memuat data…</span>}
       </div>
+    </div>
 
       {err && <div className="alert-error">{err}</div>}
 

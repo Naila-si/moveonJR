@@ -228,3 +228,48 @@
   .chart-card{ height:300px; }
   .chart-card.chart-full{ height:320px; }
 }
+
+/* === Year Filter (Tahun xxxx) === */
+.year-filter {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  padding: 8px 36px 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+
+  cursor: pointer;
+  outline: none;
+
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  transition: all 0.2s ease;
+
+  /* icon panah */
+  background-image: url("data:image/svg+xml;utf8,<svg fill='none' stroke='%2364748b' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'></path></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+
+/* hover */
+.year-filter:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.15);
+}
+
+/* focus / active */
+.year-filter:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+}
+
+/* option */
+.year-filter option {
+  font-weight: 500;
+}
