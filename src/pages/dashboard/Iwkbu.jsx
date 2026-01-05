@@ -121,7 +121,7 @@ export default function Iwkbu() {
   const [renameValue, setRenameValue]   = useState("");  
   const [totalCount, setTotalCount] = useState(0);
   const [loadingRows, setLoadingRows] = useState(false);
-
+  const [totalNominalAll, setTotalNominalAll] = useState(0);
   const [filterWilayah, setFilterWilayah] = usePersistentState("iwkbu:filter:wilayah", "");
   const [filterLoket, setFilterLoket] = usePersistentState("iwkbu:filter:loket", "");
   const [filterTrayek, setFilterTrayek] = usePersistentState("iwkbu:filter:trayek", "");
@@ -354,11 +354,40 @@ export default function Iwkbu() {
     }
   };
 
-  //Hitung Total Tarif
-  const totalTarif = rows.reduce(
-    (sum, r) => sum + Number(r.tarif || 0),
-    0
-  );
+  const fetchTotalNominal = async () => {
+    try {
+      let query = supabase
+        .from("iwkbu")
+        .select("nominal");
+
+      // 🔹 PAKAI FILTER YANG SAMA PERSIS
+      if (filterWilayah) query = query.eq("wilayah", filterWilayah);
+      if (filterLoket) query = query.eq("loket", filterLoket);
+      if (filterTrayek) query = query.eq("trayek", filterTrayek);
+      if (filterJenis) query = query.eq("jenis", filterJenis);
+      if (filterPIC) query = query.eq("pic", filterPIC);
+      if (filterBadanHukum) query = query.eq("badan_hukum", filterBadanHukum);
+      if (filterNamaPerusahaan)
+        query = query.ilike("nama_perusahaan", `%${filterNamaPerusahaan}%`);
+      if (filterStatusBayar) query = query.eq("status_bayar", filterStatusBayar);
+      if (filterStatusKendaraan)
+        query = query.eq("status_kendaraan", filterStatusKendaraan);
+      if (filterKonfirmasi) query = query.eq("konfirmasi", filterKonfirmasi);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const total = (data || []).reduce(
+        (sum, r) => sum + Number(r.nominal || 0),
+        0
+      );
+
+      setTotalNominalAll(total);
+    } catch (e) {
+      console.error("fetchTotalNominal error:", e);
+      setTotalNominalAll(0);
+    }
+  };
 
   //Hitung Total Nominal
   const totalNominal = rows.reduce(
@@ -633,10 +662,8 @@ export default function Iwkbu() {
   }, [q]);
 
   useEffect(() => {
-    fetchRows();
+    fetchTotalNominal();
   }, [
-    page,
-    q,
     filterWilayah,
     filterLoket,
     filterTrayek,
@@ -1659,30 +1686,28 @@ export default function Iwkbu() {
               style={{
                 padding: "4px 8px",
                 borderRadius: "8px",
-                background: "#e8f4fd",
-                border: "1px solid #bee3f8",
-                fontWeight: 600,
-              }}
-            >
-              💸 Total Tarif: <b>{idr(totalTarif)}</b>
-            </div>
-
-            <div
-              style={{
-                padding: "4px 8px",
-                borderRadius: "8px",
                 background: "#fff4e5",
                 border: "1px solid #ffd8a8",
                 fontWeight: 600,
               }}
             >
-              🧾 Total IWKBU: <b>{idr(totalNominal)}</b>
+              🧾 Total IWKBU: <b>{idr(totalNominalAll)}</b>
             </div>
           </div>
         </div>
 
         {/* Pagination */}
         <div className="pager">
+          {/* ⏮ First */}
+          <button
+            className="btn ghost"
+            onClick={() => setPage(1)}
+            disabled={page === 1}
+          >
+            ⏮ First
+          </button>
+
+          {/* ‹ Prev */}
           <button
             className="btn ghost"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -1690,15 +1715,27 @@ export default function Iwkbu() {
           >
             ‹ Prev
           </button>
+
           <span className="page-info">
             Halaman {page} / {totalPage}
           </span>
+
+          {/* Next › */}
           <button
             className="btn ghost"
             onClick={() => setPage((p) => Math.min(totalPage, p + 1))}
             disabled={page >= totalPage}
           >
             Next ›
+          </button>
+
+          {/* ⏭ Last */}
+          <button
+            className="btn ghost"
+            onClick={() => setPage(totalPage)}
+            disabled={page === totalPage}
+          >
+            Last ⏭
           </button>
         </div>
       </div>

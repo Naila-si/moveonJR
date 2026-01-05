@@ -60,6 +60,21 @@ const CuteTooltip = ({ active, payload, label, formatterLabel }) => {
   );
 };
 
+const VALID_STATUS_BAYAR = ["LUNAS", "OUTSTANDING"];
+
+const VALID_STATUS_KENDARAAN = [
+  "BEROPERASI",
+  "CADANGAN",
+  "RUSAK SELAMANYA",
+];
+
+const isSameMonth = (dateStr, year, month) => {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return false;
+  return d.getFullYear() === year && d.getMonth() === month;
+};
+
 export default function Analitik() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -116,7 +131,7 @@ export default function Analitik() {
 
             supabase
               .from("iwkbu")
-              .select("id, nominal, outstanding, tgl_transaksi, loket")
+              .select("id, nominal, outstanding, tgl_transaksi, loket, status_bayar, status_kendaraan, masa_berlaku")
               .gte("tgl_transaksi", yearStart)
               .lt("tgl_transaksi", yearEnd)
               .limit(5000),
@@ -237,32 +252,39 @@ export default function Analitik() {
     };
   }, [rekapOS]);
 
-  // IWKBU per bulan (tahun berjalan)
-  const iwkbuMonthly = useMemo(() => {
+  const iwkbuDueThisMonth = useMemo(() => {
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth(); // 0-11
+
     const map = new Map();
+
     iwkbu.forEach((r) => {
-      if (!r.tgl_transaksi) return;
-      const d = new Date(r.tgl_transaksi);
-      if (Number.isNaN(d.getTime())) return;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
-        2,
-        "0"
-      )}`;
-      const label = d.toLocaleString("id-ID", { month: "short" });
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          month: label,
+      if (!r.masa_berlaku) return;
+
+      const d = new Date(r.masa_berlaku);
+      if (isNaN(d)) return;
+
+      // 👉 hanya yang jatuh tempo BULAN INI
+      if (d.getFullYear() !== curYear || d.getMonth() !== curMonth) return;
+
+      const dayLabel = d.getDate().toString().padStart(2, "0"); // 01, 02, dst
+
+      if (!map.has(dayLabel)) {
+        map.set(dayLabel, {
+          day: dayLabel,
           totalNominal: 0,
           totalOutstanding: 0,
         });
       }
-      const item = map.get(key);
-      item.totalNominal += r.nominal;
-      item.totalOutstanding += r.outstanding;
+
+      const item = map.get(dayLabel);
+      item.totalNominal += Number(r.nominal || 0);
+      item.totalOutstanding += Number(r.outstanding || 0);
     });
-    return Array.from(map.values()).sort((a, b) =>
-      a.key.localeCompare(b.key)
+
+    return Array.from(map.values()).sort(
+      (a, b) => Number(a.day) - Number(b.day)
     );
   }, [iwkbu]);
 
@@ -274,6 +296,39 @@ export default function Analitik() {
       totalOutstanding += r.outstanding;
     });
     return { totalNominal, totalOutstanding };
+  }, [iwkbu]);
+
+  const iwkbuFilteredSummary = useMemo(() => {
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+
+    let totalNominal = 0;
+    let totalOutstanding = 0;
+    let countKendaraan = 0;
+
+    iwkbu.forEach((r) => {
+      const statusBayar = String(r.status_bayar || "").toUpperCase();
+      const statusKend = String(r.status_kendaraan || "").toUpperCase();
+
+      if (!VALID_STATUS_BAYAR.includes(statusBayar)) return;
+      if (!VALID_STATUS_KENDARAAN.includes(statusKend)) return;
+      if (!isSameMonth(r.masa_berlaku, curYear, curMonth)) return;
+
+      totalNominal += Number(r.nominal || 0);
+
+      if (statusBayar === "OUTSTANDING") {
+        totalOutstanding += Number(r.outstanding || 0);
+      }
+
+      countKendaraan += 1;
+    });
+
+    return {
+      totalNominal,
+      totalOutstanding,
+      countKendaraan,
+    };
   }, [iwkbu]);
 
   // IWKL: kapal aktif / nonaktif + potensi per bulan
@@ -323,13 +378,12 @@ export default function Analitik() {
     );
   }, [rkj]);
 
-  // untuk insight otomatis
-  const iwkbuTopMonth = useMemo(() => {
-    if (!iwkbuMonthly.length) return null;
-    return iwkbuMonthly.reduce((a, b) =>
+  const iwkbuTopDay = useMemo(() => {
+    if (!iwkbuDueThisMonth.length) return null;
+    return iwkbuDueThisMonth.reduce((a, b) =>
       a.totalNominal > b.totalNominal ? a : b
     );
-  }, [iwkbuMonthly]);
+  }, [iwkbuDueThisMonth]);
 
   const rkjTopStatus = useMemo(() => {
     if (!rkjStatus.length) return null;
@@ -393,11 +447,15 @@ export default function Analitik() {
         <div className="stat-card">
           <div className="stat-top">
             <div className="stat-emoji">🚌</div>
-            <div className="stat-label">IWKBU (tahun berjalan)</div>
+            <div className="stat-label">IWKBU Jatuh Tempo (Bulan Berjalan)</div>
           </div>
-          <div className="stat-value">{idr(iwkbuSummary.totalNominal)}</div>
+          <div className="stat-value">
+            {idr(iwkbuFilteredSummary.totalNominal)}
+          </div>
+
           <div className="stat-sub">
-            Outstanding: {idr(iwkbuSummary.totalOutstanding)}
+            🚗 {iwkbuFilteredSummary.countKendaraan} kendaraan •
+            OS: {idr(iwkbuFilteredSummary.totalOutstanding)}
           </div>
         </div>
 
@@ -459,18 +517,18 @@ export default function Analitik() {
         {/* Area chart nominal IWKBU per bulan */}
         <div className="chart-card">
           <div className="chart-title">
-            Nominal IWKBU per Bulan
+            Nominal IWKBU Jatuh Tempo Bulan Ini
             <span className="chart-badge">Trend</span>
           </div>
 
-          {iwkbuMonthly.length === 0 ? (
+          {iwkbuDueThisMonth.length === 0 ? (
             <div className="chart-empty">
-              Belum ada transaksi IWKBU tahun ini.
+              Belum ada jatuh tempo IWKBU bulan ini.
             </div>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={iwkbuMonthly}>
+                <AreaChart data={iwkbuDueThisMonth}>
                   <defs>
                     <linearGradient id="gradNominal" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={COLORS[0]} stopOpacity={0.55} />
@@ -483,11 +541,11 @@ export default function Analitik() {
                   </defs>
 
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
+                  <XAxis dataKey="day" label={{ value: "Tanggal", position: "insideBottom", offset: -5 }} />
                   <YAxis />
                   <Tooltip
                     content={
-                      <CuteTooltip formatterLabel={(l) => `Bulan ${l}`} />
+                      <CuteTooltip formatterLabel={(l) => `Tanggal ${l}`} />
                     }
                   />
                   <Legend />
@@ -516,130 +574,19 @@ export default function Analitik() {
               </ResponsiveContainer>
 
               <div className="chart-insight">
-                {iwkbuTopMonth ? (
+                {iwkbuTopDay ? (
                   <>
-                    📌 Bulan tertinggi: <b>{iwkbuTopMonth.month}</b> dengan
-                    nominal <b>{idr(iwkbuTopMonth.totalNominal)}</b>
+                    📌 Tertinggi jatuh tempo tanggal <b>{iwkbuTopDay.day}</b> dengan
+                    nominal <b>{idr(iwkbuTopDay.totalNominal)}</b>
                   </>
                 ) : (
-                  "Belum ada insight."
+                  "Belum ada jatuh tempo bulan ini."
                 )}
               </div>
             </>
-          )}
-        </div>
-
-        {/* Bar chart status RKJ */}
-        <div className="chart-card">
-          <div className="chart-title">
-            Status RK Jadwal (rkj_entries)
-            <span className="chart-badge">Status</span>
-          </div>
-
-          {rkjStatus.length === 0 ? (
-            <div className="chart-empty">
-              Belum ada entri RK Jadwal tahun ini.
-            </div>
-          ) : (
-            <>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={rkjStatus}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="status" />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="count" name="Jumlah">
-                    {rkjStatus.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-
-              <div className="chart-insight">
-                {rkjTopStatus ? (
-                  <>
-                    ✅ Status terbanyak: <b>{rkjTopStatus.status}</b> (
-                    {rkjTopStatus.count} entri)
-                  </>
-                ) : (
-                  "Belum ada insight."
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Area chart aktivitas nilai RKJ per hari */}
-        <div className="chart-card chart-full">
-          <div className="chart-title">
-            Aktivitas Nilai RKJ per Hari (tahun berjalan)
-            <span className="chart-badge">Aktivitas</span>
-          </div>
-
-          {rkjDaily.length === 0 ? (
-            <div className="chart-empty">
-              Belum ada nilai RKJ yang tercatat tahun ini.
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={rkjDaily}>
-                <defs>
-                  <linearGradient id="gradRKJ" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={COLORS[2]} stopOpacity={0.6} />
-                    <stop offset="100%" stopColor={COLORS[2]} stopOpacity={0.06} />
-                  </linearGradient>
-                </defs>
-
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(d) =>
-                    new Date(d).toLocaleDateString("id-ID", {
-                      day: "2-digit",
-                      month: "short",
-                    })
-                  }
-                />
-                <YAxis />
-                <Tooltip
-                  content={
-                    <CuteTooltip
-                      formatterLabel={(d) => {
-                        const dt = new Date(d);
-                        return dt.toLocaleDateString("id-ID", {
-                          day: "2-digit",
-                          month: "long",
-                          year: "numeric",
-                        });
-                      }}
-                    />
-                  }
-                />
-
-                <Area
-                  type="monotone"
-                  dataKey="total"
-                  name="Nilai"
-                  stroke={COLORS[2]}
-                  fill="url(#gradRKJ)"
-                  fillOpacity={1}
-                  strokeWidth={2.5}
-                  dot={false}
-                  activeDot={{ r: 5 }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
           )}
         </div>
       </section>
-
-      {/* <p className="analitik-footnote">
-        * Data diambil langsung dari tabel <code>employees</code>,{" "}
-        <code>rekap_os</code>, <code>iwkbu</code>, <code>iwkl</code>, dan{" "}
-        <code>rkj_entries</code>. Kalau nanti tabel CRM / Manifest mau ikut
-        ditampilkan, bisa kita tambah satu section lagi khusus CRM.
-      </p> */}
     </div>
   );
 }

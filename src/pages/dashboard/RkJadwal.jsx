@@ -28,6 +28,36 @@ const initials = (name) => {
   return (p[0]?.[0] || "A") + (p[1]?.[0] || "");
 };
 
+const ensureSamsat = async (name, loket) => {
+  if (!name?.trim()) return null;
+
+  // cek dulu apakah sudah ada
+  const { data: existing } = await supabase
+    .from("samsat")
+    .select("id")
+    .ilike("name", name.trim())
+    .maybeSingle();
+
+  if (existing?.id) return existing.id;
+
+  // kalau belum ada → insert baru
+  const { data, error } = await supabase
+    .from("samsat")
+    .insert({
+      name: name.trim(),
+      loket: loket || null,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("Gagal insert samsat:", error);
+    return null;
+  }
+
+  return data.id;
+};
+
 export default function RKJadwal() {
   // waktu
   const today = new Date();
@@ -248,7 +278,6 @@ export default function RKJadwal() {
     closeModal();
   };
 
-  /* ===== CRUD people (Supabase) ===== */
   const addPerson = async (e) => {
     e.preventDefault();
     if (!newName.trim()) return;
@@ -256,18 +285,33 @@ export default function RKJadwal() {
       alert("Loket wajib diisi");
       return;
     }
+
+    let samsatIdFinal = newSamsatId;
+
+    if (!samsatIdFinal && newSamsatText.trim()) {
+      samsatIdFinal = await ensureSamsat(newSamsatText, newLoket);
+      await loadSamsat();
+    }
+
     const payload = {
       name: newName.trim(),
       handle: "",
-      samsat_id: newSamsatId || null,
+      samsat_id: samsatIdFinal || null,
       loket: newLoket,
     };
-    const { data, error } = await supabase.from("employees").insert(payload).select();
+
+    const { data, error } = await supabase
+      .from("employees")
+      .insert(payload)
+      .select();
+
     if (error) {
       console.error("add person error:", error);
       return;
     }
-    if (data?.length) setPeople(prev => [...prev, data[0]]);
+
+    if (data?.length) setPeople((prev) => [...prev, data[0]]);
+
     setNewName("");
     setNewSamsatId("");
     setNewSamsatText("");
@@ -289,16 +333,24 @@ export default function RKJadwal() {
 
   const updatePerson = async (e) => {
     e.preventDefault();
-    if (!editId) return;
-    if (!editName.trim()) return;
+    if (!editId || !editName.trim()) return;
     if (!editLoket) {
       alert("Loket wajib diisi");
       return;
     }
+
+    let samsatIdFinal = editSamsatId;
+
+    // 👉 kalau manual diketik
+    if (!samsatIdFinal && editSamsatText.trim()) {
+      samsatIdFinal = await ensureSamsat(editSamsatText, editLoket);
+      await loadSamsat(); // refresh opsi
+    }
+
     const payload = {
       name: editName.trim(),
       loket: editLoket,
-      samsat_id: editSamsatId || null,
+      samsat_id: samsatIdFinal || null,
     };
 
     const { error } = await supabase
@@ -311,8 +363,10 @@ export default function RKJadwal() {
       return;
     }
 
-    setPeople(prev =>
-      prev.map(p => p.id === editId ? { ...p, ...payload } : p)
+    setPeople((prev) =>
+      prev.map((p) =>
+        p.id === editId ? { ...p, ...payload } : p
+      )
     );
 
     setEditOpen(false);
