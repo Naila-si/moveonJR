@@ -25,15 +25,81 @@ function usePersistentState(key, initialValue) {
 }
 
 /* ===== Opsional awal (seed). Nanti bisa bertambah dinamis lewat input user ===== */
-const SEED_WILAYAH = ["PEKANBARU", "DUMAI", "ROHIL", "INHIL", "ROHUL", "KUANSING", "INHU", "PELALAWAN", "SIAK", "KAMPAR", "BENGKALIS", "ACEH", "-"];
-const SEED_TRAYEK = ["AJAP", "AKDP", "Angkutan Karyawan", "AJDP", "Taksi", "AKAP", "Pariwisata", "Angdes", "Angkutan Sekolah", "-"];
-const SEED_JENIS  = ["MINIBUS", "MICROBUS", "BUS", "SEDAN", "LIGHT TRUCK", "JEEP", "TAKSI", "-"];
-const SEED_BADAN  = ["Perorangan", "BH", "PR", "CV", "-"];
-const SEED_STATUS_BAYAR = ["Belum Bayar", "Lunas", "Parsial", "OUTSTANDING", "DISPENSASI", "-"];
-const SEED_STATUS_KEND  = ["Aktif", "Tidak Aktif", "Blokir", "BEROPERASI", "CADANGAN", "RUSAK SEMENTARA", "RUSAK SELAMANYA", "UBAH SIFAT", "UBAH SIFAT / BENTUK", "PINDAH PO", "-"];
-const SEED_GOLONGAN     = ["DU", "EU", "-"]; // temanmu sebut 'undefined'
+const SEED_WILAYAH = [
+  "PEKANBARU",
+  "DUMAI",
+  "ROHIL",
+  "INHIL",
+  "ROHUL",
+  "KUANSING",
+  "INHU",
+  "PELALAWAN",
+  "SIAK",
+  "KAMPAR",
+  "BENGKALIS",
+  "ACEH",
+  "-",
+];
+const SEED_TRAYEK = [
+  "AJAP",
+  "AKDP",
+  "Angkutan Karyawan",
+  "AJDP",
+  "Taksi",
+  "AKAP",
+  "Pariwisata",
+  "Angdes",
+  "Angkutan Sekolah",
+  "-",
+];
+const SEED_JENIS = [
+  "MINIBUS",
+  "MICROBUS",
+  "BUS",
+  "SEDAN",
+  "LIGHT TRUCK",
+  "JEEP",
+  "TAKSI",
+  "-",
+];
+const SEED_BADAN = ["Perorangan", "BH", "PR", "CV", "-"];
+const SEED_STATUS_BAYAR = [
+  "Belum Bayar",
+  "Lunas",
+  "Parsial",
+  "OUTSTANDING",
+  "DISPENSASI",
+  "-",
+];
+const SEED_STATUS_KEND = [
+  "Aktif",
+  "Tidak Aktif",
+  "Blokir",
+  "BEROPERASI",
+  "CADANGAN",
+  "RUSAK SEMENTARA",
+  "RUSAK SELAMANYA",
+  "UBAH SIFAT",
+  "UBAH SIFAT / BENTUK",
+  "PINDAH PO",
+  "-",
+];
+const SEED_GOLONGAN = ["DU", "EU", "-"]; // temanmu sebut 'undefined'
 const SEED_DOK_PERIZINAN = ["ADA", "TIDAK ADA"];
-const SEED_HASIL_KONF    = ["", "BEROPERASI BLM LUNAS", "BEROPERASI LUNAS", "DIJUAL", "GANTI NOPOL", "RUSAK SELAMANYA", "RUSAK SEMENTARA", "TIDAK BEROPERASI / CADANGAN", "TIDAK DITEMUKAN", "UBAH BENTUK", "UBAH SIFAT", "-"];
+const SEED_HASIL_KONF = [
+  "",
+  "BEROPERASI BLM LUNAS",
+  "BEROPERASI LUNAS",
+  "DIJUAL",
+  "GANTI NOPOL",
+  "RUSAK SELAMANYA",
+  "RUSAK SEMENTARA",
+  "TIDAK BEROPERASI / CADANGAN",
+  "TIDAK DITEMUKAN",
+  "UBAH BENTUK",
+  "UBAH SIFAT",
+  "-",
+];
 
 const idr = (n) =>
   (Number(n) || 0).toLocaleString("id-ID", {
@@ -44,22 +110,58 @@ const idr = (n) =>
 
 /* helper: tambah ke opsi kalau belum ada (case-insensitive).
    return value yg disimpan (kadang dinaikkan ke UPPER utk konsistensi beberapa field) */
-function addOptionIfMissing(options, setOptions, value, { forceUpper = false } = {}) {
+function addOptionIfMissing(
+  options,
+  setOptions,
+  value,
+  { forceUpper = false } = {}
+) {
   if (value == null) return value;
   let v = String(value).trim();
   if (!v) return v;
-  const exists = options.some((opt) => String(opt).toLowerCase() === v.toLowerCase());
+  const exists = options.some(
+    (opt) => String(opt).toLowerCase() === v.toLowerCase()
+  );
   const valToPush = forceUpper ? v.toUpperCase() : v;
   if (!exists) setOptions((prev) => [...prev, valToPush]);
   return valToPush;
 }
 
 const IWKBU_BASE_KEYS = [
-  "aksi","no","wilayah","nopol","tarif","golongan","nominal","trayekNew","jenis",
-  "tahun","pic","badanHukum","namaPerusahaan","alamat","kelurahan","kecamatan","kota",
-  "tglTransaksi","loket","masaBerlaku","masaSwdkllj","statusBayar","statusKendaraan",
-  "outstanding","konfirmasi","hp","namaPemilik","nik","dokPerizinan","tglBayarOs",
-  "nilaiBayarOs","tglPemeliharaan","nilaiPemeliharaanOs","keterangan"
+  "aksi",
+  "no",
+  "wilayah",
+  "nopol",
+  "tarif",
+  "golongan",
+  "nominal",
+  "trayekNew",
+  "jenis",
+  "tahun",
+  "pic",
+  "badanHukum",
+  "namaPerusahaan",
+  "alamat",
+  "kelurahan",
+  "kecamatan",
+  "kota",
+  "tglTransaksi",
+  "loket",
+  "masaBerlaku",
+  "masaSwdkllj",
+  "statusBayar",
+  "statusKendaraan",
+  "outstanding",
+  "konfirmasi",
+  "hp",
+  "namaPemilik",
+  "nik",
+  "dokPerizinan",
+  "tglBayarOs",
+  "nilaiBayarOs",
+  "tglPemeliharaan",
+  "nilaiPemeliharaanOs",
+  "keterangan",
 ];
 
 function useEmployees() {
@@ -76,7 +178,8 @@ function useEmployees() {
       try {
         const { data, error } = await supabase
           .from("employees")
-          .select(`
+          .select(
+            `
             id,
             name,
             handle,
@@ -86,7 +189,8 @@ function useEmployees() {
               name,
               loket
             )
-          `)
+          `
+          )
           .order("name", { ascending: true });
         if (!alive) return;
         if (error) throw error;
@@ -102,7 +206,9 @@ function useEmployees() {
       }
     })();
 
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
   return { employees, loading, error };
@@ -110,33 +216,56 @@ function useEmployees() {
 
 export default function Iwkbu() {
   const [rows, setRows] = useState([]);
-  const [q, setQ]       = usePersistentState("iwkbu:q", "");
+  const [q, setQ] = usePersistentState("iwkbu:q", "");
   const [page, setPage] = useState(1);
   const pageSize = 50;
   const [extraCols, setExtraCols] = usePersistentState("iwkbu:extraCols", []); // [{key,label}]
   const [showColModal, setShowColModal] = useState(false);
   const [newColLabel, setNewColLabel] = useState("");
-  const [openMenuKey, setOpenMenuKey]   = useState(null);  
-  const [renamingKey, setRenamingKey]   = useState(null);  
-  const [renameValue, setRenameValue]   = useState("");  
+  const [openMenuKey, setOpenMenuKey] = useState(null);
+  const [renamingKey, setRenamingKey] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
   const [totalCount, setTotalCount] = useState(0);
   const [loadingRows, setLoadingRows] = useState(false);
   const [totalNominalAll, setTotalNominalAll] = useState(0);
-  const [filterWilayah, setFilterWilayah] = usePersistentState("iwkbu:filter:wilayah", "");
-  const [filterLoket, setFilterLoket] = usePersistentState("iwkbu:filter:loket", "");
-  const [filterTrayek, setFilterTrayek] = usePersistentState("iwkbu:filter:trayek", "");
-  const [filterJenis, setFilterJenis] = usePersistentState("iwkbu:filter:jenis", "");
+  const [filterWilayah, setFilterWilayah] = usePersistentState(
+    "iwkbu:filter:wilayah",
+    ""
+  );
+  const [filterLoket, setFilterLoket] = usePersistentState(
+    "iwkbu:filter:loket",
+    ""
+  );
+  const [filterTrayek, setFilterTrayek] = usePersistentState(
+    "iwkbu:filter:trayek",
+    ""
+  );
+  const [filterJenis, setFilterJenis] = usePersistentState(
+    "iwkbu:filter:jenis",
+    ""
+  );
   const [filterPIC, setFilterPIC] = usePersistentState("iwkbu:filter:pic", "");
-  const [filterBadanHukum, setFilterBadanHukum] = usePersistentState("iwkbu:filter:badanHukum", "");
-  const [filterNamaPerusahaan, setFilterNamaPerusahaan] =
-    usePersistentState("iwkbu:filter:namaPerusahaan", "");
-  const [filterStatusBayar, setFilterStatusBayar] =
-    usePersistentState("iwkbu:filter:statusBayar", "");
-  const [filterStatusKendaraan, setFilterStatusKendaraan] =
-    usePersistentState("iwkbu:filter:statusKendaraan", "");
-  const [filterKonfirmasi, setFilterKonfirmasi] =
-    usePersistentState("iwkbu:filter:konfirmasi", "");
-  
+  const [filterBadanHukum, setFilterBadanHukum] = usePersistentState(
+    "iwkbu:filter:badanHukum",
+    ""
+  );
+  const [filterNamaPerusahaan, setFilterNamaPerusahaan] = usePersistentState(
+    "iwkbu:filter:namaPerusahaan",
+    ""
+  );
+  const [filterStatusBayar, setFilterStatusBayar] = usePersistentState(
+    "iwkbu:filter:statusBayar",
+    ""
+  );
+  const [filterStatusKendaraan, setFilterStatusKendaraan] = usePersistentState(
+    "iwkbu:filter:statusKendaraan",
+    ""
+  );
+  const [filterKonfirmasi, setFilterKonfirmasi] = usePersistentState(
+    "iwkbu:filter:konfirmasi",
+    ""
+  );
+
   const [WILAYAH_FILTER_OPTS, setWilayahFilterOpts] = useState([]);
   const [LOKET_FILTER_OPTS, setLoketFilterOpts] = useState([]);
   const [TRAYEK_FILTER_OPTS, setTrayekFilterOpts] = useState([]);
@@ -152,22 +281,18 @@ export default function Iwkbu() {
 
   const SAMSAT_OPTS = useMemo(() => {
     return Array.from(
-      new Set(
-        (EMP_OPTS || [])
-          .map(e => e.samsat?.name)
-          .filter(Boolean)
-      )
+      new Set((EMP_OPTS || []).map((e) => e.samsat?.name).filter(Boolean))
     ).sort((a, b) => a.localeCompare(b));
   }, [EMP_OPTS]);
 
   const LOKET_OPTS = useMemo(() => {
-    const fromRows = rows.map(r => r.loket).filter(Boolean);
+    const fromRows = rows.map((r) => r.loket).filter(Boolean);
     const fromEmpSamsat = (EMP_OPTS || [])
-      .map(e => e.samsat?.name)
+      .map((e) => e.samsat?.name)
       .filter(Boolean);
 
     const uniq = Array.from(
-      new Set([...fromRows, ...fromEmpSamsat].map(x => x.trim()))
+      new Set([...fromRows, ...fromEmpSamsat].map((x) => x.trim()))
     ).sort((a, b) => a.localeCompare(b));
 
     return ["", ...uniq];
@@ -180,7 +305,7 @@ export default function Iwkbu() {
     tarif: r.tarif ?? 0,
     golongan: r.golongan || "",
     nominal: r.nominal ?? 0,
-    trayekNew: r.trayek || "",       // <— mapping DB.trayek -> UI.trayekNew
+    trayekNew: r.trayek || "", // <— mapping DB.trayek -> UI.trayekNew
     jenis: r.jenis || "",
     tahun: r.tahun ?? "",
     pic: r.pic || "",
@@ -215,7 +340,7 @@ export default function Iwkbu() {
     tarif: Number(r.tarif || 0),
     golongan: r.golongan || null,
     nominal: Number(String(r.nominal || 0).replace(/[^\d]/g, "")),
-    trayek: r.trayekNew || null,        // <— mapping UI.trayekNew -> DB.trayek
+    trayek: r.trayekNew || null, // <— mapping UI.trayekNew -> DB.trayek
     jenis: r.jenis || null,
     tahun: r.tahun ? Number(r.tahun) : null,
     pic: r.pic || null,
@@ -260,7 +385,8 @@ export default function Iwkbu() {
       if (filterBadanHukum) query = query.eq("badan_hukum", filterBadanHukum);
       if (filterNamaPerusahaan)
         query = query.ilike("nama_perusahaan", `%${filterNamaPerusahaan}%`);
-      if (filterStatusBayar) query = query.eq("status_bayar", filterStatusBayar);
+      if (filterStatusBayar)
+        query = query.eq("status_bayar", filterStatusBayar);
       if (filterStatusKendaraan)
         query = query.eq("status_kendaraan", filterStatusKendaraan);
       if (filterKonfirmasi) query = query.eq("konfirmasi", filterKonfirmasi);
@@ -270,24 +396,24 @@ export default function Iwkbu() {
 
       // 🔹 FORMAT DATA EXCEL
       const excelData = (data || []).map((r, i) => ({
-        "No": i + 1,
-        "Wilayah": r.wilayah,
+        No: i + 1,
+        Wilayah: r.wilayah,
         "Nomor Polisi": r.nopol,
         "Tarif (Rp)": r.tarif,
-        "Golongan": r.golongan,
+        Golongan: r.golongan,
         "Nominal IWKBU (Rp)": r.nominal,
-        "Trayek": r.trayek,
-        "Jenis": r.jenis,
-        "Tahun": r.tahun,
-        "PIC": r.pic,
+        Trayek: r.trayek,
+        Jenis: r.jenis,
+        Tahun: r.tahun,
+        PIC: r.pic,
         "Badan Hukum": r.badan_hukum,
         "Nama Perusahaan": r.nama_perusahaan,
-        "Alamat": r.alamat,
-        "Kelurahan": r.kelurahan,
-        "Kecamatan": r.kecamatan,
-        "Kota": r.kota,
+        Alamat: r.alamat,
+        Kelurahan: r.kelurahan,
+        Kecamatan: r.kecamatan,
+        Kota: r.kota,
         "Tanggal Transaksi": r.tgl_transaksi,
-        "Loket": r.loket,
+        Loket: r.loket,
         "Masa Berlaku IWKBU": r.masa_berlaku,
         "Masa SWDKLLJ": r.masa_swdkllj,
         "Status Bayar": r.status_bayar,
@@ -296,23 +422,24 @@ export default function Iwkbu() {
         "Hasil Konfirmasi": r.konfirmasi,
         "No HP": r.hp,
         "Nama Pemilik": r.nama_pemilik,
-        "NIK": r.nik,
+        NIK: r.nik,
         "Dok Perizinan": r.dok_perizinan,
         "Tgl Bayar OS": r.tgl_bayar_os,
         "Nilai Bayar OS (Rp)": r.nilai_bayar_os,
         "Tgl Pemeliharaan": r.tgl_pemeliharaan,
         "Nilai Pemeliharaan (Rp)": r.nilai_pemeliharaan_os,
-        "Keterangan": r.keterangan,
+        Keterangan: r.keterangan,
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(excelData);
 
       // 🔥 AUTO WIDTH KOLOM
       const colWidths = Object.keys(excelData[0] || {}).map((key) => ({
-        wch: Math.max(
-          key.length,
-          ...excelData.map((row) => String(row[key] ?? "").length)
-        ) + 2,
+        wch:
+          Math.max(
+            key.length,
+            ...excelData.map((row) => String(row[key] ?? "").length)
+          ) + 2,
       }));
       worksheet["!cols"] = colWidths;
 
@@ -356,9 +483,7 @@ export default function Iwkbu() {
 
   const fetchTotalNominal = async () => {
     try {
-      let query = supabase
-        .from("iwkbu")
-        .select("nominal");
+      let query = supabase.from("iwkbu").select("nominal");
 
       // 🔹 PAKAI FILTER YANG SAMA PERSIS
       if (filterWilayah) query = query.eq("wilayah", filterWilayah);
@@ -369,7 +494,8 @@ export default function Iwkbu() {
       if (filterBadanHukum) query = query.eq("badan_hukum", filterBadanHukum);
       if (filterNamaPerusahaan)
         query = query.ilike("nama_perusahaan", `%${filterNamaPerusahaan}%`);
-      if (filterStatusBayar) query = query.eq("status_bayar", filterStatusBayar);
+      if (filterStatusBayar)
+        query = query.eq("status_bayar", filterStatusBayar);
       if (filterStatusKendaraan)
         query = query.eq("status_kendaraan", filterStatusKendaraan);
       if (filterKonfirmasi) query = query.eq("konfirmasi", filterKonfirmasi);
@@ -390,10 +516,7 @@ export default function Iwkbu() {
   };
 
   //Hitung Total Nominal
-  const totalNominal = rows.reduce(
-    (sum, r) => sum + Number(r.nominal || 0),
-    0
-  );
+  const totalNominal = rows.reduce((sum, r) => sum + Number(r.nominal || 0), 0);
 
   const fetchFilterOptions = async () => {
     try {
@@ -418,7 +541,10 @@ export default function Iwkbu() {
         ).sort((a, b) => a.localeCompare(b));
 
       // Wilayah
-      const wilayahUniq = safeUniq(data.map((x) => x.wilayah), { upper: true });
+      const wilayahUniq = safeUniq(
+        data.map((x) => x.wilayah),
+        { upper: true }
+      );
       const wilayahMerged = safeUniq(
         [...SEED_WILAYAH.filter((w) => w && w !== "-"), ...wilayahUniq],
         { upper: true }
@@ -435,7 +561,10 @@ export default function Iwkbu() {
       );
 
       // ✅ Jenis
-      const jenisUniq = safeUniq(data.map((x) => x.jenis), { upper: true });
+      const jenisUniq = safeUniq(
+        data.map((x) => x.jenis),
+        { upper: true }
+      );
       setJenisFilterOpts(
         safeUniq([...SEED_JENIS.filter((j) => j && j !== "-"), ...jenisUniq], {
           upper: true,
@@ -459,7 +588,10 @@ export default function Iwkbu() {
       // ✅ Status Bayar
       const sbUniq = safeUniq(data.map((x) => x.status_bayar));
       setStatusBayarFilterOpts(
-        safeUniq([...SEED_STATUS_BAYAR.filter((s) => s && s !== "-"), ...sbUniq])
+        safeUniq([
+          ...SEED_STATUS_BAYAR.filter((s) => s && s !== "-"),
+          ...sbUniq,
+        ])
       );
 
       // ✅ Status Kendaraan
@@ -471,7 +603,10 @@ export default function Iwkbu() {
       // ✅ Hasil Konfirmasi
       const konfUniq = safeUniq(data.map((x) => x.konfirmasi));
       setKonfFilterOpts(
-        safeUniq([...SEED_HASIL_KONF.filter((k) => k && k !== "-"), ...konfUniq])
+        safeUniq([
+          ...SEED_HASIL_KONF.filter((k) => k && k !== "-"),
+          ...konfUniq,
+        ])
       );
     } catch (e) {
       console.error("fetchFilterOptions error:", e);
@@ -509,14 +644,16 @@ export default function Iwkbu() {
 
       // search global
       if (s) {
-        query = query.or([
-          `nopol.ilike.%${s}%`,
-          `wilayah.ilike.%${s}%`,
-          `kota.ilike.%${s}%`,
-          `trayek.ilike.%${s}%`,
-          `nama_perusahaan.ilike.%${s}%`,
-          `pic.ilike.%${s}%`,
-        ].join(","));
+        query = query.or(
+          [
+            `nopol.ilike.%${s}%`,
+            `wilayah.ilike.%${s}%`,
+            `kota.ilike.%${s}%`,
+            `trayek.ilike.%${s}%`,
+            `nama_perusahaan.ilike.%${s}%`,
+            `pic.ilike.%${s}%`,
+          ].join(",")
+        );
       }
 
       // filter wilayah
@@ -574,7 +711,7 @@ export default function Iwkbu() {
       }
 
       const from = (page - 1) * pageSize;
-      const to   = from + pageSize - 1;
+      const to = from + pageSize - 1;
       query = query.range(from, to);
 
       const { data, count, error } = await query;
@@ -600,15 +737,42 @@ export default function Iwkbu() {
       .replace(/[^a-z0-9]/g, "");
 
   // opsi dinamis (seed dulu, lalu bisa nambah)
-  const [WILAYAH_OPTS, setWilayahOpts]                   = usePersistentState("iwkbu:opts:wilayah", SEED_WILAYAH);
-  const [TRAYEK_OPTS, setTrayekOpts]                     = usePersistentState("iwkbu:opts:trayek", SEED_TRAYEK);
-  const [JENIS_OPTS, setJenisOpts]                       = usePersistentState("iwkbu:opts:jenis", SEED_JENIS);
-  const [BADAN_HUKUM_OPTS, setBadanOpts]                 = usePersistentState("iwkbu:opts:badan", SEED_BADAN);
-  const [STATUS_BAYAR_OPTS, setStatusBayarOpts]          = usePersistentState("iwkbu:opts:statusBayar", SEED_STATUS_BAYAR);
-  const [STATUS_KENDARAAN_OPTS, setStatusKendaraanOpts]  = usePersistentState("iwkbu:opts:statusKend", SEED_STATUS_KEND);
-  const [GOLONGAN_OPTS, setGolonganOpts]                 = usePersistentState("iwkbu:opts:golongan", SEED_GOLONGAN);
-  const [DOK_PERIZINAN_OPTS, setDokPerizinanOpts]        = usePersistentState("iwkbu:opts:dokPerizinan", SEED_DOK_PERIZINAN);
-  const [HASIL_KONF_OPTS, setHasilKonfOpts]              = usePersistentState("iwkbu:opts:hasilKonf", SEED_HASIL_KONF);
+  const [WILAYAH_OPTS, setWilayahOpts] = usePersistentState(
+    "iwkbu:opts:wilayah",
+    SEED_WILAYAH
+  );
+  const [TRAYEK_OPTS, setTrayekOpts] = usePersistentState(
+    "iwkbu:opts:trayek",
+    SEED_TRAYEK
+  );
+  const [JENIS_OPTS, setJenisOpts] = usePersistentState(
+    "iwkbu:opts:jenis",
+    SEED_JENIS
+  );
+  const [BADAN_HUKUM_OPTS, setBadanOpts] = usePersistentState(
+    "iwkbu:opts:badan",
+    SEED_BADAN
+  );
+  const [STATUS_BAYAR_OPTS, setStatusBayarOpts] = usePersistentState(
+    "iwkbu:opts:statusBayar",
+    SEED_STATUS_BAYAR
+  );
+  const [STATUS_KENDARAAN_OPTS, setStatusKendaraanOpts] = usePersistentState(
+    "iwkbu:opts:statusKend",
+    SEED_STATUS_KEND
+  );
+  const [GOLONGAN_OPTS, setGolonganOpts] = usePersistentState(
+    "iwkbu:opts:golongan",
+    SEED_GOLONGAN
+  );
+  const [DOK_PERIZINAN_OPTS, setDokPerizinanOpts] = usePersistentState(
+    "iwkbu:opts:dokPerizinan",
+    SEED_DOK_PERIZINAN
+  );
+  const [HASIL_KONF_OPTS, setHasilKonfOpts] = usePersistentState(
+    "iwkbu:opts:hasilKonf",
+    SEED_HASIL_KONF
+  );
 
   // modal: tambah nopol
   const [showNopolModal, setShowNopolModal] = useState(false);
@@ -662,8 +826,11 @@ export default function Iwkbu() {
   }, [q]);
 
   useEffect(() => {
+    fetchRows();
     fetchTotalNominal();
   }, [
+    page,
+    q,
     filterWilayah,
     filterLoket,
     filterTrayek,
@@ -683,15 +850,52 @@ export default function Iwkbu() {
     e?.preventDefault?.();
     if (!newForm.nopol.trim()) return;
 
-    const wilayahSaved   = addOptionIfMissing(WILAYAH_OPTS, setWilayahOpts, newForm.wilayah, { forceUpper: true });
-    const trayekSaved    = addOptionIfMissing(TRAYEK_OPTS, setTrayekOpts, newForm.trayekNew);
-    const jenisSaved     = addOptionIfMissing(JENIS_OPTS, setJenisOpts, newForm.jenis);
-    const badanSaved     = addOptionIfMissing(BADAN_HUKUM_OPTS, setBadanOpts, newForm.badanHukum);
-    const statusBaySaved = addOptionIfMissing(STATUS_BAYAR_OPTS, setStatusBayarOpts, newForm.statusBayar);
-    const statusKenSaved = addOptionIfMissing(STATUS_KENDARAAN_OPTS, setStatusKendaraanOpts, newForm.statusKendaraan);
-    const golSaved       = addOptionIfMissing(GOLONGAN_OPTS, setGolonganOpts, newForm.golongan);
-    const dokSaved       = addOptionIfMissing(DOK_PERIZINAN_OPTS, setDokPerizinanOpts, newForm.dokPerizinan);
-    addOptionIfMissing(HASIL_KONF_OPTS, setHasilKonfOpts, newForm.konfirmasi || "");
+    const wilayahSaved = addOptionIfMissing(
+      WILAYAH_OPTS,
+      setWilayahOpts,
+      newForm.wilayah,
+      { forceUpper: true }
+    );
+    const trayekSaved = addOptionIfMissing(
+      TRAYEK_OPTS,
+      setTrayekOpts,
+      newForm.trayekNew
+    );
+    const jenisSaved = addOptionIfMissing(
+      JENIS_OPTS,
+      setJenisOpts,
+      newForm.jenis
+    );
+    const badanSaved = addOptionIfMissing(
+      BADAN_HUKUM_OPTS,
+      setBadanOpts,
+      newForm.badanHukum
+    );
+    const statusBaySaved = addOptionIfMissing(
+      STATUS_BAYAR_OPTS,
+      setStatusBayarOpts,
+      newForm.statusBayar
+    );
+    const statusKenSaved = addOptionIfMissing(
+      STATUS_KENDARAAN_OPTS,
+      setStatusKendaraanOpts,
+      newForm.statusKendaraan
+    );
+    const golSaved = addOptionIfMissing(
+      GOLONGAN_OPTS,
+      setGolonganOpts,
+      newForm.golongan
+    );
+    const dokSaved = addOptionIfMissing(
+      DOK_PERIZINAN_OPTS,
+      setDokPerizinanOpts,
+      newForm.dokPerizinan
+    );
+    addOptionIfMissing(
+      HASIL_KONF_OPTS,
+      setHasilKonfOpts,
+      newForm.konfirmasi || ""
+    );
 
     const next = {
       ...newForm,
@@ -709,7 +913,10 @@ export default function Iwkbu() {
 
     const payload = toDB(next);
     const { error } = await supabase.from("iwkbu").insert(payload);
-    if (error) { alert("Gagal tambah data: " + error.message); return; }
+    if (error) {
+      alert("Gagal tambah data: " + error.message);
+      return;
+    }
 
     setShowNopolModal(false);
     setNewForm(emptyForm);
@@ -719,10 +926,12 @@ export default function Iwkbu() {
   };
 
   const saveCell = async (id, field, value) => {
-    setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+    setRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+    );
 
     const patchUI = { [field]: value };
-    const patchDB = toDB({ ...rows.find(r => r.id === id), ...patchUI });
+    const patchDB = toDB({ ...rows.find((r) => r.id === id), ...patchUI });
 
     let dbField = field;
     if (field === "trayekNew") dbField = "trayek";
@@ -770,7 +979,10 @@ export default function Iwkbu() {
   const deleteRow = async (id) => {
     if (!window.confirm("Hapus baris ini?")) return;
     const { error } = await supabase.from("iwkbu").delete().eq("id", id);
-    if (error) { alert("Gagal hapus: " + error.message); return; }
+    if (error) {
+      alert("Gagal hapus: " + error.message);
+      return;
+    }
     fetchRows();
     fetchFilterOptions();
   };
@@ -781,7 +993,9 @@ export default function Iwkbu() {
 
       <header className="iwkbu-header">
         <div className="title">
-          <span role="img" aria-label="bus" className="emoji">🚌</span>
+          <span role="img" aria-label="bus" className="emoji">
+            🚌
+          </span>
           <h1>Data IWKBU</h1>
         </div>
 
@@ -800,14 +1014,14 @@ export default function Iwkbu() {
 
             <button
               className="btn primary"
-              onClick={() => { setNewForm(emptyForm); setShowNopolModal(true); }}
+              onClick={() => {
+                setNewForm(emptyForm);
+                setShowNopolModal(true);
+              }}
             >
               + Tambah Nomor Polisi
             </button>
-            <button
-              className="btn ghost"
-              onClick={exportToExcel}
-            >
+            <button className="btn ghost" onClick={exportToExcel}>
               📥 Export Excel
             </button>
           </div>
@@ -845,7 +1059,9 @@ export default function Iwkbu() {
             >
               <option value="">Semua Wilayah</option>
               {WILAYAH_FILTER_OPTS.map((w) => (
-                <option key={w} value={w}>{w}</option>
+                <option key={w} value={w}>
+                  {w}
+                </option>
               ))}
             </select>
 
@@ -859,7 +1075,9 @@ export default function Iwkbu() {
             >
               <option value="">Semua Loket</option>
               {LOKET_FILTER_OPTS.map((l) => (
-                <option key={l} value={l}>{l}</option>
+                <option key={l} value={l}>
+                  {l}
+                </option>
               ))}
             </select>
 
@@ -873,7 +1091,9 @@ export default function Iwkbu() {
             >
               <option value="">Semua Trayek</option>
               {TRAYEK_FILTER_OPTS.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
             </select>
 
@@ -887,7 +1107,9 @@ export default function Iwkbu() {
             >
               <option value="">Semua Jenis</option>
               {JENIS_FILTER_OPTS.map((j) => (
-                <option key={j} value={j}>{j}</option>
+                <option key={j} value={j}>
+                  {j}
+                </option>
               ))}
             </select>
 
@@ -902,7 +1124,9 @@ export default function Iwkbu() {
             >
               <option value="">Semua PIC</option>
               {PIC_FILTER_OPTS.map((p) => (
-                <option key={p} value={p}>{p}</option>
+                <option key={p} value={p}>
+                  {p}
+                </option>
               ))}
             </select>
 
@@ -916,7 +1140,9 @@ export default function Iwkbu() {
             >
               <option value="">Semua Badan</option>
               {BADAN_FILTER_OPTS.map((b) => (
-                <option key={b} value={b}>{b}</option>
+                <option key={b} value={b}>
+                  {b}
+                </option>
               ))}
             </select>
 
@@ -930,7 +1156,9 @@ export default function Iwkbu() {
             >
               <option value="">Semua Status Bayar</option>
               {STATUS_BAYAR_FILTER_OPTS.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
 
@@ -944,7 +1172,9 @@ export default function Iwkbu() {
             >
               <option value="">Semua Status Kendaraan</option>
               {STATUS_KEND_FILTER_OPTS.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
 
@@ -958,7 +1188,9 @@ export default function Iwkbu() {
             >
               <option value="">Semua Hasil Konfirmasi</option>
               {KONF_FILTER_OPTS.map((k) => (
-                <option key={k} value={k}>{k}</option>
+                <option key={k} value={k}>
+                  {k}
+                </option>
               ))}
             </select>
 
@@ -973,7 +1205,9 @@ export default function Iwkbu() {
             >
               <option value="">Semua Perusahaan</option>
               {PERUSAHAAN_FILTER_OPTS.map((p) => (
-                <option key={p} value={p}>{p}</option>
+                <option key={p} value={p}>
+                  {p}
+                </option>
               ))}
             </select>
           </div>
@@ -1032,7 +1266,12 @@ export default function Iwkbu() {
                 <tr key={r.id}>
                   {/* Aksi */}
                   <td>
-                    <button className="btn danger ghost xs" onClick={() => deleteRow(r.id)}>Hapus</button>
+                    <button
+                      className="btn danger ghost xs"
+                      onClick={() => deleteRow(r.id)}
+                    >
+                      Hapus
+                    </button>
                   </td>
 
                   {/* No */}
@@ -1063,7 +1302,9 @@ export default function Iwkbu() {
                       }}
                     />
                     <datalist id="wilayah-list">
-                      {WILAYAH_OPTS.map((w) => <option key={w} value={w} />)}
+                      {WILAYAH_OPTS.map((w) => (
+                        <option key={w} value={w} />
+                      ))}
                     </datalist>
                   </td>
 
@@ -1081,7 +1322,8 @@ export default function Iwkbu() {
                       value={r.tarif}
                       onChange={(e) =>
                         updateRow(r.id, {
-                          tarif: e.target.value === "" ? 0 : Number(e.target.value),
+                          tarif:
+                            e.target.value === "" ? 0 : Number(e.target.value),
                         })
                       }
                       onBlur={(e) =>
@@ -1118,7 +1360,9 @@ export default function Iwkbu() {
                       }}
                     />
                     <datalist id="golongan-list">
-                      {GOLONGAN_OPTS.map((g) => <option key={g} value={g} />)}
+                      {GOLONGAN_OPTS.map((g) => (
+                        <option key={g} value={g} />
+                      ))}
                     </datalist>
                   </td>
 
@@ -1137,11 +1381,17 @@ export default function Iwkbu() {
                     <input
                       list="trayek-list"
                       value={r.trayekNew}
-                      onChange={(e) => updateRow(r.id, { trayekNew: e.target.value })}
-                      onBlur={(e) => saveCell(r.id, "trayekNew", e.target.value)}
+                      onChange={(e) =>
+                        updateRow(r.id, { trayekNew: e.target.value })
+                      }
+                      onBlur={(e) =>
+                        saveCell(r.id, "trayekNew", e.target.value)
+                      }
                     />
                     <datalist id="trayek-list">
-                      {TRAYEK_OPTS.map((t) => <option key={t} value={t} />)}
+                      {TRAYEK_OPTS.map((t) => (
+                        <option key={t} value={t} />
+                      ))}
                     </datalist>
                   </td>
 
@@ -1168,7 +1418,9 @@ export default function Iwkbu() {
                       }}
                     />
                     <datalist id="jenis-list">
-                      {JENIS_OPTS.map((j) => <option key={j} value={j} />)}
+                      {JENIS_OPTS.map((j) => (
+                        <option key={j} value={j} />
+                      ))}
                     </datalist>
                   </td>
 
@@ -1183,7 +1435,8 @@ export default function Iwkbu() {
                       value={r.tahun ?? ""}
                       onChange={(e) =>
                         updateRow(r.id, {
-                          tahun: e.target.value === "" ? "" : Number(e.target.value),
+                          tahun:
+                            e.target.value === "" ? "" : Number(e.target.value),
                         })
                       }
                       onBlur={(e) =>
@@ -1252,7 +1505,9 @@ export default function Iwkbu() {
                       }}
                     />
                     <datalist id="badan-list">
-                      {BADAN_HUKUM_OPTS.map((b) => <option key={b} value={b} />)}
+                      {BADAN_HUKUM_OPTS.map((b) => (
+                        <option key={b} value={b} />
+                      ))}
                     </datalist>
                   </td>
 
@@ -1281,7 +1536,9 @@ export default function Iwkbu() {
                     <input
                       type="text"
                       value={r.alamat}
-                      onChange={(e) => updateRow(r.id, { alamat: e.target.value })}
+                      onChange={(e) =>
+                        updateRow(r.id, { alamat: e.target.value })
+                      }
                       onBlur={(e) => saveCell(r.id, "alamat", e.target.value)}
                       placeholder="Alamat lengkap"
                     />
@@ -1295,7 +1552,9 @@ export default function Iwkbu() {
                       onChange={(e) =>
                         updateRow(r.id, { kelurahan: e.target.value })
                       }
-                      onBlur={(e) => saveCell(r.id, "kelurahan", e.target.value)}
+                      onBlur={(e) =>
+                        saveCell(r.id, "kelurahan", e.target.value)
+                      }
                     />
                   </td>
 
@@ -1307,7 +1566,9 @@ export default function Iwkbu() {
                       onChange={(e) =>
                         updateRow(r.id, { kecamatan: e.target.value })
                       }
-                      onBlur={(e) => saveCell(r.id, "kecamatan", e.target.value)}
+                      onBlur={(e) =>
+                        saveCell(r.id, "kecamatan", e.target.value)
+                      }
                     />
                   </td>
 
@@ -1316,7 +1577,9 @@ export default function Iwkbu() {
                     <input
                       type="text"
                       value={r.kota}
-                      onChange={(e) => updateRow(r.id, { kota: e.target.value })}
+                      onChange={(e) =>
+                        updateRow(r.id, { kota: e.target.value })
+                      }
                       onBlur={(e) => saveCell(r.id, "kota", e.target.value)}
                     />
                   </td>
@@ -1341,7 +1604,9 @@ export default function Iwkbu() {
                       list="loket-list"
                       type="text"
                       value={r.loket || ""}
-                      onChange={(e) => updateRow(r.id, { loket: e.target.value })}
+                      onChange={(e) =>
+                        updateRow(r.id, { loket: e.target.value })
+                      }
                       onBlur={(e) => {
                         const val = e.target.value;
                         saveCell(r.id, "loket", val);
@@ -1493,15 +1758,15 @@ export default function Iwkbu() {
                         <option key={s} value={s} />
                       ))}
                     </datalist>
-                   <datalist id="pic-list">
-                    {EMP_OPTS.map((emp) => (
-                      <option key={emp.id} value={emp.name}>
-                        {emp.name}
-                        {emp.samsat?.name ? ` — ${emp.samsat.name}` : ""}
-                        {emp.handle ? ` (@${emp.handle})` : ""}
-                      </option>
-                    ))}
-                  </datalist>
+                    <datalist id="pic-list">
+                      {EMP_OPTS.map((emp) => (
+                        <option key={emp.id} value={emp.name}>
+                          {emp.name}
+                          {emp.samsat?.name ? ` — ${emp.samsat.name}` : ""}
+                          {emp.handle ? ` (@${emp.handle})` : ""}
+                        </option>
+                      ))}
+                    </datalist>
                   </td>
 
                   {/* No HP */}
@@ -1640,7 +1905,9 @@ export default function Iwkbu() {
                         )
                       }
                     />
-                    <div className="hint">{idr(r.nilaiPemeliharaanOs || 0)}</div>
+                    <div className="hint">
+                      {idr(r.nilaiPemeliharaanOs || 0)}
+                    </div>
                   </td>
 
                   {/* Keterangan */}
@@ -1676,7 +1943,9 @@ export default function Iwkbu() {
 
               {pageData.length === 0 && (
                 <tr>
-                  <td colSpan={35} className="empty">Tidak ada data</td>
+                  <td colSpan={35} className="empty">
+                    Tidak ada data
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -1742,11 +2011,18 @@ export default function Iwkbu() {
 
       {/* Modal: Tambah Nomor Polisi */}
       {showNopolModal && (
-        <div className="modal-backdrop" onClick={() => setShowNopolModal(false)}>
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowNopolModal(false)}
+        >
           <div
             className="modal-card"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxHeight: "80vh", display: "flex", flexDirection: "column" }}
+            style={{
+              maxHeight: "80vh",
+              display: "flex",
+              flexDirection: "column",
+            }}
           >
             <h3>Tambah Nomor Polisi</h3>
 
@@ -1981,7 +2257,6 @@ export default function Iwkbu() {
                   onChange={(e) => setF("loket", e.target.value)}
                   placeholder="Pilih atau ketik samsat"
                 />
-
                 <datalist id="loket-list-modal">
                   {LOKET_OPTS.map((l) => (
                     <option key={l} value={l} />
@@ -2182,7 +2457,10 @@ export default function Iwkbu() {
 
       {/* Modal: Atur Nominal IWKBU */}
       {showNominalModal && (
-        <div className="modal-backdrop" onClick={() => setShowNominalModal(false)}>
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowNominalModal(false)}
+        >
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <h3>Atur Nominal IWKBU</h3>
             <div className="grid">
