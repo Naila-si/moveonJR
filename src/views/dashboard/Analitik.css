@@ -273,3 +273,21 @@
 .year-filter option {
   font-weight: 500;
 }
+
+/* ===== Judul grafik per PIC ===== */
+.pic-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pic-potensi {
+  font-size: 13px;
+  font-weight: 600;
+  color: #15803d;          /* hijau */
+  background: #ecfdf5;     /* hijau muda */
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}

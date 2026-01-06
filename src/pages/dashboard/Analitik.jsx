@@ -17,7 +17,6 @@ import {
   Bar,
 } from "recharts";
 
-// --- Supabase client (sama pola dengan file Rekap.jsx) ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnon = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase =
@@ -131,7 +130,7 @@ export default function Analitik() {
 
             supabase
               .from("iwkbu")
-              .select("id, nominal, outstanding, tgl_transaksi, loket, status_bayar, status_kendaraan, masa_berlaku")
+              .select("id, pic, nominal, outstanding, tgl_transaksi, loket, status_bayar, status_kendaraan, masa_berlaku")
               .gte("tgl_transaksi", yearStart)
               .lt("tgl_transaksi", yearEnd)
               .limit(5000),
@@ -390,6 +389,47 @@ export default function Analitik() {
     return rkjStatus.reduce((a, b) => (a.count > b.count ? a : b));
   }, [rkjStatus]);
 
+  const iwkbuByPIC = useMemo(() => {
+    const map = new Map();
+
+    iwkbu.forEach((r) => {
+      const pic = r.pic
+        ? `${r.pic} (${r.loket || "-"})`
+        : "Tanpa Petugas";
+
+      if (!map.has(pic)) {
+        map.set(pic, {
+          pic,
+          lunas: 0,
+          outstanding: 0,
+          beroperasi: 0,
+          cadangan: 0,
+          rusakSementara: 0,
+          totalPotensi: 0,
+        });
+      }
+
+      const item = map.get(pic);
+
+      const statusBayar = String(r.status_bayar || "").toUpperCase();
+      const statusKend = String(r.status_kendaraan || "").toUpperCase();
+
+      // hitung status bayar
+      if (statusBayar === "LUNAS") item.lunas += 1;
+      if (statusBayar === "OUTSTANDING") item.outstanding += 1;
+
+      // hitung status kendaraan
+      if (statusKend === "BEROPERASI") item.beroperasi += 1;
+      if (statusKend === "CADANGAN") item.cadangan += 1;
+      if (statusKend === "RUSAK SEMENTARA") item.rusakSementara += 1;
+
+      // total potensi (nominal)
+      item.totalPotensi += Number(r.nominal || 0);
+    });
+
+    return Array.from(map.values());
+  }, [iwkbu]);
+
   return (
     <div className="panel analitik-page">
       <div className="analitik-header">
@@ -586,6 +626,54 @@ export default function Analitik() {
             </>
           )}
         </div>
+      </section>
+
+      <section className="grid-charts">
+        {iwkbuByPIC.length === 0 ? (
+          <div className="chart-empty">Belum ada data IWKBU per PIC.</div>
+        ) : (
+          iwkbuByPIC.map((p, idx) => (
+            <div className="chart-card" key={idx}>
+              <div className="chart-title pic-title">
+                <span>Kinerja IWKBU – {p.pic}</span>
+                <span className="pic-potensi">
+                  {idr(p.totalPotensi)}
+                </span>
+              </div>
+
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={[
+                    {
+                      name: "Status",
+                      Lunas: p.lunas,
+                      Outstanding: p.outstanding,
+                      Beroperasi: p.beroperasi,
+                      Cadangan: p.cadangan,
+                      Rusak: p.rusakSementara,
+                    },
+                  ]}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+
+                  <Bar dataKey="Lunas" fill={COLORS[2]} />
+                  <Bar dataKey="Outstanding" fill={COLORS[1]} />
+                  <Bar dataKey="Beroperasi" fill={COLORS[0]} />
+                  <Bar dataKey="Cadangan" fill={COLORS[3]} />
+                  <Bar dataKey="Rusak" fill={COLORS[4]} />
+                </BarChart>
+              </ResponsiveContainer>
+
+              <div className="chart-insight">
+                💰 Total potensi IWKBU: <b>{idr(p.totalPotensi)}</b>
+              </div>
+            </div>
+          ))
+        )}
       </section>
     </div>
   );
