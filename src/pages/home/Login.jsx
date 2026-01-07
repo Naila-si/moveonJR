@@ -309,10 +309,10 @@ export default function Login() {
         <section className="left-hero">
           <span className="hero-badge">MOVEON</span>
           <Mascot />
-          <h1 className="hero-title">Hai, selamat datang! ☀️</h1>
+          <h1 className="hero-title">Hai! ☀️</h1>
           <p className="hero-sub">
-            Langit biru & sinar kuning untuk mood cerah. Yuk login dan berlayar
-            bareng <b>Boat Bot</b>~
+            Selamat datang di MOVEON, sistem digital untuk pengelolaan data yang cepat,
+            aman, dan interaktif.
           </p>
         </section>
 
@@ -379,21 +379,6 @@ export default function Login() {
                   </div>
                 </label>
 
-                <div className="row between">
-                  <label className="checkbox">
-                    <input
-                      type="checkbox"
-                      name="remember"
-                      checked={form.remember}
-                      onChange={handleChange}
-                    />
-                    <span>Ingat saya</span>
-                  </label>
-                  <button type="button" className="link">
-                    Lupa password?
-                  </button>
-                </div>
-
                 {notice && (
                   <KawaiiAlert variant="success" onClose={() => setNotice("")}>
                     {notice}
@@ -409,31 +394,11 @@ export default function Login() {
                 <button type="submit" className="btn-primary">
                   Masuk
                 </button>
-
-                <div className="divider">
-                  <span>atau</span>
-                </div>
-
-                <div className="grid-2">
-                  <button type="button" className="btn-alt">
-                    Google
-                  </button>
-                  <button type="button" className="btn-alt">
-                    GitHub
-                  </button>
-                </div>
               </div>
-
-              <p className="foot">
-                Belum punya akun?{" "}
-                <a className="link" href="#/register">
-                  Daftar
-                </a>
-              </p>
             </form>
 
             <div className="ticket-foot">
-              <span className="mini">✨ Pastel Sky — Blue × Yellow ✨</span>
+              <span className="mini"> MOVEON — Mobility Operation and Voyage Engagement Network </span>
             </div>
           </div>
         </section>

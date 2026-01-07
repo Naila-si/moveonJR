@@ -310,7 +310,7 @@ export default function Iwkbu() {
           );
 
         // 🔹 FILTER SAMA PERSIS DENGAN TABEL
-        if (filterWilayah) query = query.eq("wilayah", filterWilayah);
+        if (filterWilayah) query = query.eq("wilayah_norm", filterWilayah);
         if (filterLoket) query = query.eq("loket", filterLoket);
         if (filterTrayek) query = query.eq("trayek", filterTrayek);
         if (filterJenis) query = query.eq("jenis", filterJenis);
@@ -381,17 +381,45 @@ export default function Iwkbu() {
 
   const fetchTotalNominal = async () => {
     try {
-      const { data, error } = await buildBaseQuery()
-        .select("nominal"); // TANPA range ❗
+      const PAGE_SIZE = 1000; // batas supabase
+      let page = 0;
+      let isDone = false;
+      let grandTotal = 0;
+      let totalRows = 0;
 
-      if (error) throw error;
+      while (!isDone) {
+        let query = buildBaseQuery()
+          .select("nominal")
+          .order("id", { ascending: true })
+          .range(
+            page * PAGE_SIZE,
+            page * PAGE_SIZE + PAGE_SIZE - 1
+          );
 
-      const total = (data || []).reduce(
-        (sum, r) => sum + Number(r.nominal || 0),
-        0
-      );
+        const { data, error } = await query;
+        if (error) throw error;
 
-      setTotalNominalAll(total);
+        const rows = data || [];
+
+        // jumlahkan per page
+        for (const r of rows) {
+          grandTotal += Number(r.nominal || 0);
+        }
+
+        totalRows += rows.length;
+
+        // kalau < 1000 berarti sudah habis
+        if (rows.length < PAGE_SIZE) {
+          isDone = true;
+        } else {
+          page++;
+        }
+      }
+
+      console.log("TOTAL rows (ALL):", totalRows);
+      console.log("TABLE count:", totalCount);
+
+      setTotalNominalAll(grandTotal);
     } catch (e) {
       console.error("fetchTotalNominal error:", e);
       setTotalNominalAll(0);
@@ -403,16 +431,37 @@ export default function Iwkbu() {
 
   const fetchFilterOptions = async () => {
     try {
-      // ambil kolom yang kita butuhin aja biar ringan
-      const { data, error } = await supabase
-        .from("iwkbu")
-        .select(
-          "wilayah, loket, trayek, jenis, pic, badan_hukum, nama_perusahaan, status_bayar, status_kendaraan, konfirmasi"
-        )
-        .limit(10000);
+      const PAGE_SIZE = 1000;
+      let page = 0;
+      let isDone = false;
+      let allRows = [];
 
-      if (error) throw error;
+      while (!isDone) {
+        const { data, error } = await supabase
+          .from("iwkbu")
+          .select(
+            "wilayah_norm, loket, trayek, jenis, pic, badan_hukum, nama_perusahaan, status_bayar, status_kendaraan, konfirmasi"
+          )
+          .range(
+            page * PAGE_SIZE,
+            page * PAGE_SIZE + PAGE_SIZE - 1
+          );
 
+        if (error) throw error;
+
+        const rows = data || [];
+        allRows.push(...rows);
+
+        if (rows.length < PAGE_SIZE) {
+          isDone = true;
+        } else {
+          page++;
+        }
+      }
+
+      console.log("FILTER SOURCE rows (ALL):", allRows.length);
+
+      // helper uniq aman
       const safeUniq = (arr, { upper = false } = {}) =>
         Array.from(
           new Set(
@@ -423,57 +472,51 @@ export default function Iwkbu() {
           )
         ).sort((a, b) => a.localeCompare(b));
 
-      // Wilayah
-      const wilayahUniq = safeUniq(
-        data.map((x) => x.wilayah),
-        { upper: true }
+      // 🔥 SET SEMUA FILTER (FULL DATA)
+      setWilayahFilterOpts(
+        safeUniq(allRows.map((x) => x.wilayah_norm), { upper: true })
       );
-      setWilayahFilterOpts(wilayahUniq);
 
-      // Loket
-      setLoketFilterOpts(safeUniq(data.map((x) => x.loket)));
-
-      // ✅ Trayek
-      const trayekUniq = safeUniq(
-        data.map((x) => x.trayek),
-        { upper: true }
+      setLoketFilterOpts(
+        safeUniq(allRows.map((x) => x.loket))
       );
-      setTrayekFilterOpts(trayekUniq);
 
-      // ✅ Jenis
-      const jenisUniq = safeUniq(
-        data.map((x) => x.jenis),
-        { upper: true }
+      setTrayekFilterOpts(
+        safeUniq(allRows.map((x) => x.trayek), { upper: true })
       );
-      setJenisFilterOpts(jenisUniq);
 
-      // ✅ PIC (gabung dari employees juga biar lengkap)
-      const picUniqDB = safeUniq(data.map((x) => x.pic));
+      setJenisFilterOpts(
+        safeUniq(allRows.map((x) => x.jenis), { upper: true })
+      );
+
+      const picUniqDB = safeUniq(allRows.map((x) => x.pic));
       const picUniqEmp = safeUniq((EMP_OPTS || []).map((e) => e.name));
-      setPicFilterOpts(safeUniq([...picUniqDB, ...picUniqEmp]));
+      setPicFilterOpts(
+        safeUniq([...picUniqDB, ...picUniqEmp])
+      );
 
-      // ✅ Badan Hukum
-      const badanUniq = safeUniq(data.map((x) => x.badan_hukum));
-      setBadanFilterOpts(badanUniq);
+      setBadanFilterOpts(
+        safeUniq(allRows.map((x) => x.badan_hukum))
+      );
 
-      // ✅ Nama Perusahaan
-      setPerusahaanFilterOpts(safeUniq(data.map((x) => x.nama_perusahaan)));
+      setPerusahaanFilterOpts(
+        safeUniq(allRows.map((x) => x.nama_perusahaan))
+      );
 
-      // ✅ Status Bayar
-      const sbUniq = safeUniq(data.map((x) => x.status_bayar));
-      setStatusBayarFilterOpts(sbUniq);
+      setStatusBayarFilterOpts(
+        safeUniq(allRows.map((x) => x.status_bayar))
+      );
 
-      // ✅ Status Kendaraan
-      const skUniq = safeUniq(data.map((x) => x.status_kendaraan));
-      setStatusKendFilterOpts(skUniq);
+      setStatusKendFilterOpts(
+        safeUniq(allRows.map((x) => x.status_kendaraan))
+      );
 
-      // ✅ Hasil Konfirmasi
-      const konfUniq = safeUniq(data.map((x) => x.konfirmasi));
-      setKonfFilterOpts(konfUniq);
+      setKonfFilterOpts(
+        safeUniq(allRows.map((x) => x.konfirmasi))
+      );
 
     } catch (e) {
       console.error("fetchFilterOptions error:", e);
-
       setWilayahFilterOpts([]);
       setLoketFilterOpts([]);
       setTrayekFilterOpts([]);
@@ -484,9 +527,6 @@ export default function Iwkbu() {
       setStatusBayarFilterOpts([]);
       setStatusKendFilterOpts([]);
       setKonfFilterOpts([]);
-      setLoketFilterOpts([]);
-      setPicFilterOpts([]);
-      setPerusahaanFilterOpts([]);
     }
   };
 
@@ -497,16 +537,15 @@ export default function Iwkbu() {
   const buildBaseQuery = () => {
     let query = supabase
       .from("iwkbu")
-      .select("*", { count: "exact" }); // ✅ SELECT DI AWAL
+      .select("*", { count: "exact" });
 
     const s = (q || "").trim();
 
-    // 🔍 search global (or HARUS setelah select)
     if (s) {
       query = query.or(
         [
           `nopol.ilike.%${s}%`,
-          `wilayah.ilike.%${s}%`,
+          `wilayah_norm.ilike.%${s}%`,
           `kota.ilike.%${s}%`,
           `trayek.ilike.%${s}%`,
           `nama_perusahaan.ilike.%${s}%`,
@@ -516,9 +555,9 @@ export default function Iwkbu() {
     }
 
     // 🎯 filters
-    if (filterWilayah) query = query.eq("wilayah", filterWilayah);
+    if (filterWilayah) query = query.eq("wilayah_norm", filterWilayah);
     if (filterLoket) query = query.eq("loket", filterLoket);
-    if (filterTrayek) query = query.eq("trayek_norm", filterTrayek);
+    if (filterTrayek) query = query.eq("trayek", filterTrayek);
     if (filterJenis) query = query.eq("jenis", filterJenis);
     if (filterPIC) query = query.eq("pic", filterPIC);
     if (filterBadanHukum) query = query.eq("badan_hukum", filterBadanHukum);
@@ -579,6 +618,12 @@ export default function Iwkbu() {
   const [DOK_PERIZINAN_OPTS, setDokPerizinanOpts] = usePersistentState("iwkbu:opts:dokPerizinan", []);
   const [HASIL_KONF_OPTS, setHasilKonfOpts] = usePersistentState("iwkbu:opts:hasilKonf", []);
 
+  useEffect(() => {
+    if (WILAYAH_FILTER_OPTS.length) {
+      setWilayahOpts(WILAYAH_FILTER_OPTS);
+    }
+  }, [WILAYAH_FILTER_OPTS]);
+  
   // modal: tambah nopol
   const [showNopolModal, setShowNopolModal] = useState(false);
 
