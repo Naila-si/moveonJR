@@ -793,28 +793,40 @@ export default function Iwkbu() {
       prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
     );
 
-    const patchUI = { [field]: value };
-    const patchDB = toDB({ ...rows.find((r) => r.id === id), ...patchUI });
+    // mapping UI → DB
+    const FIELD_MAP = {
+      trayekNew: "trayek",
+      badanHukum: "badan_hukum",
+      namaPerusahaan: "nama_perusahaan",
+      tglTransaksi: "tgl_transaksi",
+      masaBerlaku: "masa_berlaku",
+      masaSwdkllj: "masa_swdkllj",
+      statusBayar: "status_bayar",
+      statusKendaraan: "status_kendaraan",
+      namaPemilik: "nama_pemilik",
+      dokPerizinan: "dok_perizinan",
+      tglBayarOs: "tgl_bayar_os",
+      nilaiBayarOs: "nilai_bayar_os",
+      tglPemeliharaan: "tgl_pemeliharaan",
+      nilaiPemeliharaanOs: "nilai_pemeliharaan_os",
+    };
 
-    let dbField = field;
-    if (field === "trayekNew") dbField = "trayek";
-    if (field === "badanHukum") dbField = "badan_hukum";
-    if (field === "namaPerusahaan") dbField = "nama_perusahaan";
-    if (field === "tglTransaksi") dbField = "tgl_transaksi";
-    if (field === "masaBerlaku") dbField = "masa_berlaku";
-    if (field === "masaSwdkllj") dbField = "masa_swdkllj";
-    if (field === "statusBayar") dbField = "status_bayar";
-    if (field === "statusKendaraan") dbField = "status_kendaraan";
-    if (field === "namaPemilik") dbField = "nama_pemilik";
-    if (field === "dokPerizinan") dbField = "dok_perizinan";
-    if (field === "tglBayarOs") dbField = "tgl_bayar_os";
-    if (field === "nilaiBayarOs") dbField = "nilai_bayar_os";
-    if (field === "tglPemeliharaan") dbField = "tgl_pemeliharaan";
-    if (field === "nilaiPemeliharaanOs") dbField = "nilai_pemeliharaan_os";
+    const dbField = FIELD_MAP[field] || field;
 
-    const patch = { [dbField]: patchDB[dbField] };
+    // normalize value
+    let dbValue = value;
 
-    const { error } = await supabase.from("iwkbu").update(patch).eq("id", id);
+    if (["tarif", "nominal", "outstanding", "nilaiBayarOs", "nilaiPemeliharaanOs"].includes(field)) {
+      dbValue = Number(value || 0);
+    }
+
+    if (value === "") dbValue = null;
+
+    const { error } = await supabase
+      .from("iwkbu")
+      .update({ [dbField]: dbValue })
+      .eq("id", id);
+
     if (error) {
       alert("Gagal menyimpan: " + error.message);
       fetchRows();
