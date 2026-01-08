@@ -87,6 +87,19 @@ const IWKBU_BASE_KEYS = [
   "keterangan",
 ];
 
+const DEFAULT_HASIL_KONF_OPTS = [
+  "BEROPERASI LUNAS",
+  "BEROPERASI BLM LUNAS",
+  "TIDAK BEROPERASI / CADANGAN",
+  "RUSAK SEMENTARA",
+  "RUSAK SELAMANYA",
+  "DIJUAL",
+  "UBAH SIFAT",
+  "UBAH BENTUK",
+  "TIDAK DITEMUKAN",
+  "GANTI NOPOL",
+];
+
 function useEmployees() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -616,7 +629,7 @@ export default function Iwkbu() {
   const [STATUS_KENDARAAN_OPTS, setStatusKendaraanOpts] = usePersistentState("iwkbu:opts:statusKend", []);
   const [GOLONGAN_OPTS, setGolonganOpts] = usePersistentState("iwkbu:opts:golongan", []);
   const [DOK_PERIZINAN_OPTS, setDokPerizinanOpts] = usePersistentState("iwkbu:opts:dokPerizinan", []);
-  const [HASIL_KONF_OPTS, setHasilKonfOpts] = usePersistentState("iwkbu:opts:hasilKonf", []);
+  const [HASIL_KONF_OPTS, setHasilKonfOpts] = usePersistentState("iwkbu:opts:hasilKonf", DEFAULT_HASIL_KONF_OPTS);
 
   useEffect(() => {
     if (WILAYAH_FILTER_OPTS.length) {
@@ -1188,29 +1201,7 @@ export default function Iwkbu() {
                   </td>
 
                   {/* Golongan */}
-                  <td>
-                    <select
-                      className="select-cell"
-                      value={r.golongan || ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        updateRow(r.id, { golongan: val });
-                        saveCell(r.id, "golongan", val);
-                      }}
-                    >
-                      <option value="">— Pilih Golongan —</option>
-                      {GOLONGAN_OPTS.map((g) => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                    </select>
-                    <datalist id="golongan-list">
-                      {GOLONGAN_OPTS.map((g) => (
-                        <option key={g} value={g} />
-                      ))}
-                    </datalist>
-                  </td>
+                  <td> <input list="golongan-list" value={r.golongan || ""} onChange={(e) => { const saved = addOptionIfMissing( GOLONGAN_OPTS, setGolonganOpts, e.target.value ); updateRow(r.id, { golongan: saved }); }} onBlur={(e) => { const saved = addOptionIfMissing( GOLONGAN_OPTS, setGolonganOpts, e.target.value ); saveCell(r.id, "golongan", saved); }} /> <datalist id="golongan-list"> {GOLONGAN_OPTS.map((g) => ( <option key={g} value={g} /> ))} </datalist> </td>
 
                   {/* Nominal IWKBU */}
                   <td>
@@ -1581,36 +1572,31 @@ export default function Iwkbu() {
                     <input
                       list="hasil-konf-list"
                       value={r.konfirmasi || ""}
+                      placeholder="Pilih / ketik hasil konfirmasi"
+
                       onChange={(e) => {
-                        const saved = addOptionIfMissing(
-                          HASIL_KONF_OPTS,
-                          setHasilKonfOpts,
-                          e.target.value
-                        );
-                        updateRow(r.id, { konfirmasi: saved });
+                        updateRow(r.id, { konfirmasi: e.target.value });
                       }}
+
                       onBlur={(e) => {
-                        const saved = addOptionIfMissing(
+                        const val = e.target.value.toUpperCase().trim();
+
+                        // tambah ke opsi
+                        addOptionIfMissing(
                           HASIL_KONF_OPTS,
                           setHasilKonfOpts,
-                          e.target.value
+                          val,
+                          { forceUpper: true }
                         );
-                        saveCell(r.id, "konfirmasi", saved);
+
+                        // simpan ke DB
+                        saveCell(r.id, "konfirmasi", val);
                       }}
-                      placeholder="Catatan/hasil"
                     />
+
                     <datalist id="hasil-konf-list">
                       {HASIL_KONF_OPTS.map((s) => (
                         <option key={s} value={s} />
-                      ))}
-                    </datalist>
-                    <datalist id="pic-list">
-                      {EMP_OPTS.map((emp) => (
-                        <option key={emp.id} value={emp.name}>
-                          {emp.name}
-                          {emp.samsat?.name ? ` — ${emp.samsat.name}` : ""}
-                          {emp.handle ? ` (@${emp.handle})` : ""}
-                        </option>
                       ))}
                     </datalist>
                   </td>
