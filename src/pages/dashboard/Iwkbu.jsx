@@ -1215,6 +1215,16 @@ export default function Iwkbu() {
                   {/* Golongan */}
                   <td> <input list="golongan-list" value={r.golongan || ""} onChange={(e) => { const saved = addOptionIfMissing( GOLONGAN_OPTS, setGolonganOpts, e.target.value ); updateRow(r.id, { golongan: saved }); }} onBlur={(e) => { const saved = addOptionIfMissing( GOLONGAN_OPTS, setGolonganOpts, e.target.value ); saveCell(r.id, "golongan", saved); }} /> <datalist id="golongan-list"> {GOLONGAN_OPTS.map((g) => ( <option key={g} value={g} /> ))} </datalist> </td>
 
+                  {/* PIC */}
+                  <datalist id="pic-list">
+                    {EMP_OPTS.map((emp) => (
+                      <option key={emp.id} value={emp.name}>
+                        {emp.name}
+                        {emp.samsat?.name ? ` — ${emp.samsat.name}` : ""}
+                      </option>
+                    ))}
+                  </datalist>
+
                   {/* Nominal IWKBU */}
                   <td>
                     <button
