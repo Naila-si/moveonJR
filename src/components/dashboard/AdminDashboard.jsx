@@ -82,6 +82,11 @@ function Item({ to = "#", icon, label, onClick, end, collapsed }) {
 }
 function Folder({ label, children, defaultOpen = true, collapsed }) {
   const [open, setOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    if (collapsed) setOpen(false);
+  }, [collapsed]);
+  
   return (
     <div className="sb-folder" title={collapsed ? label : undefined}>
       <button type="button" className="sb-item" onClick={() => setOpen(o => !o)}>
@@ -539,7 +544,7 @@ function DashboardInner() {
           <Section title="DATA & INFORMASI" collapsed={collapsed} />
 
           {/* Folder Data -> sub items */}
-          <Folder label="Data" defaultOpen collapsed={collapsed}>
+          <Folder label="Data" defaultOpen={false} collapsed={collapsed}>
             <Item to="iwkbu" icon={Icon.truckBus} label="Data IWKBU" collapsed={collapsed} />
             <Item to="iwkl"  icon={Icon.ship}     label="Data IWKL"  collapsed={collapsed} />
             {/* <Item to="rkcrm" icon={Icon.table}    label="Data RK CRM" collapsed={collapsed} /> */}
