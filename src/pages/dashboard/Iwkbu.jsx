@@ -1316,27 +1316,10 @@ export default function Iwkbu() {
                       type="text"
                       value={r.pic || ""}
                       onChange={(e) => {
-                        const picName = e.target.value;
-                        const emp = EMP_OPTS.find(
-                          (x) => x.name.toLowerCase() === picName.toLowerCase()
-                        );
-                        updateRow(r.id, {
-                          pic: picName,
-                          loket: emp?.samsat?.name ?? "",
-                        });
+                        updateRow(r.id, { pic: e.target.value });
                       }}
                       onBlur={(e) => {
-                        const picName = e.target.value;
-
-                        const emp = EMP_OPTS.find(
-                          (x) => x.name.toLowerCase() === picName.toLowerCase()
-                        );
-
-                        saveCell(r.id, "pic", picName);
-
-                        if (emp?.samsat?.name) {
-                          saveCell(r.id, "loket", emp.samsat.name);
-                        }
+                        saveCell(r.id, "pic", e.target.value);
                       }}
                       placeholder="Pilih PIC"
                     />
@@ -1950,14 +1933,7 @@ export default function Iwkbu() {
                   type="text"
                   value={newForm.pic}
                   onChange={(e) => {
-                    const picName = e.target.value;
-                    const emp = EMP_OPTS.find(
-                      (x) => x.name.toLowerCase() === picName.toLowerCase()
-                    );
-                    setF("pic", picName);
-                    if (emp?.samsat?.name) {
-                      setF("loket", emp.samsat.name);
-                    }
+                    setF("pic", e.target.value);
                   }}
                   placeholder={
                     employeesLoading
