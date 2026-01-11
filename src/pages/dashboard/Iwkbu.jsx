@@ -241,7 +241,7 @@ export default function Iwkbu() {
     tarif: r.tarif ?? 0,
     golongan: r.golongan || "",
     nominal: r.nominal ?? 0,
-    trayekNew: r.trayek || "", // <— mapping DB.trayek -> UI.trayekNew
+    trayekNew: r.trayek || "",
     jenis: r.jenis || "",
     tahun: r.tahun ?? "",
     pic: r.pic || "",
@@ -276,7 +276,7 @@ export default function Iwkbu() {
     tarif: Number(r.tarif || 0),
     golongan: r.golongan || null,
     nominal: Number(String(r.nominal || 0).replace(/[^\d]/g, "")),
-    trayek: r.trayekNew || null, // <— mapping UI.trayekNew -> DB.trayek
+    trayek: r.trayekNew || null, 
     jenis: r.jenis || null,
     tahun: r.tahun ? Number(r.tahun) : null,
     pic: r.pic || null,
@@ -1156,32 +1156,22 @@ export default function Iwkbu() {
                   <td>
                     <input
                       list="wilayah-list"
+                      type="text"
                       value={r.wilayah}
-                      onChange={(e) => {
-                        const saved = addOptionIfMissing(
-                          WILAYAH_OPTS,
-                          setWilayahOpts,
-                          e.target.value,
-                          { forceUpper: true }
-                        );
-                        updateRow(r.id, { wilayah: saved });
-                      }}
-                      onBlur={(e) => {
-                        const saved = addOptionIfMissing(
-                          WILAYAH_OPTS,
-                          setWilayahOpts,
-                          e.target.value,
-                          { forceUpper: true }
-                        );
-                        saveCell(r.id, "wilayah", saved);
-                      }}
+                      onChange={(e) =>
+                        updateRow(r.id, { wilayah: e.target.value })
+                      }
+                      onBlur={(e) =>
+                        saveCell(r.id, "wilayah", e.target.value)
+                      }
+                      placeholder="Wilayah"
                     />
-                    <datalist id="wilayah-list">
-                      {WILAYAH_OPTS.map((w) => (
-                        <option key={w} value={w} />
-                      ))}
-                    </datalist>
                   </td>
+                  <datalist id="wilayah-list">
+                    {WILAYAH_OPTS.map((w) => (
+                      <option key={w} value={w} />
+                    ))}
+                  </datalist>
 
                   {/* Nopol */}
                   <td className="nopol">
@@ -1213,8 +1203,25 @@ export default function Iwkbu() {
                   </td>
 
                   {/* Golongan */}
-                  <td> <input list="golongan-list" value={r.golongan || ""} onChange={(e) => { const saved = addOptionIfMissing( GOLONGAN_OPTS, setGolonganOpts, e.target.value ); updateRow(r.id, { golongan: saved }); }} onBlur={(e) => { const saved = addOptionIfMissing( GOLONGAN_OPTS, setGolonganOpts, e.target.value ); saveCell(r.id, "golongan", saved); }} /> <datalist id="golongan-list"> {GOLONGAN_OPTS.map((g) => ( <option key={g} value={g} /> ))} </datalist> </td>
-
+                  <td> 
+                    <input list="golongan-list" 
+                    type="text"
+                    value={r.golongan || ""} 
+                    onChange={(e) =>
+                      updateRow(r.id, { golongan: e.target.value })
+                    }
+                    onBlur={(e) =>
+                        saveCell(r.id, "golongan", e.target.value)
+                      }
+                      placeholder="Pilih Golongan"
+                    />
+                  </td>
+                  <datalist id="golongan-list-modal">
+                    {GOLONGAN_OPTS.map((g) => (
+                      <option key={g} value={g} />
+                    ))}
+                  </datalist>
+          
                   {/* PIC */}
                   <datalist id="pic-list">
                     {EMP_OPTS.map((emp) => (
@@ -1239,6 +1246,7 @@ export default function Iwkbu() {
                   <td>
                     <input
                       list="trayek-list"
+                      type="text"
                       value={r.trayekNew}
                       onChange={(e) =>
                         updateRow(r.id, { trayekNew: e.target.value })
@@ -1246,42 +1254,35 @@ export default function Iwkbu() {
                       onBlur={(e) =>
                         saveCell(r.id, "trayekNew", e.target.value)
                       }
+                      placeholder="Trayek"
                     />
-                    <datalist id="trayek-list">
-                      {TRAYEK_OPTS.map((t) => (
-                        <option key={t} value={t} />
-                      ))}
-                    </datalist>
                   </td>
+                  <datalist id="trayek-list">
+                    {TRAYEK_OPTS.map((t) => (
+                      <option key={t} value={t} />
+                    ))}
+                  </datalist>
 
                   {/* Jenis */}
                   <td>
                     <input
                       list="jenis-list"
+                      type="text"
                       value={r.jenis}
-                      onChange={(e) => {
-                        const saved = addOptionIfMissing(
-                          JENIS_OPTS,
-                          setJenisOpts,
-                          e.target.value
-                        );
-                        updateRow(r.id, { jenis: saved });
-                      }}
-                      onBlur={(e) => {
-                        const saved = addOptionIfMissing(
-                          JENIS_OPTS,
-                          setJenisOpts,
-                          e.target.value
-                        );
-                        saveCell(r.id, "jenis", saved);
-                      }}
+                      onChange={(e) => 
+                        updateRow(r.id, { jenis: e.target.value })
+                      }
+                      onBlur={(e) =>
+                        saveCell(r.id, "jenis", e.target.value)
+                      }
+                      placeholder="Jenis Kendaraan"
                     />
-                    <datalist id="jenis-list">
-                      {JENIS_OPTS.map((j) => (
-                        <option key={j} value={j} />
-                      ))}
-                    </datalist>
                   </td>
+                  <datalist id="jenis-list">
+                    {JENIS_OPTS.map((j) => (
+                      <option key={j} value={j} />
+                    ))}
+                  </datalist>
 
                   {/* Tahun */}
                   <td>
@@ -1345,34 +1346,27 @@ export default function Iwkbu() {
                   <td>
                     <input
                       list="badan-list"
+                      type="text"
                       value={r.badanHukum}
-                      onChange={(e) => {
-                        const saved = addOptionIfMissing(
-                          BADAN_HUKUM_OPTS,
-                          setBadanOpts,
-                          e.target.value
-                        );
-                        updateRow(r.id, { badanHukum: saved });
-                      }}
-                      onBlur={(e) => {
-                        const saved = addOptionIfMissing(
-                          BADAN_HUKUM_OPTS,
-                          setBadanOpts,
-                          e.target.value
-                        );
-                        saveCell(r.id, "badanHukum", saved);
-                      }}
+                      onChange={(e) =>
+                        updateRow(r.id, { badanHukum: e.target.value })
+                      }
+                      onBlur={(e) =>
+                        saveCell(r.id, "badanHukum", e.target.value)
+                      }
+                      placeholder="Pilih / ketik badan hukum"
                     />
-                    <datalist id="badan-list">
-                      {BADAN_HUKUM_OPTS.map((b) => (
-                        <option key={b} value={b} />
-                      ))}
-                    </datalist>
                   </td>
+                  <datalist id="badan-list">
+                    {BADAN_HUKUM_OPTS.map((b) => (
+                      <option key={b} value={b} />
+                    ))}
+                  </datalist>
 
                   {/* Nama Perusahaan */}
                   <td>
                     <input
+                      list="perusahaan-list"
                       type="text"
                       value={r.namaPerusahaan}
                       onChange={(e) =>
@@ -1381,14 +1375,14 @@ export default function Iwkbu() {
                       onBlur={(e) =>
                         saveCell(r.id, "namaPerusahaan", e.target.value)
                       }
-                      placeholder={
-                        r.badanHukum?.toUpperCase?.() === "BH"
-                          ? "Nama PT/CV"
-                          : "—"
-                      }
-                      disabled={r.badanHukum?.toUpperCase?.() !== "BH"}
+                      placeholder="Nama perusahaan/Pengelola"
                     />
                   </td>
+                  <datalist id="perusahaan-list">
+                    {PERUSAHAAN_FILTER_OPTS.map((p) => (
+                      <option key={p} value={p} />
+                    ))}
+                  </datalist>
 
                   {/* Alamat */}
                   <td>
@@ -1472,13 +1466,12 @@ export default function Iwkbu() {
                       }}
                       placeholder="Pilih / ketik samsat"
                     />
-
-                    <datalist id="loket-list">
-                      {LOKET_OPTS.map((l) => (
-                        <option key={l} value={l} />
-                      ))}
-                    </datalist>
                   </td>
+                  <datalist id="loket-list">
+                    {LOKET_OPTS.map((l) => (
+                      <option key={l} value={l} />
+                    ))}
+                  </datalist>
 
                   {/* Masa Berlaku IWKBU */}
                   <td>
@@ -1512,59 +1505,42 @@ export default function Iwkbu() {
                   <td>
                     <input
                       list="status-bayar-list"
+                      type="text"
                       value={r.statusBayar}
-                      onChange={(e) => {
-                        const saved = addOptionIfMissing(
-                          STATUS_BAYAR_OPTS,
-                          setStatusBayarOpts,
-                          e.target.value
-                        );
-                        updateRow(r.id, { statusBayar: saved });
-                      }}
-                      onBlur={(e) => {
-                        const saved = addOptionIfMissing(
-                          STATUS_BAYAR_OPTS,
-                          setStatusBayarOpts,
-                          e.target.value
-                        );
-                        saveCell(r.id, "statusBayar", saved);
-                      }}
+                      onChange={(e) =>
+                        updateRow(r.id, { statusBayar: e.target.value })
+                      }
+                      onBlur={(e) =>
+                        saveCell(r.id, "statusBayar", e.target.value)
+                      }
+                      placeholder="Pilih / ketik status bayar"
                     />
-                    <datalist id="status-bayar-list">
-                      {STATUS_BAYAR_OPTS.map((s) => (
-                        <option key={s} value={s} />
-                      ))}
-                    </datalist>
                   </td>
+                  <datalist id="status-bayar-list">
+                    {STATUS_BAYAR_OPTS.map((s) => (
+                      <option key={s} value={s} />
+                    ))}
+                  </datalist>
 
                   {/* Status Kendaraan */}
                   <td>
                     <input
                       list="status-kend-list"
+                      type="text"
                       value={r.statusKendaraan}
-                      onChange={(e) => {
-                        const saved = addOptionIfMissing(
-                          STATUS_KENDARAAN_OPTS,
-                          setStatusKendaraanOpts,
-                          e.target.value
-                        );
-                        updateRow(r.id, { statusKendaraan: saved });
-                      }}
-                      onBlur={(e) => {
-                        const saved = addOptionIfMissing(
-                          STATUS_KENDARAAN_OPTS,
-                          setStatusKendaraanOpts,
-                          e.target.value
-                        );
-                        saveCell(r.id, "statusKendaraan", saved);
-                      }}
+                      onChange={(e) =>
+                        updateRow(r.id, { statusKendaraan: e.target.value })
+                      }
+                      onBlur={(e) =>
+                        saveCell(r.id, "statusKendaraan", e.target.value)
+                      }
                     />
-                    <datalist id="status-kend-list">
-                      {STATUS_KENDARAAN_OPTS.map((s) => (
-                        <option key={s} value={s} />
-                      ))}
-                    </datalist>
                   </td>
+                  <datalist id="status-kend-list">
+                    {STATUS_KENDARAAN_OPTS.map((s) => (
+                      <option key={s} value={s} />
+                    ))}
+                  </datalist>
 
                   {/* Outstanding */}
                   <td>
@@ -1593,29 +1569,16 @@ export default function Iwkbu() {
                   <td>
                     <input
                       list="hasil-konf-list"
+                      type="text"
                       value={r.konfirmasi || ""}
                       placeholder="Pilih / ketik hasil konfirmasi"
-
-                      onChange={(e) => {
-                        updateRow(r.id, { konfirmasi: e.target.value });
-                      }}
-
-                      onBlur={(e) => {
-                        const val = e.target.value.toUpperCase().trim();
-
-                        // tambah ke opsi
-                        addOptionIfMissing(
-                          HASIL_KONF_OPTS,
-                          setHasilKonfOpts,
-                          val,
-                          { forceUpper: true }
-                        );
-
-                        // simpan ke DB
-                        saveCell(r.id, "konfirmasi", val);
-                      }}
+                      onChange={(e) =>
+                        updateRow(r.id, { konfirmasi: e.target.value })
+                      }
+                      onBlur={(e) =>
+                        saveCell(r.id, "konfirmasi", e.target.value)
+                      }
                     />
-
                     <datalist id="hasil-konf-list">
                       {HASIL_KONF_OPTS.map((s) => (
                         <option key={s} value={s} />
@@ -1663,23 +1626,15 @@ export default function Iwkbu() {
                   <td>
                     <input
                       list="dok-perizinan-list"
+                      type="text"
                       value={r.dokPerizinan || ""}
-                      onChange={(e) => {
-                        const saved = addOptionIfMissing(
-                          DOK_PERIZINAN_OPTS,
-                          setDokPerizinanOpts,
-                          e.target.value
-                        );
-                        updateRow(r.id, { dokPerizinan: saved });
-                      }}
-                      onBlur={(e) => {
-                        const saved = addOptionIfMissing(
-                          DOK_PERIZINAN_OPTS,
-                          setDokPerizinanOpts,
-                          e.target.value
-                        );
-                        saveCell(r.id, "dokPerizinan", saved);
-                      }}
+                      onChange={(e) =>
+                        updateRow(r.id, { dokPerizinan: e.target.value })
+                      }
+                      onBlur={(e) =>
+                        saveCell(r.id, "dokPerizinan", e.target.value)
+                      }
+                      placeholder="Ada / Tidak Ada"
                     />
                     <datalist id="dok-perizinan-list">
                       {DOK_PERIZINAN_OPTS.map((d) => (
@@ -1932,11 +1887,6 @@ export default function Iwkbu() {
                   value={newForm.golongan}
                   onChange={(e) => setF("golongan", e.target.value)}
                 />
-                <datalist id="golongan-list-modal">
-                  {GOLONGAN_OPTS.map((g) => (
-                    <option key={g} value={g} />
-                  ))}
-                </datalist>
               </label>
 
               <label>
