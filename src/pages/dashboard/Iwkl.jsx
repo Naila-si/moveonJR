@@ -455,7 +455,7 @@ export default function IwklSimple() {
 
       XLSX.writeFile(
         wb,
-        `IWKL_${tahunAktif}_${new Date()
+        `IWKL_FULL_${tahunAktif}_${new Date()
           .toISOString()
           .slice(0, 10)}.xlsx`
       );

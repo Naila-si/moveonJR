@@ -201,6 +201,22 @@ export default function Iwkbu() {
     "iwkbu:filter:konfirmasi",
     ""
   );
+  const [filterTglTransYear, setFilterTglTransYear] = usePersistentState(
+    "iwkbu:filter:tglTrans:year",
+    ""
+  );
+  const [filterTglTransMonth, setFilterTglTransMonth] = usePersistentState(
+    "iwkbu:filter:tglTrans:month",
+    ""
+  );
+  const [filterMasaYear, setFilterMasaYear] = usePersistentState(
+    "iwkbu:filter:masa:year",
+    ""
+  );
+  const [filterMasaMonth, setFilterMasaMonth] = usePersistentState(
+    "iwkbu:filter:masa:month",
+    ""
+  );
 
   const [WILAYAH_FILTER_OPTS, setWilayahFilterOpts] = useState([]);
   const [LOKET_FILTER_OPTS, setLoketFilterOpts] = useState([]);
@@ -313,11 +329,12 @@ export default function Iwkbu() {
       let allRows = [];
 
       while (!isDone) {
-        let query = supabase
-          .from("iwkbu")
-          .select("*")
+        let query = buildBaseQuery()
           .order("id", { ascending: true })
-          .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+          .range(
+            page * PAGE_SIZE,
+            page * PAGE_SIZE + PAGE_SIZE - 1
+          );
 
         // FILTER SAMA PERSIS DENGAN TABEL
         if (filterWilayah) query = query.eq("wilayah_norm", filterWilayah);
@@ -597,6 +614,25 @@ export default function Iwkbu() {
     fetchFilterOptions();
   }, [EMP_OPTS?.length]);
 
+  const buildDateRange = (year, month) => {
+    if (!year) return null;
+
+    if (!month) {
+      return {
+        from: `${year}-01-01`,
+        to: `${year}-12-31`,
+      };
+    }
+
+    const m = String(month).padStart(2, "0");
+    const lastDay = new Date(year, month, 0).getDate();
+
+    return {
+      from: `${year}-${m}-01`,
+      to: `${year}-${m}-${lastDay}`,
+    };
+  };
+
   const buildBaseQuery = () => {
     let query = supabase
       .from("iwkbu")
@@ -636,6 +672,26 @@ export default function Iwkbu() {
 
     if (filterKonfirmasi)
       query = query.eq("konfirmasi", filterKonfirmasi);
+
+    const tglTransRange = buildDateRange(
+      filterTglTransYear,
+      filterTglTransMonth
+    );
+    if (tglTransRange) {
+      query = query
+        .gte("tgl_transaksi", tglTransRange.from)
+        .lte("tgl_transaksi", tglTransRange.to);
+    }
+
+    const masaRange = buildDateRange(
+      filterMasaYear,
+      filterMasaMonth
+    );
+    if (masaRange) {
+      query = query
+        .gte("masa_berlaku", masaRange.from)
+        .lte("masa_berlaku", masaRange.to);
+    }
 
     return query;
   };
@@ -754,6 +810,10 @@ export default function Iwkbu() {
     filterStatusBayar,
     filterStatusKendaraan,
     filterKonfirmasi,
+    filterTglTransYear,
+    filterTglTransMonth,
+    filterMasaYear,
+    filterMasaMonth,
   ]);
 
   const totalPage = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -967,11 +1027,93 @@ export default function Iwkbu() {
                 setFilterStatusBayar("");
                 setFilterStatusKendaraan("");
                 setFilterKonfirmasi("");
+                setFilterTglTransYear("");
+                setFilterTglTransMonth("");
+                setFilterMasaYear("");
+                setFilterMasaMonth("");
                 setPage(1);
               }}
             >
               Reset Filter
             </button>
+            <select
+              className="select-filter"
+              value={filterTglTransYear}
+              onChange={(e) => {
+                setFilterTglTransYear(e.target.value);
+                setFilterTglTransMonth(""); // reset bulan
+                setPage(1);
+              }}
+            >
+              <option value="">Tahun Transaksi</option>
+              {Array.from({ length: 10 }, (_, i) => {
+                const y = new Date().getFullYear() - i;
+                return (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                );
+              })}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterTglTransMonth}
+              disabled={!filterTglTransYear}
+              onChange={(e) => {
+                setFilterTglTransMonth(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Bulan Transaksi</option>
+              {Array.from({ length: 12 }, (_, i) => {
+                const m = String(i + 1).padStart(2, "0");
+                return (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                );
+              })}
+            </select>
+            <select
+              className="select-filter"
+              value={filterMasaYear}
+              onChange={(e) => {
+                setFilterMasaYear(e.target.value);
+                setFilterMasaMonth("");
+                setPage(1);
+              }}
+            >
+              <option value="">Tahun Masa Berlaku</option>
+              {Array.from({ length: 10 }, (_, i) => {
+                const y = new Date().getFullYear() - i;
+                return (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                );
+              })}
+            </select>
+
+            <select
+              className="select-filter"
+              value={filterMasaMonth}
+              disabled={!filterMasaYear}
+              onChange={(e) => {
+                setFilterMasaMonth(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Bulan Masa Berlaku</option>
+              {Array.from({ length: 12 }, (_, i) => {
+                const m = String(i + 1).padStart(2, "0");
+                return (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                );
+              })}
+            </select>
 
             {/* --- Baris 1 --- */}
             <select
