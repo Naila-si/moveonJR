@@ -308,6 +308,8 @@ export default function FormCrm() {
   const [companyMaster, setCompanyMaster] = useState([]);
   const onBeforeUnloadRef = useRef(null);
   const [showPopup, setShowPopup] = useState(false);
+  const [showFileLimitPopup, setShowFileLimitPopup] = useState(false);
+  const [fileCountSelected, setFileCountSelected] = useState(0);
 
   // ================== STATE ==================
   const showCutePopup = () => {
@@ -496,6 +498,10 @@ export default function FormCrm() {
     if (!anyUpload)
       e.minimal = "Unggah foto kunjungan.";
 
+    if ((form.suratPernyataanEvidence || []).length > 10) {
+      e.surat = "Surat pernyataan & evidence maksimal 10 file.";
+    }
+
     // Penilaian wajib diisi (1–5)
     if (!form.nilaiKebersihan)
       e.nilaiKebersihan = "Isi nilai respon pemilik/pengelola";
@@ -646,7 +652,15 @@ export default function FormCrm() {
                     setField={setField}
                     errors={step3Errors}
                     onPickMultiple={(key) => (e) => {
-                      const files = Array.from(e.target.files || []).slice(0, 5);
+                      const files = Array.from(e.target.files || []);
+
+                      if (files.length > 10) {
+                        setFileCountSelected(files.length);
+                        setShowFileLimitPopup(true);
+                        e.target.value = ""; // reset input file
+                        return;
+                      }
+
                       setField(key, files);
                     }}
                   />
@@ -690,6 +704,26 @@ export default function FormCrm() {
             <div className="popup-emoji">🌸</div>
             <div className="popup-text">Isi dulu semua kolom yang wajib yaa 💕</div>
             <button onClick={() => setShowPopup(false)} className="popup-btn">Oke deh~</button>
+          </div>
+        </div>
+      )}
+      {showFileLimitPopup && (
+        <div className="popup-cute">
+          <div className="popup-box">
+            <div className="popup-emoji">📂💥</div>
+            <div className="popup-text">
+              Upss~ kamu pilih <b>{fileCountSelected} file</b> 😳  
+              <br />
+              Maksimal cuma <b>10 file</b> yaa~  
+              <br />
+              Pilih yang paling penting aja 💕
+            </div>
+            <button
+              onClick={() => setShowFileLimitPopup(false)}
+              className="popup-btn"
+            >
+              Okeee ✨
+            </button>
           </div>
         </div>
       )}
@@ -1475,7 +1509,9 @@ function Step3UploadPenilaian({ form, setField, errors, onPickMultiple }) {
   return (
     <>
       <h2 className="h2">Step 3 — Upload & Penilaian</h2>
-      <p className="lead">Unggah bukti kunjungan, surat (maks 5 file), berikan penilaian, dan tanda tangan.</p>
+      <p className="lead">
+        Unggah bukti kunjungan (1 foto wajib) dan surat/evidence (maks 10 file), lalu berikan penilaian dan tanda tangan.
+      </p>
 
       <div className="form-grid">
         <Field label="Upload Foto Kunjungan (wajib)">
@@ -1483,7 +1519,7 @@ function Step3UploadPenilaian({ form, setField, errors, onPickMultiple }) {
           <span className="hint">{form.fotoKunjungan ? `Terpilih: ${form.fotoKunjungan.name}` : "Belum ada file"}</span>
         </Field>
 
-        <Field label="Upload Surat Pernyataan & Evidence (maks 5 file)">
+        <Field label="Upload Surat Pernyataan & Evidence (maks 10 file)">
           <input type="file" multiple accept="image/*,.pdf" onChange={onPickMultiple("suratPernyataanEvidence")} />
           <span className="hint">
             {totalSurat > 0 ? `${totalSurat} file terpilih` : "Belum ada file"}
