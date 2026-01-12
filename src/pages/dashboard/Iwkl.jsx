@@ -284,6 +284,50 @@ const makeEmptyRow = () => ({
   ...monthKeys.reduce((acc, k) => ({ ...acc, [k]: 0 }), {}),
 });
 
+const Pagination = ({ page, totalPage, setPage }) => (
+  <div className="pager">
+    {/* ⏮ First */}
+    <button
+      className="btn ghost"
+      onClick={() => setPage(1)}
+      disabled={page === 1}
+    >
+      ⏮ First
+    </button>
+
+    {/* ‹ Prev */}
+    <button
+      className="btn ghost"
+      onClick={() => setPage((p) => Math.max(1, p - 1))}
+      disabled={page <= 1}
+    >
+      ‹ Prev
+    </button>
+
+    <span className="page-info">
+      Halaman {page} / {totalPage}
+    </span>
+
+    {/* Next › */}
+    <button
+      className="btn ghost"
+      onClick={() => setPage((p) => Math.min(totalPage, p + 1))}
+      disabled={page >= totalPage}
+    >
+      Next ›
+    </button>
+
+    {/* ⏭ Last */}
+    <button
+      className="btn ghost"
+      onClick={() => setPage(totalPage)}
+      disabled={page === totalPage}
+    >
+      Last ⏭
+    </button>
+  </div>
+);
+
 export default function IwklSimple() {
   const [rows, setRows] = useState([]);
   const [q, setQ] = useState("");
@@ -295,8 +339,10 @@ export default function IwklSimple() {
 
   const exportIwklToExcel = async () => {
     try {
+      setLoading(true);
+
       // ===============================
-      // 1. Ambil data IWKL (pakai filter)
+      // 1. AMBIL DATA IWKL (SEMUA, TANPA PAGING)
       // ===============================
       let query = supabase
         .from("iwkl")
@@ -313,7 +359,7 @@ export default function IwklSimple() {
       if (error) throw error;
 
       // ===============================
-      // 2. Ambil data BULANAN (tahun aktif)
+      // 2. DATA BULANAN (TAHUN AKTIF)
       // ===============================
       const { data: bulanData, error: errBulan } = await supabase
         .from("iwkl_bulanan")
@@ -322,19 +368,18 @@ export default function IwklSimple() {
 
       if (errBulan) throw errBulan;
 
-      // kelompokkan bulanan per iwkl_id
-      const grouped = {};
+      const bulanMap = {};
       (bulanData || []).forEach((b) => {
-        if (!grouped[b.iwkl_id]) grouped[b.iwkl_id] = {};
-        const key = monthFromIndex[b.bulan];
-        if (key) grouped[b.iwkl_id][key] = Number(b.nilai) || 0;
+        if (!bulanMap[b.iwkl_id]) bulanMap[b.iwkl_id] = {};
+        const k = monthFromIndex[b.bulan];
+        if (k) bulanMap[b.iwkl_id][k] = Number(b.nilai) || 0;
       });
 
       // ===============================
-      // 3. Bentuk data Excel
+      // 3. BENTUK DATA EXCEL (FULL KOLOM)
       // ===============================
       const excelData = (iwklData || []).map((r, i) => {
-        const bulan = grouped[r.id] || {};
+        const bulan = bulanMap[r.id] || {};
         const totalJanDes = monthKeys.reduce(
           (sum, k) => sum + Number(bulan[k] || 0),
           0
@@ -346,15 +391,36 @@ export default function IwklSimple() {
           "Kelas": r.kelas,
           "Nama Kapal": r.nama_kapal,
           "Nama Perusahaan": r.nama_perusahaan,
-          "Nama Pemilik": r.nama_pemilik,
+          "Nama Pemilik / Pengelola": r.nama_pemilik,
+          "Alamat": r.alamat,
+          "No Kontak": r.no_kontak,
+          "Tanggal Lahir": r.tgl_lahir,
           "Status PKS": r.status_pks,
+          "Status Pembayaran": r.status_pembayaran,
           "Status Kapal": r.status_kapal,
+          "Pas Besar / Kecil": r.pas_besar_kecil,
+          "Sertifikat Keselamatan": r.sertifikat_keselamatan,
+          "Izin Trayek": r.izin_trayek,
           "Trayek": r.trayek,
-          "Potensi / Bulan (Rp)": r.potensi_per_bulan,
-          "Total Jan–Des (Rp)": totalJanDes,
+          "Rute Awal": r.rute_awal,
+          "Rute Akhir": r.rute_akhir,
+          "Tanggal PKS": r.tgl_pks,
+          "Tanggal Berakhir PKS": r.tgl_berakhir_pks,
+          "Tanggal Addendum": r.tgl_addendum,
+          "Tgl Jatuh Tempo Sertifikat": r.tgl_jatuh_tempo_sertifikat_keselamatan,
+          "Sistem Pengutipan IWKL": r.sistem_pengutipan_iwkl,
+          "Perhitungan Tarif": r.perhitungan_tarif,
+          "Seat": r.seat,
+          "Rit": r.rit,
+          "Tarif Dasar IWKL": r.tarif_dasar_iwkl,
+          "Hari": r.hari,
+          "Load Factor (%)": r.load_factor,
+          "Tarif Borongan Disepakati": r.tarif_borongan_disepakati,
+          "Potensi / Bulan": r.potensi_per_bulan,
+          "Total Jan–Des": totalJanDes,
           "% Akt 24–23": r.persen_akt_24_23,
 
-          // Bulanan
+          // BULANAN
           "Jan": bulan.jan || 0,
           "Feb": bulan.feb || 0,
           "Mar": bulan.mar || 0,
@@ -372,61 +438,33 @@ export default function IwklSimple() {
         };
       });
 
+      // ===============================
+      // 4. BUAT EXCEL
+      // ===============================
       const ws = XLSX.utils.json_to_sheet(excelData);
 
-      // ===============================
-      // 4. AUTO WIDTH KOLOM
-      // ===============================
-      ws["!cols"] = Object.keys(excelData[0] || {}).map((key) => ({
-        wch:
-          Math.max(
-            key.length,
-            ...excelData.map((r) => String(r[key] ?? "").length)
-          ) + 2,
+      ws["!cols"] = Object.keys(excelData[0] || {}).map((k) => ({
+        wch: Math.max(
+          k.length,
+          ...excelData.map((r) => String(r[k] ?? "").length)
+        ) + 2,
       }));
 
-      // ===============================
-      // 5. HEADER BOLD
-      // ===============================
-      const range = XLSX.utils.decode_range(ws["!ref"]);
-      for (let C = range.s.c; C <= range.e.c; C++) {
-        const cell = ws[XLSX.utils.encode_cell({ r: 0, c: C })];
-        if (cell) {
-          cell.s = {
-            font: { bold: true },
-            alignment: { horizontal: "center" },
-          };
-        }
-      }
-
-      // ===============================
-      // 6. FORMAT RUPIAH
-      // ===============================
-      Object.keys(ws).forEach((k) => {
-        if (k.startsWith("!")) return;
-        const cell = ws[k];
-        if (typeof cell.v === "number") {
-          cell.t = "n";
-          cell.z = '"Rp"#,##0';
-        }
-      });
-
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(
-        wb,
-        ws,
-        `IWKL_${tahunAktif}`
-      );
+      XLSX.utils.book_append_sheet(wb, ws, `IWKL_${tahunAktif}`);
 
       XLSX.writeFile(
         wb,
-        `Data_IWKL_${tahunAktif}_${new Date()
+        `IWKL_${tahunAktif}_${new Date()
           .toISOString()
           .slice(0, 10)}.xlsx`
       );
-    } catch (e) {
-      console.error(e);
-      alert("Gagal export Excel IWKL");
+
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+      alert("Gagal export Excel IWKL (Full Data)");
     }
   };
 
@@ -1625,25 +1663,11 @@ export default function IwklSimple() {
           </div>
         </div>
 
-        <div className="pager">
-          <button
-            className="btn ghost"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
-          >
-            ‹ Prev
-          </button>
-          <span className="page-info">
-            Halaman {page} / {totalPage}
-          </span>
-          <button
-            className="btn ghost"
-            onClick={() => setPage((p) => Math.min(totalPage, p + 1))}
-            disabled={page >= totalPage}
-          >
-            Next ›
-          </button>
-        </div>
+        <Pagination
+          page={page}
+          totalPage={totalPage}
+          setPage={setPage}
+        />
       </div>
 
       {/* MODAL TAMBAH DATA */}

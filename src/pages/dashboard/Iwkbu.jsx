@@ -434,7 +434,7 @@ export default function Iwkbu() {
 
       XLSX.writeFile(
         wb,
-        `Data_IWKBU_Rapi_${new Date().toISOString().slice(0, 10)}.xlsx`
+        `Data_IWKBU_${new Date().toISOString().slice(0, 10)}.xlsx`
       );
     } catch (err) {
       console.error(err);
