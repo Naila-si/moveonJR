@@ -305,24 +305,21 @@ export default function Iwkbu() {
     keterangan: r.keterangan || null,
   });
 
-  const exportToExcel = async () => {
+ const exportToExcel = async () => {
     try {
-      const PAGE_SIZE = 1000; // batas Supabase
+      const PAGE_SIZE = 1000;
       let page = 0;
-      let allRows = [];
       let isDone = false;
+      let allRows = [];
 
       while (!isDone) {
         let query = supabase
           .from("iwkbu")
           .select("*")
           .order("id", { ascending: true })
-          .range(
-            page * PAGE_SIZE,
-            page * PAGE_SIZE + PAGE_SIZE - 1
-          );
+          .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
 
-        // 🔹 FILTER SAMA PERSIS DENGAN TABEL
+        // FILTER SAMA PERSIS DENGAN TABEL
         if (filterWilayah) query = query.eq("wilayah_norm", filterWilayah);
         if (filterLoket) query = query.eq("loket", filterLoket);
         if (filterTrayek) query = query.eq("trayek", filterTrayek);
@@ -343,52 +340,105 @@ export default function Iwkbu() {
 
         allRows.push(...(data || []));
 
-        // ❗ kalau data < 1000 artinya SUDAH HABIS
-        if (!data || data.length < PAGE_SIZE) {
-          isDone = true;
-        } else {
-          page++;
-        }
+        if (!data || data.length < PAGE_SIZE) isDone = true;
+        else page++;
       }
 
-      if (allRows.length === 0) {
+      if (!allRows.length) {
         alert("Tidak ada data untuk di-export");
         return;
       }
 
-      // 🔹 FORMAT EXCEL
-      const excelData = allRows.map((r, i) => ({
-        No: i + 1,
-        Wilayah: r.wilayah,
-        "Nomor Polisi": r.nopol,
-        Tarif: r.tarif,
-        Golongan: r.golongan,
-        "Nominal IWKBU": r.nominal,
-        Trayek: r.trayek,
-        Jenis: r.jenis,
-        Tahun: r.tahun,
-        PIC: r.pic,
-        "Badan Hukum": r.badan_hukum,
-        "Nama Perusahaan": r.nama_perusahaan,
-        Kota: r.kota,
-        Loket: r.loket,
-        "Status Bayar": r.status_bayar,
-        Outstanding: r.outstanding,
-        Keterangan: r.keterangan,
-      }));
+      // ❌ kolom yang TIDAK mau diikutkan
+      const EXCLUDE_KEYS = ["id", "wilayah_norm", "created_at", "updated_at"];
+
+      // helper ubah snake_case → Judul Manusia
+      const prettify = (k) =>
+        k
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase());
+
+      const excelData = allRows.map((row, i) => {
+        const out = { No: i + 1 };
+        Object.entries(row).forEach(([key, val]) => {
+          if (EXCLUDE_KEYS.includes(key)) return;
+          out[prettify(key)] = val;
+        });
+        return out;
+      });
 
       const ws = XLSX.utils.json_to_sheet(excelData);
+
+      /** =======================
+       *  🎨 STYLING EXCEL
+       ======================= */
+
+      const range = XLSX.utils.decode_range(ws["!ref"]);
+
+      // Auto width
+      ws["!cols"] = Object.keys(excelData[0]).map((k) => ({
+        wch: Math.max(12, k.length + 2),
+      }));
+
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+          const cell = ws[cellAddress];
+          if (!cell) continue;
+
+          // HEADER
+          if (R === 0) {
+            cell.s = {
+              font: { bold: true },
+              fill: { fgColor: { rgb: "E9EEF3" } },
+              alignment: { vertical: "center", horizontal: "center" },
+              border: {
+                top: { style: "thin" },
+                bottom: { style: "thin" },
+                left: { style: "thin" },
+                right: { style: "thin" },
+              },
+            };
+          } else {
+            // BODY
+            cell.s = {
+              border: {
+                top: { style: "thin" },
+                bottom: { style: "thin" },
+                left: { style: "thin" },
+                right: { style: "thin" },
+              },
+            };
+
+            // Format tanggal
+            if (
+              typeof cell.v === "string" &&
+              /^\d{4}-\d{2}-\d{2}/.test(cell.v)
+            ) {
+              cell.z = "dd/mm/yyyy";
+            }
+
+            // Format rupiah
+            if (
+              ["Nominal", "Tarif", "Outstanding", "Nilai Bayar Os", "Nilai Pemeliharaan Os"]
+                .some((x) => cellAddress.includes(x))
+            ) {
+              cell.z = '"Rp"#,##0';
+            }
+          }
+        }
+      }
+
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Data IWKBU");
 
       XLSX.writeFile(
         wb,
-        `Data_IWKBU_SEMUA_${new Date().toISOString().slice(0, 10)}.xlsx`
+        `Data_IWKBU_Rapi_${new Date().toISOString().slice(0, 10)}.xlsx`
       );
-
     } catch (err) {
       console.error(err);
-      alert("Gagal export semua data");
+      alert("Gagal export Excel");
     }
   };
 

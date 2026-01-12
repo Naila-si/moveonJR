@@ -1373,26 +1373,32 @@ function SignaturePad({ value, onChange, height = 160 }) {
   };
 
   const start = (e) => {
+    e.preventDefault();
     drawing.current = true;
     last.current = getPos(e);
   };
 
   const move = (e) => {
     if (!drawing.current) return;
+    e.preventDefault();
+
     const ctx = canvasRef.current.getContext("2d");
     const pos = getPos(e);
+
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
     ctx.strokeStyle = "#111827";
+
     ctx.beginPath();
     ctx.moveTo(last.current.x, last.current.y);
     ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
+
     last.current = pos;
-    e.preventDefault();
   };
 
   const end = () => {
+    if (!drawing.current) return;
     drawing.current = false;
     const data = canvasRef.current.toDataURL("image/png");
     onChange(data);
@@ -1450,13 +1456,10 @@ function SignaturePad({ value, onChange, height = 160 }) {
             borderRadius: 12,
             display: "block",
           }}
-          onMouseDown={start}
-          onMouseMove={move}
-          onMouseUp={end}
-          onMouseLeave={end}
-          onTouchStart={start}
-          onTouchMove={move}
-          onTouchEnd={end}
+          onPointerDown={start}
+          onPointerMove={move}
+          onPointerUp={end}
+          onPointerLeave={end}
         />
       </div>
       <div className="actions-right" style={{ gap: 8 }}>
