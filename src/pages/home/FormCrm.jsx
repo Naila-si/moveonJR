@@ -1,4 +1,10 @@
-import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { supabase } from "../../lib/supabaseClient";
 
 const idr = (n) =>
@@ -21,19 +27,51 @@ const ARMADA_STATUS_OPTIONS = [
 ];
 
 const ARMADA_STATUS_NEED_UPLOAD = new Set(
-  ["Dijual", "Ubah Sifat", "Ubah Bentuk", "Rusak Sementara", "Rusak Selamanya", "Tidak Ditemukan"].map(
-    (s) => s.toUpperCase()
-  )
+  [
+    "Dijual",
+    "Ubah Sifat",
+    "Ubah Bentuk",
+    "Rusak Sementara",
+    "Rusak Selamanya",
+    "Tidak Ditemukan",
+  ].map((s) => s.toUpperCase())
 );
 
 const LOKET_OPTIONS = [
-    "Loket Kantor Wilayah","Pekanbaru Kota","Pekanbaru Selatan","Pekanbaru Utara","Panam",
-    "Kubang","Bangkinang","Lipat Kain","Tapung","Siak","Perawang","Kandis","Pelalawan",
-    "Sorek","Pasir Pengaraian","Ujung Batu","Dalu-Dalu","Koto Tengah","Taluk Kuantan",
-    "Singingi Hilir","Rengat","Air Molek","Tembilahan","Kota Baru","Sungai Guntung",
-    "Loket Kantor Cabang Dumai","Dumai","Duri","Bengkalis","Selat Panjang",
-    "Bagan Siapiapi","Bagan Batu","Ujung Tanjung",
-  ];
+  "Loket Kantor Wilayah",
+  "Pekanbaru Kota",
+  "Pekanbaru Selatan",
+  "Pekanbaru Utara",
+  "Panam",
+  "Kubang",
+  "Bangkinang",
+  "Lipat Kain",
+  "Tapung",
+  "Siak",
+  "Perawang",
+  "Kandis",
+  "Pelalawan",
+  "Sorek",
+  "Pasir Pengaraian",
+  "Ujung Batu",
+  "Dalu-Dalu",
+  "Koto Tengah",
+  "Taluk Kuantan",
+  "Singingi Hilir",
+  "Rengat",
+  "Air Molek",
+  "Tembilahan",
+  "Kota Baru",
+  "Sungai Guntung",
+  "Loket Kantor Cabang Dumai",
+  "Dumai",
+  "Duri",
+  "Bengkalis",
+  "Selat Panjang",
+  "Bagan Siapiapi",
+  "Bagan Batu",
+  "Ujung Tanjung",
+];
 
 // === Shared table untuk CRM list (dipakai DataFormCrm juga) ===
 const CRM_LS_KEY = "crmData";
@@ -93,10 +131,10 @@ function buildCrmRowFromForm(form) {
 
     // ===== STEP 1 di tabel =====
     step1: {
-      tanggalWaktu,                      // "YYYY-MM-DD HH:mm"
+      tanggalWaktu, // "YYYY-MM-DD HH:mm"
       loket: form.loket || "",
       petugasDepan: form.namaPetugas || "",
-      petugasBelakang: "",               // form cuma 1 field petugas
+      petugasBelakang: "", // form cuma 1 field petugas
       perusahaan: form.badanUsahaNama || "",
       jenisAngkutan: form.jenisAngkutan || "",
       namaPemilik: form.namaPemilik || "",
@@ -113,7 +151,7 @@ function buildCrmRowFromForm(form) {
       statusKendaraan: firstArmada.status || "",
       hasilKunjungan: form.hasilKunjungan || "",
       penjelasanHasil: form.hasilKunjungan || "",
-      tunggakan: 0,                         // kamu bisa ganti logika ini nanti
+      tunggakan: 0, // kamu bisa ganti logika ini nanti
       janjiBayar: form.janjiBayar || "-",
       rekomendasi: rekomGabung || "",
       rincianArmada,
@@ -137,7 +175,7 @@ function buildCrmRowFromForm(form) {
     // ===== STEP 4 di tabel (validasi) =====
     step4: {
       validasiOleh: "Petugas",
-      statusValidasi: "Menunggu",          // default: belum diverifikasi
+      statusValidasi: "Menunggu", // default: belum diverifikasi
       catatanValidasi: "",
       wilayah: form.loket || "",
       waktuValidasi: tanggalWaktu,
@@ -188,9 +226,9 @@ async function saveCrmToSupabase(form) {
   // 3) Gabungkan hasil upload ke step3
   const step3 = {
     ...baseRow.step3,
-    fotoKunjungan: fotoUrls,   // ["https://..."]
+    fotoKunjungan: fotoUrls, // ["https://..."]
     suratPernyataan: suratJson,
-    evidence: [],              // kalau mau dipisah lagi, bisa diatur
+    evidence: [], // kalau mau dipisah lagi, bisa diatur
   };
 
   // 4) Insert ke crm_reports
@@ -201,7 +239,7 @@ async function saveCrmToSupabase(form) {
         report_code: reportCode,
         step1: baseRow.step1,
         step2: baseRow.step2,
-        step3,              // pakai yang sudah include URL upload
+        step3, // pakai yang sudah include URL upload
         step4: baseRow.step4,
         step5: baseRow.step5,
       },
@@ -226,7 +264,11 @@ async function saveCrmToSupabase(form) {
     // upload buktiFiles (jika ada)
     let buktiUploads = [];
     if (a.buktiFiles && a.buktiFiles.length > 0) {
-      buktiUploads = await uploadMany(a.buktiFiles, reportCode, `armada_${i + 1}`);
+      buktiUploads = await uploadMany(
+        a.buktiFiles,
+        reportCode,
+        `armada_${i + 1}`
+      );
     }
 
     armadaRows.push({
@@ -267,8 +309,7 @@ async function uploadToCrmStorage(file, folder, prefix = "file") {
   const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, "_");
   const path = `${safeFolder}/${prefix}_${Date.now()}.${ext}`;
 
-  const { data, error } = await supabase
-    .storage
+  const { data, error } = await supabase.storage
     .from("crm_uploads")
     .upload(path, file, {
       cacheControl: "3600",
@@ -278,8 +319,7 @@ async function uploadToCrmStorage(file, folder, prefix = "file") {
   if (error) throw error;
 
   // ambil public URL
-  const { data: publicData } = supabase
-    .storage
+  const { data: publicData } = supabase.storage
     .from("crm_uploads")
     .getPublicUrl(data.path);
 
@@ -310,6 +350,7 @@ export default function FormCrm() {
   const [showPopup, setShowPopup] = useState(false);
   const [showFileLimitPopup, setShowFileLimitPopup] = useState(false);
   const [fileCountSelected, setFileCountSelected] = useState(0);
+  const [employeeMaster, setEmployeeMaster] = useState([]);
 
   // ================== STATE ==================
   const showCutePopup = () => {
@@ -318,14 +359,25 @@ export default function FormCrm() {
   };
   const [form, setForm] = useState(() => {
     const draft = localStorage.getItem("form_crm_draft_v5");
-    if (draft) { try { return JSON.parse(draft); } catch {} }
+    if (draft) {
+      try {
+        return JSON.parse(draft);
+      } catch {}
+    }
     return {
       // Step 1 — Datakunjungan
-      tanggal: "", waktu: "", loket: "", namaPetugas: "",
-      // sudahKunjungan: false, 
-      badanUsahaTipe: "PT", badanUsahaNama: "",
-      jenisAngkutan: "", namaPemilik: "", alamatKunjungan: "",
-      telPemilik: "", telPengelola: "",
+      tanggal: "",
+      waktu: "",
+      loket: "",
+      namaPetugas: "",
+      // sudahKunjungan: false,
+      badanUsahaTipe: "PT",
+      badanUsahaNama: "",
+      jenisAngkutan: "",
+      namaPemilik: "",
+      alamatKunjungan: "",
+      telPemilik: "",
+      telPengelola: "",
 
       // Step 2 — Armada + Hasil kunjungan
       armadaList: [{ nopol: "", status: "", tipeArmada: "", tahun: "" }],
@@ -334,14 +386,18 @@ export default function FormCrm() {
 
       // Step 3 — Upload & Penilaian
       fotoKunjungan: null,
-      suratPernyataanEvidence: [],     // max 5
-      nilaiKebersihan: 3, nilaiKelengkapan: 3, nilaiPelayanan: 3,
-      tandaTanganPetugas: "",          // dataURL
-      tandaTanganPemilik: "",          // dataURL
+      suratPernyataanEvidence: [], // max 5
+      nilaiKebersihan: 3,
+      nilaiKelengkapan: 3,
+      nilaiPelayanan: 3,
+      tandaTanganPetugas: "", // dataURL
+      tandaTanganPemilik: "", // dataURL
 
       // Step 4 — Pesan & Saran
-      pesanPetugas: "", saranUntukPemilik: "",
-      kirimKeWaPemilik: true, kirimKeWaPengelola: false,
+      pesanPetugas: "",
+      saranUntukPemilik: "",
+      kirimKeWaPemilik: true,
+      kirimKeWaPengelola: false,
     };
   });
 
@@ -350,17 +406,20 @@ export default function FormCrm() {
     const now = new Date();
     const d = now.toISOString().slice(0, 10);
     const t = now.toTimeString().slice(0, 5);
-    setForm(f => ({ ...f, tanggal: f.tanggal || d, waktu: f.waktu || t }));
+    setForm((f) => ({ ...f, tanggal: f.tanggal || d, waktu: f.waktu || t }));
   }, []);
 
   // ================== AUTOSAVE ==================
   useEffect(() => {
-    if (initial.current) { initial.current = false; return; }
+    if (initial.current) {
+      initial.current = false;
+      return;
+    }
     localStorage.setItem("form_crm_draft_v5", JSON.stringify(form));
     setDirty(true);
   }, [form]);
 
-    // ================== LOAD MASTER DATA DARI IWKBU ==================
+  // ================== LOAD MASTER DATA DARI IWKBU ==================
   useEffect(() => {
     (async () => {
       try {
@@ -430,6 +489,35 @@ export default function FormCrm() {
     })();
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("employees")
+          .select(
+            `
+            id,
+            name,
+            loket,
+            samsat_id,
+            samsat:samsat_id (
+              id,
+              name,
+              loket
+            )
+          `
+          )
+          .order("name", { ascending: true });
+
+        if (error) throw error;
+        setEmployeeMaster(data || []);
+      } catch (e) {
+        console.error("Gagal load employees+samsat:", e);
+        setEmployeeMaster([]);
+      }
+    })();
+  }, []);
+
   // ================== URL SYNC (?step=1..4) ==================
   useEffect(() => {
     const s = Number(new URLSearchParams(location.search).get("step"));
@@ -453,7 +541,7 @@ export default function FormCrm() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty]);
 
-  const setField = (key, value) => setForm(f => ({ ...f, [key]: value }));
+  const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
   const steps = [
     { id: 1, title: "Data Kunjungan" },
@@ -461,7 +549,10 @@ export default function FormCrm() {
     { id: 3, title: "Upload & Penilaian" },
   ];
 
-  const progressPct = useMemo(() => (step - 1) * (100 / (steps.length - 1)), [step]);
+  const progressPct = useMemo(
+    () => (step - 1) * (100 / (steps.length - 1)),
+    [step]
+  );
 
   // ================== VALIDASI ==================
   const step1Errors = useMemo(() => {
@@ -483,7 +574,8 @@ export default function FormCrm() {
       if (!k.nopol) e[`nopol_${i}`] = "Isi nopol";
       if (!k.status) e[`status_${i}`] = "Pilih status";
     });
-    if (!form.hasilKunjungan) e.HasilKunjungan = "Isi penjelasan hasil kunjungan";
+    if (!form.hasilKunjungan)
+      e.HasilKunjungan = "Isi penjelasan hasil kunjungan";
     if (!form.janjiBayar) e.janjiBayar = "Isi jadwal janji bayar";
     return e;
   }, [form.armadaList, form.hasilKunjungan, form.janjiBayar]);
@@ -493,10 +585,8 @@ export default function FormCrm() {
 
     // Minimal satu upload
     const anyUpload =
-      form.fotoKunjungan ||
-      (form.suratPernyataanEvidence || []).length > 0;
-    if (!anyUpload)
-      e.minimal = "Unggah foto kunjungan.";
+      form.fotoKunjungan || (form.suratPernyataanEvidence || []).length > 0;
+    if (!anyUpload) e.minimal = "Unggah foto kunjungan.";
 
     if ((form.suratPernyataanEvidence || []).length > 10) {
       e.surat = "Surat pernyataan & evidence maksimal 10 file.";
@@ -538,17 +628,21 @@ export default function FormCrm() {
   }, []);
 
   const guardNext = useCallback(() => {
-    if ((step === 1 && !canNext1) || (step === 2 && !canNext2) || (step === 3 && !canNext3)) {
+    if (
+      (step === 1 && !canNext1) ||
+      (step === 2 && !canNext2) ||
+      (step === 3 && !canNext3)
+    ) {
       focusFirstError();
       showCutePopup(); // ✨ tampilkan popup kawaii
       return;
     }
-    setStep(s => Math.min(3, s + 1));
+    setStep((s) => Math.min(3, s + 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step, canNext1, canNext2, canNext3, focusFirstError]);
 
   const prev = useCallback(() => {
-    setStep(s => Math.max(1, s - 1));
+    setStep((s) => Math.max(1, s - 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
@@ -580,10 +674,11 @@ export default function FormCrm() {
 
       // 4) Redirect otomatis ke halaman home
       window.location.replace("/");
-
     } catch (e) {
       console.error("Gagal menyimpan data CRM:", e);
-      alert("Terjadi kesalahan saat menyimpan ke server. Coba lagi sebentar ya 🙏");
+      alert(
+        "Terjadi kesalahan saat menyimpan ke server. Coba lagi sebentar ya 🙏"
+      );
     }
   };
 
@@ -597,8 +692,14 @@ export default function FormCrm() {
   // ================== SHORTCUTS ==================
   useEffect(() => {
     const onKey = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); guardNext(); }
-      if (e.shiftKey && e.key === "Enter") { e.preventDefault(); prev(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        guardNext();
+      }
+      if (e.shiftKey && e.key === "Enter") {
+        e.preventDefault();
+        prev();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -610,7 +711,11 @@ export default function FormCrm() {
       <style>{css}</style>
 
       <div className="crm-card">
-        <Header dirty={dirty} onReset={resetDraft} onBeforeUnloadRef={onBeforeUnloadRef} />
+        <Header
+          dirty={dirty}
+          onReset={resetDraft}
+          onBeforeUnloadRef={onBeforeUnloadRef}
+        />
 
         <div className="container">
           <Stepper
@@ -635,7 +740,16 @@ export default function FormCrm() {
               />
 
               <div className="section">
-                {step === 1 && <Step1Datakunjungan form={form} setField={setField} errors={step1Errors} picMaster={picMaster} companyMaster={companyMaster} />}
+                {step === 1 && (
+                  <Step1Datakunjungan
+                    form={form}
+                    setField={setField}
+                    errors={step1Errors}
+                    employeeMaster={employeeMaster}
+                    companyMaster={companyMaster}
+                    picMaster={picMaster}
+                  />
+                )}
                 {step === 2 && (
                   <Step2Armada
                     form={form}
@@ -668,7 +782,13 @@ export default function FormCrm() {
               </div>
 
               <div className="crm-footer sticky">
-                <button className="btn ghost" disabled={step === 1} onClick={prev}>⟵ Kembali</button>
+                <button
+                  className="btn ghost"
+                  disabled={step === 1}
+                  onClick={prev}
+                >
+                  ⟵ Kembali
+                </button>
                 <div className="spacer" />
                 {step < 3 ? (
                   <button
@@ -702,8 +822,12 @@ export default function FormCrm() {
         <div className="popup-cute">
           <div className="popup-box">
             <div className="popup-emoji">🌸</div>
-            <div className="popup-text">Isi dulu semua kolom yang wajib yaa 💕</div>
-            <button onClick={() => setShowPopup(false)} className="popup-btn">Oke deh~</button>
+            <div className="popup-text">
+              Isi dulu semua kolom yang wajib yaa 💕
+            </div>
+            <button onClick={() => setShowPopup(false)} className="popup-btn">
+              Oke deh~
+            </button>
           </div>
         </div>
       )}
@@ -712,9 +836,9 @@ export default function FormCrm() {
           <div className="popup-box">
             <div className="popup-emoji">📂💥</div>
             <div className="popup-text">
-              Upss~ kamu pilih <b>{fileCountSelected} file</b> 😳  
+              Upss~ kamu pilih <b>{fileCountSelected} file</b> 😳
               <br />
-              Maksimal cuma <b>10 file</b> yaa~  
+              Maksimal cuma <b>10 file</b> yaa~
               <br />
               Pilih yang paling penting aja 💕
             </div>
@@ -746,7 +870,8 @@ function Header({ dirty, onReset, onBeforeUnloadRef }) {
     <div className="crm-header">
       <div className="container header-inner">
         <div className="title">
-          <span className="dot" /><span>Formulir CRM</span>
+          <span className="dot" />
+          <span>Formulir CRM</span>
         </div>
         <div className="header-actions">
           <button className="btn ghost sm" onClick={handleGoHome}>
@@ -759,7 +884,7 @@ function Header({ dirty, onReset, onBeforeUnloadRef }) {
       </div>
       <div className="container">
         <div className="subtitle">
-          Isi data kunjungan, armada/kendaraan, lalu upload bukti & penilaian. 
+          Isi data kunjungan, armada/kendaraan, lalu upload bukti & penilaian.
           Ikuti langkah-langkah di bawah ini.
         </div>
       </div>
@@ -767,19 +892,29 @@ function Header({ dirty, onReset, onBeforeUnloadRef }) {
   );
 }
 
-function Stepper({ steps, current, progressPct, onJump, canNext1, canNext2, canNext3 }) {
+function Stepper({
+  steps,
+  current,
+  progressPct,
+  onJump,
+  canNext1,
+  canNext2,
+  canNext3,
+}) {
   const isStepAllowed = (id) => {
     if (id === 1) return true;
-    if (id === 2) return canNext1; 
+    if (id === 2) return canNext1;
     if (id === 3) return canNext1 && canNext2;
     return false;
   };
 
   return (
     <div className="stepper">
-      <div className="progress"><div className="bar" style={{ width: `${progressPct}%` }} /></div>
+      <div className="progress">
+        <div className="bar" style={{ width: `${progressPct}%` }} />
+      </div>
       <div className="steps">
-        {steps.map(s => {
+        {steps.map((s) => {
           const active = s.id === current;
           const done = s.id < current;
           const allowed = isStepAllowed(s.id);
@@ -803,21 +938,32 @@ function Stepper({ steps, current, progressPct, onJump, canNext1, canNext2, canN
 
 function ErrorSummary({ step, step1Errors, step2Errors, step3Errors }) {
   const list =
-    step === 1 ? Object.values(step1Errors) :
-    step === 2 ? Object.values(step2Errors) :
-    step === 3 ? Object.values(step3Errors) : [];
+    step === 1
+      ? Object.values(step1Errors)
+      : step === 2
+      ? Object.values(step2Errors)
+      : step === 3
+      ? Object.values(step3Errors)
+      : [];
   if (list.length === 0) return null;
   return (
     <div className="alert warn" style={{ marginBottom: 16 }}>
       <div className="alert-title">Perlu diisi</div>
-      <ul>{list.map((v,i)=><li key={i}>{v}</li>)}</ul>
+      <ul>
+        {list.map((v, i) => (
+          <li key={i}>{v}</li>
+        ))}
+      </ul>
     </div>
   );
 }
 
 function SidebarSummary({ form, step, step1Errors, step2Errors, step3Errors }) {
   const totalArmada = form.armadaList?.length || 0;
-  const totalFiles = [form.fotoKunjungan, ...(form.suratPernyataanEvidence||[])].filter(Boolean).length;
+  const totalFiles = [
+    form.fotoKunjungan,
+    ...(form.suratPernyataanEvidence || []),
+  ].filter(Boolean).length;
   const badges = [
     { label: "Langkah", value: `${step}/3` },
     { label: "Armada", value: totalArmada },
@@ -826,7 +972,8 @@ function SidebarSummary({ form, step, step1Errors, step2Errors, step3Errors }) {
   const errorCount =
     (step === 1 && Object.keys(step1Errors).length) ||
     (step === 2 && Object.keys(step2Errors).length) ||
-    (step === 3 && Object.keys(step3Errors).length) || 0;
+    (step === 3 && Object.keys(step3Errors).length) ||
+    0;
 
   return (
     <div className="aside-card">
@@ -834,7 +981,8 @@ function SidebarSummary({ form, step, step1Errors, step2Errors, step3Errors }) {
       <div className="badges">
         {badges.map((b, i) => (
           <div className="badge stat" key={i}>
-            <div className="x-label">{b.label}</div><div className="x-value">{b.value}</div>
+            <div className="x-label">{b.label}</div>
+            <div className="x-value">{b.value}</div>
           </div>
         ))}
       </div>
@@ -852,7 +1000,7 @@ function SidebarSummary({ form, step, step1Errors, step2Errors, step3Errors }) {
       </div>
 
       {errorCount > 0 && (
-        <div className="tip" style={{marginTop:10}}>
+        <div className="tip" style={{ marginTop: 10 }}>
           Ada {errorCount} kolom yang perlu dilengkapi pada langkah ini.
         </div>
       )}
@@ -869,49 +1017,69 @@ function MiniItem({ label, value }) {
 }
 
 /* ================ STEPS ================ */
-function Step1Datakunjungan({ form, setField, errors, picMaster, companyMaster }) {
+function Step1Datakunjungan({
+  form,
+  setField,
+  errors,
+  employeeMaster,
+  companyMaster,
+  picMaster,
+}) {
   return (
     <>
       <h2 className="h2">Step 1 — Datakunjungan</h2>
-      <p className="lead">Isi data kunjungan, detail badan usaha, dan lokasi yang dikunjungi.</p>
+      <p className="lead">
+        Isi data kunjungan, detail badan usaha, dan lokasi yang dikunjungi.
+      </p>
 
       <div className="form-grid">
         <Field label="Tanggal Kunjungan" req error={errors.tanggal}>
-          <input data-error={!!errors.tanggal} type="date" value={form.tanggal} onChange={e=>setField("tanggal", e.target.value)} />
+          <input
+            data-error={!!errors.tanggal}
+            type="date"
+            value={form.tanggal}
+            onChange={(e) => setField("tanggal", e.target.value)}
+          />
         </Field>
 
         <Field label="Waktu Kunjungan" req error={errors.waktu}>
-          <input data-error={!!errors.waktu} type="time" value={form.waktu} onChange={e=>setField("waktu", e.target.value)} />
+          <input
+            data-error={!!errors.waktu}
+            type="time"
+            value={form.waktu}
+            onChange={(e) => setField("waktu", e.target.value)}
+          />
         </Field>
 
         <Field label="Nama Petugas" req error={errors.namaPetugas}>
           <input
             data-error={!!errors.namaPetugas}
-            list="pic-list"
+            list="employee-list"
             value={form.namaPetugas}
             onChange={(e) => {
               const val = e.target.value;
               setField("namaPetugas", val);
 
               const match =
-                picMaster?.find(
-                  (p) => p.pic.toLowerCase() === val.trim().toLowerCase()
+                (employeeMaster || []).find(
+                  (x) =>
+                    (x.name || "").trim().toLowerCase() ===
+                    val.trim().toLowerCase()
                 ) || null;
 
-              if (match && match.loket) {
-                setField("loket", match.loket);
+              if (match?.samsat?.loket) {
+                setField("loket", match.samsat.name);
               }
             }}
             placeholder="Nama petugas lapangan"
             autoComplete="off"
           />
-          <datalist id="pic-list">
-            {picMaster?.map((p) => (
-              <option
-                key={p.pic}
-                value={p.pic}
-              >
-                {p.pic}{p.loket ? ` — ${p.loket}` : ""}
+          <datalist id="employee-list">
+            {(employeeMaster || []).map((e) => (
+              <option key={e.id} value={e.name}>
+                {e.name}
+                {e.samsat?.name ? ` — ${e.samsat.name}` : ""}
+                {e.samsat?.loket ? ` (${e.samsat.loket})` : ""}
               </option>
             ))}
           </datalist>
@@ -963,7 +1131,7 @@ function Step1Datakunjungan({ form, setField, errors, picMaster, companyMaster }
             ))}
           </datalist>
         </Field>
-        
+
         <Field label="Nama Pemilik / Pengelola">
           <input
             value={form.namaPemilik}
@@ -1015,7 +1183,14 @@ function Step1Datakunjungan({ form, setField, errors, picMaster, companyMaster }
   );
 }
 
-function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext }) {
+function Step2Armada({
+  form,
+  setField,
+  armadaList,
+  setArmadaList,
+  errors,
+  onNext,
+}) {
   const [iwkbuRows, setIwkbuRows] = useState([]);
   const [loadingIwkbu, setLoadingIwkbu] = useState(false);
   const [errorIwkbu, setErrorIwkbu] = useState(null);
@@ -1135,7 +1310,10 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
     const patch = { status: newStatus };
 
     // kalau ganti dari "Beroperasi + Bayar" ke status lain → kosongkan bayarOs
-    if (current.status === "Beroperasi + Bayar" && newStatus !== "Beroperasi + Bayar") {
+    if (
+      current.status === "Beroperasi + Bayar" &&
+      newStatus !== "Beroperasi + Bayar"
+    ) {
       patch.bayarOs = "";
     }
 
@@ -1272,7 +1450,13 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
               <div className="form-grid" style={{ marginTop: 8 }}>
                 <Field
                   label={
-                    <div style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 6,
+                        alignItems: "baseline",
+                      }}
+                    >
                       <span>Jumlah OS yang mau dibayar</span>
                       {a.osTarif != null && (
                         <small style={{ color: "#9CA3AF" }}>
@@ -1309,9 +1493,7 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
                     type="file"
                     multiple
                     accept=".pdf,image/*"
-                    onChange={(e) =>
-                      handleBuktiChange(i, e.target.files || [])
-                    }
+                    onChange={(e) => handleBuktiChange(i, e.target.files || [])}
                   />
                   <div className="hint">
                     Maksimal 3 file, masing-masing ≤ 5MB.
@@ -1328,9 +1510,7 @@ function Step2Armada({ form, setField, armadaList, setArmadaList, errors, onNext
               <Field span="2" label="Rekomendasi Tindak Lanjut (Armada ini)">
                 <textarea
                   value={a.rekomendasi}
-                  onChange={(e) =>
-                    update(i, { rekomendasi: e.target.value })
-                  }
+                  onChange={(e) => update(i, { rekomendasi: e.target.value })}
                   placeholder="Contoh : Bayar IWKBU / Pemeliharaan Data KBU / Kunjungan Kembali"
                 />
               </Field>
@@ -1396,13 +1576,13 @@ function SignaturePad({ value, onChange, height = 160 }) {
     const ratio = ratioRef.current;
     if (e.touches && e.touches[0]) {
       return {
-        x: (e.touches[0].clientX - rect.left),
-        y: (e.touches[0].clientY - rect.top),
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
       };
     }
     return {
-      x: (e.clientX - rect.left),
-      y: (e.clientY - rect.top),
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
     };
   };
 
@@ -1466,7 +1646,13 @@ function SignaturePad({ value, onChange, height = 160 }) {
     const img = new Image();
     img.onload = () => {
       ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      ctx.drawImage(img, 0, 0, canvasRef.current.width, canvasRef.current.height);
+      ctx.drawImage(
+        img,
+        0,
+        0,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
     };
     if (value.startsWith("data:image")) img.src = value;
   }, []);
@@ -1497,7 +1683,9 @@ function SignaturePad({ value, onChange, height = 160 }) {
         />
       </div>
       <div className="actions-right" style={{ gap: 8 }}>
-        <button className="btn ghost" onClick={clear}>Hapus</button>
+        <button className="btn ghost" onClick={clear}>
+          Hapus
+        </button>
       </div>
     </div>
   );
@@ -1510,17 +1698,33 @@ function Step3UploadPenilaian({ form, setField, errors, onPickMultiple }) {
     <>
       <h2 className="h2">Step 3 — Upload & Penilaian</h2>
       <p className="lead">
-        Unggah bukti kunjungan (1 foto wajib) dan surat/evidence (maks 10 file), lalu berikan penilaian dan tanda tangan.
+        Unggah bukti kunjungan (1 foto wajib) dan surat/evidence (maks 10 file),
+        lalu berikan penilaian dan tanda tangan.
       </p>
 
       <div className="form-grid">
         <Field label="Upload Foto Kunjungan (wajib)">
-          <input type="file" accept="image/*" onChange={e => setField("fotoKunjungan", e.target.files?.[0] || null)} />
-          <span className="hint">{form.fotoKunjungan ? `Terpilih: ${form.fotoKunjungan.name}` : "Belum ada file"}</span>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) =>
+              setField("fotoKunjungan", e.target.files?.[0] || null)
+            }
+          />
+          <span className="hint">
+            {form.fotoKunjungan
+              ? `Terpilih: ${form.fotoKunjungan.name}`
+              : "Belum ada file"}
+          </span>
         </Field>
 
         <Field label="Upload Surat Pernyataan & Evidence (maks 10 file)">
-          <input type="file" multiple accept="image/*,.pdf" onChange={onPickMultiple("suratPernyataanEvidence")} />
+          <input
+            type="file"
+            multiple
+            accept="image/*,.pdf"
+            onChange={onPickMultiple("suratPernyataanEvidence")}
+          />
           <span className="hint">
             {totalSurat > 0 ? `${totalSurat} file terpilih` : "Belum ada file"}
           </span>
@@ -1530,15 +1734,39 @@ function Step3UploadPenilaian({ form, setField, errors, onPickMultiple }) {
       <div className="card-sub">
         <div className="form-grid">
           <Field label="Respon Pemilik / Pengelola">
-            <input type="range" min="1" max="5" value={form.nilaiKebersihan} onChange={e=>setField("nilaiKebersihan", Number(e.target.value))} />
+            <input
+              type="range"
+              min="1"
+              max="5"
+              value={form.nilaiKebersihan}
+              onChange={(e) =>
+                setField("nilaiKebersihan", Number(e.target.value))
+              }
+            />
             <span className="hint">Nilai: {form.nilaiKebersihan}</span>
           </Field>
           <Field label="Keramaian Penumpang">
-            <input type="range" min="1" max="5" value={form.nilaiKelengkapan} onChange={e=>setField("nilaiKelengkapan", Number(e.target.value))} />
+            <input
+              type="range"
+              min="1"
+              max="5"
+              value={form.nilaiKelengkapan}
+              onChange={(e) =>
+                setField("nilaiKelengkapan", Number(e.target.value))
+              }
+            />
             <span className="hint">Nilai: {form.nilaiKelengkapan}</span>
           </Field>
           <Field label="Ketaatan Pengurusan Izin Angkutan">
-            <input type="range" min="1" max="5" value={form.nilaiPelayanan} onChange={e=>setField("nilaiPelayanan", Number(e.target.value))} />
+            <input
+              type="range"
+              min="1"
+              max="5"
+              value={form.nilaiPelayanan}
+              onChange={(e) =>
+                setField("nilaiPelayanan", Number(e.target.value))
+              }
+            />
             <span className="hint">Nilai: {form.nilaiPelayanan}</span>
           </Field>
         </div>
