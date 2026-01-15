@@ -228,6 +228,8 @@ export default function Iwkbu() {
   const [STATUS_BAYAR_FILTER_OPTS, setStatusBayarFilterOpts] = useState([]);
   const [STATUS_KEND_FILTER_OPTS, setStatusKendFilterOpts] = useState([]);
   const [KONF_FILTER_OPTS, setKonfFilterOpts] = useState([]);
+  const [GOLONGAN_FILTER_OPTS, setGolonganFilterOpts] = useState([]);
+  const [DOK_PERIZINAN_FILTER_OPTS, setDokPerizinanFilterOpts] = useState([]);
 
   const { employees: EMP_OPTS, loading: employeesLoading } = useEmployees();
 
@@ -520,7 +522,7 @@ export default function Iwkbu() {
         const { data, error } = await supabase
           .from("iwkbu")
           .select(
-            "wilayah_norm, loket, trayek, jenis, pic, badan_hukum, nama_perusahaan, status_bayar, status_kendaraan, konfirmasi"
+            "wilayah_norm, loket, trayek, jenis, pic, badan_hukum, nama_perusahaan, status_bayar, status_kendaraan, konfirmasi, golongan, dok_perizinan"
           )
           .range(
             page * PAGE_SIZE,
@@ -593,6 +595,14 @@ export default function Iwkbu() {
 
       setKonfFilterOpts(
         safeUniq(allRows.map((x) => x.konfirmasi))
+      );
+
+      setGolonganFilterOpts(
+        safeUniq(allRows.map((x) => x.golongan), { upper: true })
+      );
+
+      setDokPerizinanFilterOpts(
+        safeUniq(allRows.map((x) => x.dok_perizinan), { upper: true })
       );
 
     } catch (e) {
@@ -742,6 +752,34 @@ export default function Iwkbu() {
       setWilayahOpts(WILAYAH_FILTER_OPTS);
     }
   }, [WILAYAH_FILTER_OPTS]);
+
+  useEffect(() => {
+    if (TRAYEK_FILTER_OPTS.length) setTrayekOpts(TRAYEK_FILTER_OPTS);
+  }, [TRAYEK_FILTER_OPTS]);
+
+  useEffect(() => {
+    if (JENIS_FILTER_OPTS.length) setJenisOpts(JENIS_FILTER_OPTS);
+  }, [JENIS_FILTER_OPTS]);
+
+  useEffect(() => {
+    if (BADAN_FILTER_OPTS.length) setBadanOpts(BADAN_FILTER_OPTS);
+  }, [BADAN_FILTER_OPTS]);
+
+  useEffect(() => {
+    if (STATUS_BAYAR_FILTER_OPTS.length) setStatusBayarOpts(STATUS_BAYAR_FILTER_OPTS);
+  }, [STATUS_BAYAR_FILTER_OPTS]);
+
+  useEffect(() => {
+    if (STATUS_KEND_FILTER_OPTS.length) setStatusKendaraanOpts(STATUS_KEND_FILTER_OPTS);
+  }, [STATUS_KEND_FILTER_OPTS]);
+
+  useEffect(() => {
+    if (DOK_PERIZINAN_FILTER_OPTS.length) setDokPerizinanOpts(DOK_PERIZINAN_FILTER_OPTS);
+  }, [DOK_PERIZINAN_FILTER_OPTS]);
+
+  useEffect(() => {
+    if (GOLONGAN_FILTER_OPTS.length) setGolonganOpts(GOLONGAN_FILTER_OPTS);
+  }, [GOLONGAN_FILTER_OPTS]);
   
   // modal: tambah nopol
   const [showNopolModal, setShowNopolModal] = useState(false);
@@ -1408,7 +1446,7 @@ export default function Iwkbu() {
                       placeholder="Pilih Golongan"
                     />
                   </td>
-                  <datalist id="golongan-list-modal">
+                  <datalist id="golongan-list">
                     {GOLONGAN_OPTS.map((g) => (
                       <option key={g} value={g} />
                     ))}
@@ -2058,7 +2096,7 @@ export default function Iwkbu() {
               <label>
                 Golongan
                 <input
-                  list="golongan-list-modal"
+                  list="golongan-list"
                   value={newForm.golongan}
                   onChange={(e) => setF("golongan", e.target.value)}
                 />
