@@ -29,109 +29,101 @@ async function addVerificationNotification({
   if (error) console.error("Gagal insert notif:", error);
 }
 
+const PAGE_SIZE = 50;
+
 export default function DataFormCrm() {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const [filterJenis, setFilterJenis] = useState("Semua");
   const [filterValidasi, setFilterValidasi] = useState("Semua");
   const [selected, setSelected] = useState(null);
+  const [page, setPage] = useState(1);
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [totalRows, setTotalRows] = useState(0);
+  
+useEffect(() => {
+  if (!selected?.dbId) return;
 
-  useEffect(() => {
-    async function fetchReports() {
-      setLoading(true);
-      setErrorMsg("");
+  (async () => {
+    const { data, error } = await supabase
+      .from("crm_armada")
+      .select("*")
+      .eq("report_id", selected.dbId);
 
-      try {
-        // 1) Ambil laporan (tanpa armada detail)
-        const { data: remote, error } = await supabase
-          .from("crm_reports_with_total_os")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          console.error("Supabase error:", error);
-          setErrorMsg("Gagal mengambil data dari server.");
-          setRows([]);
-          setLoading(false);
-          return;
-        }
-
-        const reports = remote || [];
-        const reportIds = reports.map((r) => r.id).filter(Boolean);
-
-        // 2) Ambil detail armada dari tabel crm_armada, untuk semua report_id
-        let armadaByReport = new Map();
-
-        if (reportIds.length > 0) {
-          const { data: armadaRows, error: armadaErr } = await supabase
-            .from("crm_armada")
-            .select("*")
-            .in("report_id", reportIds);
-
-          if (armadaErr) {
-            console.error("Supabase armada error:", armadaErr);
-          } else {
-            (armadaRows || []).forEach((row) => {
-              const rid = row.report_id;
-              if (!armadaByReport.has(rid)) armadaByReport.set(rid, []);
-              armadaByReport.get(rid).push(row);
-            });
-          }
-        }
-
-        // 3) Map ke shape yang dipakai DataFormCrm
-        const mapped = (remote || []).map((r) => {
-          const armadaRows = armadaByReport.get(r.id) || [];
-
-          const rincianArmada = armadaRows.map((a) => ({
-            nopol: a.nopol ?? "",
-            status: a.status ?? "",
-            tipeArmada: a.tipe_armada ?? "",
-            tahun: a.tahun ?? null,
-            bayarOs: a.bayar_os ?? 0,
-            rekomendasi: a.rekomendasi ?? "",
-            tindakLanjut: a.rekomendasi ?? "",
+    if (!error && data) {
+      setSelected(prev => ({
+        ...prev,
+        step2: {
+          ...prev.step2,
+          rincianArmada: data.map(a => ({
+            nopol: a.nopol,
+            status: a.status,
+            tipeArmada: a.tipe_armada,
+            tahun: a.tahun,
+            bayarOs: a.bayar_os,
+            rekomendasi: a.rekomendasi,
             bukti: a.bukti || [],
-          }));
+          })),
+        },
+      }));
+    }
+  })();
+}, [selected?.dbId]);
 
-          return {
-            // id untuk ditampilkan (kode laporan)
-            id: r.report_code || r.id,
-            // simpan id asli tabel crm_reports untuk update/verifikasi
-            dbId: r.id,
-            step1: r.step1 || {},
-            step2: {
-              ...(r.step2 || {}),
-              hasilKunjungan:
-                r.step2?.hasilKunjungan ||
-                r.step2?.penjelasanKunjungan ||
-                r.step2?.penjelasanHasil ||
-                "",
-              janjiBayar: r.step2?.janjiBayar || r.step2?.janji_bayar || "-",
-              rincianArmada, // <-- full list dari crm_armada
-            },
-            step3: r.step3 || {},
-            step4: r.step4 || {},
-            totalOS: Number(r.total_os_dibayar || 0),
-          };
-        });
+useEffect(() => {
+  async function fetchReports() {
+    setLoading(true);
+    setErrorMsg("");
 
-        setRows(mapped);
-      } catch (e) {
-        console.error("Supabase exception:", e);
-        setErrorMsg("Terjadi kesalahan saat menghubungi server.");
-        setRows([]);
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    try {
+      const { count, error: countError } = await supabase
+        .from("crm_reports")
+        .select("id", { count: "exact" });
+
+      if (!countError && typeof count === "number") {
+        setTotalRows(count);
       }
+      const { data, error } = await supabase
+        .from("crm_reports")
+        .select(`
+          id,
+          report_code,
+          step1,
+          step2,
+          step3,
+          step4
+        `)
+        .order("id", { ascending: false })
+        .range(from, to);
 
+      if (error) throw error;
+
+      const mapped = (data || []).map(r => ({
+        id: r.report_code || r.id,
+        dbId: r.id,
+        step1: r.step1 || {},
+        step2: r.step2 || {},
+        step3: r.step3 || {},
+        step4: r.step4 || {},
+      }));
+
+      setRows(mapped);
+    } catch (e) {
+      console.error(e);
+      setErrorMsg("Gagal memuat data.");
+    } finally {
       setLoading(false);
     }
+  }
 
-    fetchReports();
-  }, []);
+  fetchReports();
+}, [page]);
 
   const wrapRef = useRef(null);
   const isDown = useRef(false);
@@ -181,22 +173,6 @@ export default function DataFormCrm() {
     setVerifyOpen(false);
     setVerifyNote(selected?.step4?.catatanValidasi || "");
     setVerifyStatus(selected?.step4?.statusValidasi ?? "");
-  }, [selected]);
-
-  useEffect(() => {
-    if (!selected) return;
-    setVerifyOpen(false);
-    setVerifyNote(selected?.step4?.catatanValidasi || "");
-  }, [selected]);
-
-  useEffect(() => {
-    if (selected) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = prev;
-      };
-    }
   }, [selected]);
 
   const handleSaveVerification = async () => {
@@ -254,6 +230,22 @@ export default function DataFormCrm() {
     setVerifyOpen(false);
   };
 
+  async function handleDelete(row) {
+  if (!window.confirm("Yakin ingin menghapus laporan ini?")) return;
+
+  const { error } = await supabase
+    .from("crm_reports")
+    .delete()
+    .eq("id", row.dbId);
+
+  if (error) {
+    alert("Gagal menghapus data");
+    return;
+  }
+
+  setRows((prev) => prev.filter((r) => r.dbId !== row.dbId));
+}
+
   useEffect(() => {
     if (selected) {
       const prev = document.body.style.overflow;
@@ -264,46 +256,40 @@ export default function DataFormCrm() {
     }
   }, [selected]);
 
-  const filtered = useMemo(() => {
-    return rows.filter((d) => {
-      const s1 = d?.step1 || {};
-      const s2 = d?.step2 || {};
-      const s4 = d?.step4 || {};
+const filtered = useMemo(() => {
+  const q = query.toLowerCase();
 
-      const rincian = Array.isArray(s2.rincianArmada) ? s2.rincianArmada : [];
+  const filteredData = rows.filter((d) => {
+    const s1 = d.step1 || {};
+    const s4 = d.step4 || {};
 
-      const text = `${d?.id ?? ""} ${s1.tanggalWaktu ?? ""} ${s1.loket ?? ""} ${
-        s1.petugasDepan ?? ""
-      } ${s1.petugasBelakang ?? ""} ${s1.jenisAngkutan ?? ""} ${
-        s1.namaPemilik ?? ""
-      } ${s1.perusahaan ?? ""} ${s2.nopolAtauNamaKapal ?? ""} ${
-        s2.statusKendaraan ?? ""
-      } ${s2.janjiBayar ?? ""} ${s4.statusValidasi ?? ""}`
-        .toLowerCase()
-        .includes(query.toLowerCase());
+    const matchText =
+      (d.id || "").toLowerCase().includes(q) ||
+      (s1.namaPemilik || "").toLowerCase().includes(q) ||
+      (s1.perusahaan || "").toLowerCase().includes(q);
 
-      const matchJenis =
-        filterJenis === "Semua" || s1.jenisAngkutan === filterJenis;
-      const matchValidasi =
-        filterValidasi === "Semua" || s4.statusValidasi === filterValidasi;
+    const matchJenis =
+      filterJenis === "Semua" || s1.jenisAngkutan === filterJenis;
 
-      return text && matchJenis && matchValidasi;
-    });
-  }, [rows, query, filterJenis, filterValidasi]);
+    const matchValidasi =
+      filterValidasi === "Semua" ||
+      s4.statusValidasi === filterValidasi;
 
-  const PAGE_SIZE = 50;
-  const [page, setPage] = useState(1);
+    return matchText && matchJenis && matchValidasi;
+  });
+
+  // 🔥 SORT TANGGAL: TERBARU → TERLAMA
+  return filteredData.sort((a, b) => {
+    const ta = new Date(a.step1?.tanggalWaktu || 0).getTime();
+    const tb = new Date(b.step1?.tanggalWaktu || 0).getTime();
+    return tb - ta; // DESC
+  });
+}, [rows, query, filterJenis, filterValidasi]);
 
   // reset ke halaman 1 kalau filter / search berubah
   useEffect(() => {
     setPage(1);
-  }, [query, filterJenis, filterValidasi, rows.length]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filtered.slice(start, start + PAGE_SIZE);
-  }, [filtered, page]);
+  }, [query, filterJenis, filterValidasi]);
 
   async function loadImageAsDataURL(src) {
     return new Promise((resolve, reject) => {
@@ -437,7 +423,11 @@ export default function DataFormCrm() {
     y += 16;
 
     const rincian = row.step2.rincianArmada || [];
-    // ==== STEP 2 - ARMADA ====
+
+    const totalOS = rincian.reduce(
+      (sum, a) => sum + (Number(a.bayarOs) || 0),
+      0
+    );
 
 // Build table text (basic)
 const armadaBody = rincian.map((r, i) => [
@@ -566,14 +556,12 @@ const armadaBody = rincian.map((r, i) => [
     doc.setFont("times", "normal");
     y = checkPage(doc, y, pad);
     doc.text(
-      `Total OS Harus Dibayar: ${formatRupiah(row.totalOS || 0)}`,
+      `Total OS Harus Dibayar: ${formatRupiah(totalOS || 0)}`,
       pad,
       y
     );
     y += 14;
     doc.text(`Hasil Kunjungan : ${row.step2.hasilKunjungan || "-"}`, pad, y);
-    y += 14;
-    doc.text(`Penjelasan      : ${row.step2.penjelasanHasil || "-"}`, pad, y);
     y += 14;
     doc.text(`Janji Bayar     : ${row.step2.janjiBayar || "-"}`, pad, y);
     y += 24;
@@ -844,20 +832,6 @@ const armadaBody = rincian.map((r, i) => [
         </div>
         <div className="dfc-filters">
           <label>
-            Jenis Angkutan
-            <select
-              value={filterJenis}
-              onChange={(e) => setFilterJenis(e.target.value)}
-            >
-              <option>Semua</option>
-              <option>Kendaraan Bermotor Umum</option>
-              <option>Bus</option>
-              <option>Kapal</option>
-              <option>Truk</option>
-              <option>Taksi</option>
-            </select>
-          </label>
-          <label>
             Status Validasi
             <select
               value={filterValidasi}
@@ -866,11 +840,27 @@ const armadaBody = rincian.map((r, i) => [
               <option>Semua</option>
               <option>Tervalidasi</option>
               <option>Menunggu</option>
-              <option>Ditolak</option>
             </select>
           </label>
         </div>
       </section>
+
+{errorMsg && (
+  <div
+    style={{
+      margin: "8px 0 12px",
+      padding: "10px 12px",
+      border: "2px solid #fecaca",
+      background: "#fff1f2",
+      borderRadius: 12,
+      color: "#991b1b",
+      fontSize: 13,
+      fontWeight: 600,
+    }}
+  >
+    {errorMsg}
+  </div>
+)}
 
       <section
         className="dfc-table-wrap"
@@ -884,7 +874,8 @@ const armadaBody = rincian.map((r, i) => [
         <table className="dfc-table">
           <thead>
             <tr>
-              <th>PENGENAL</th>
+              <th style={{ textAlign: "right" }}>Aksi</th>
+              <th>Validasi</th> 
               <th>Tanggal & Waktu</th>
               <th>Loket</th>
               <th>Petugas</th>
@@ -893,109 +884,107 @@ const armadaBody = rincian.map((r, i) => [
               <th>Nopol/Nama Kapal</th>
               <th>Status Kendaraan</th>
               <th>Janji Bayar</th>
-              <th>Rating (Ops/Perizinan/Pnp)</th>
-              <th>Validasi</th>
-              <th style={{ textAlign: "right" }}>Aksi</th>
+              <th>Rating (Ops/Perizinan/Pnp)</th>        
             </tr>
           </thead>
+
           <tbody>
-            {paginated.map((d) => {
-              const s2 = d.step2 || {};
-              const rincian = Array.isArray(s2.rincianArmada)
-                ? s2.rincianArmada
-                : [];
+            {loading ? (
+              <tr>
+                <td colSpan={12} className="dfc-empty">
+                  Memuat data...
+                </td>
+              </tr>
+            ) : filtered.length > 0 ? (
+              filtered.map((d) => {
+                // ⬇️ pindahin isi logic row kamu yang tadi ada di map ke sini
+                const s2 = d.step2 || {};
+                const rincian = Array.isArray(s2.rincianArmada) ? s2.rincianArmada : [];
 
-              const semuaNopol = rincian.map((r) => r.nopol).filter(Boolean);
+                const semuaNopol = rincian.map((r) => r.nopol).filter(Boolean);
+                const totalArmada = semuaNopol.length || (s2.nopolAtauNamaKapal ? 1 : 0);
 
-              const totalArmada =
-                semuaNopol.length || (s2.nopolAtauNamaKapal ? 1 : 0);
+                const nopolDisplay =
+                  semuaNopol.length === 0
+                    ? s2.nopolAtauNamaKapal || "-"
+                    : semuaNopol.length <= 2
+                    ? semuaNopol.join(", ")
+                    : `${semuaNopol[0]}, ${semuaNopol[1]} (+${semuaNopol.length - 2} armada)`;
 
-              const nopolDisplay =
-                semuaNopol.length === 0
-                  ? s2.nopolAtauNamaKapal || "-"
-                  : semuaNopol.length <= 2
-                  ? semuaNopol.join(", ")
-                  : `${semuaNopol[0]}, ${semuaNopol[1]} (+${
-                      semuaNopol.length - 2
-                    } armada)`;
+                const statusDisplay =
+                  totalArmada <= 1 ? s2.statusKendaraan || "-" : `Lihat detail (${totalArmada} armada)`;
 
-              const statusDisplay =
-                totalArmada <= 1
-                  ? s2.statusKendaraan || "-"
-                  : `Lihat detail (${totalArmada} armada)`;
+                const statusTone =
+                  s2.statusKendaraan === "Beroperasi" || s2.statusKendaraan === "Aktif"
+                    ? "green"
+                    : "gray";
 
-              const statusTone =
-                s2.statusKendaraan === "Beroperasi" ||
-                s2.statusKendaraan === "Aktif"
-                  ? "green"
-                  : "gray";
+                return (
+                  <tr key={d.id}>
+                    <td style={{ textAlign: "right", display: "flex", gap: 6, justifyContent: "flex-end" }}>
+  <button
+    className="btn btn-soft"
+    onClick={() => setSelected(d)}
+  >
+    Detail
+  </button>
 
-              return (
-                <tr key={d.id}>
-                  <td>{d.id}</td>
-                  <td>{d.step1.tanggalWaktu}</td>
-                  <td>{d.step1.loket}</td>
-                  <td>
-                    {d.step1.petugasDepan} {d.step1.petugasBelakang}
-                  </td>
-                  <td>{d.step1.jenisAngkutan}</td>
-                  <td>{d.step1.namaPemilik}</td>
+  <button
+    className="btn btn-danger"
+    onClick={() => handleDelete(d)}
+  >
+    Hapus
+  </button>
+</td>
 
-                  {/* NOPOL: ringkas + info jumlah armada */}
-                  <td>
-                    {nopolDisplay}
-                    {totalArmada > 1 && (
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: "#64748b",
-                          marginTop: 2,
-                        }}
+<td>
+                      <Badge
+                        tone={
+                          d.step4.statusValidasi === "Tervalidasi"
+                            ? "green"
+                            : d.step4.statusValidasi === "Pending"
+                            ? "blue"
+                            : d.step4.statusValidasi === "Menunggu"
+                            ? "amber"
+                            : "red"
+                        }
                       >
-                        Total {totalArmada} armada
-                      </div>
-                    )}
-                  </td>
+                        {d.step4.statusValidasi}
+                      </Badge>
+                    </td>
 
-                  {/* Status */}
-                  <td>
-                    <Badge tone={statusTone}>{statusDisplay}</Badge>
-                  </td>
+                    <td>{d.step1.tanggalWaktu}</td>
+                    <td>{d.step1.loket}</td>
+                    <td>
+                      {d.step1.petugasDepan} {d.step1.petugasBelakang}
+                    </td>
+                    <td>{d.step1.jenisAngkutan}</td>
+                    <td>{d.step1.namaPemilik}</td>
 
-                  <td>{d.step2.janjiBayar}</td>
-                  <td>
-                    {d.step3.ketertibanOperasional}/5 •{" "}
-                    {d.step3.ketaatanPerizinan}/5 • {d.step3.keramaianPenumpang}
-                    /5
-                  </td>
-                  <td>
-                    <Badge
-                      tone={
-                        d.step4.statusValidasi === "Tervalidasi"
-                          ? "green"
-                          : d.step4.statusValidasi === "Pending"
-                          ? "blue"
-                          : d.step4.statusValidasi === "Menunggu"
-                          ? "amber"
-                          : "red"
-                      }
-                    >
-                      {d.step4.statusValidasi}
-                    </Badge>
-                  </td>
-                  <td style={{ textAlign: "right" }}>
-                    <button
-                      type="button"
-                      className="btn btn-detail"
-                      onClick={() => setSelected(d)}
-                    >
-                      Detail
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-            {filtered.length === 0 && (
+                    <td>
+                      {nopolDisplay}
+                      {totalArmada > 1 && (
+                        <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                          Total {totalArmada} armada
+                        </div>
+                      )}
+                    </td>
+
+                    <td>
+                      <Badge tone={statusTone}>{statusDisplay}</Badge>
+                    </td>
+
+                    <td>{d.step2.janjiBayar}</td>
+
+                    <td>
+                      {d.step3.ketertibanOperasional}/5 • {d.step3.ketaatanPerizinan}/5 •{" "}
+                      {d.step3.keramaianPenumpang}/5
+                    </td>
+
+                  </tr>
+                );
+              })
+            ) : (
               <tr>
                 <td colSpan={12} className="dfc-empty">
                   Tidak ada data yang cocok dengan filter.
@@ -1004,38 +993,40 @@ const armadaBody = rincian.map((r, i) => [
             )}
           </tbody>
         </table>
+
       </section>
       {/* Pagination */}
-      {filtered.length > PAGE_SIZE && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: 12,
-          }}
-        >
-          <div style={{ fontSize: 12, color: "#475569" }}>
-            Halaman {page} / {totalPages} • Total data: {filtered.length}
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              className="btn btn-soft"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              ← Prev
-            </button>
-            <button
-              className="btn btn-soft"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Next →
-            </button>
-          </div>
-        </div>
-      )}
+<div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 12,
+  }}
+>
+  <div style={{ fontSize: 12, color: "#475569" }}>
+    Halaman {page}• Total Data: {totalRows}
+  </div>
+
+  <div style={{ display: "flex", gap: 8 }}>
+    <button
+      className="btn btn-soft"
+      disabled={page <= 1}
+      onClick={() => setPage((p) => Math.max(1, p - 1))}
+    >
+      ← Prev
+    </button>
+
+    <button
+      className="btn btn-soft"
+      disabled={rows.length < PAGE_SIZE}
+      onClick={() => setPage((p) => p + 1)}
+    >
+      Next →
+    </button>
+  </div>
+</div>
+
 
       {/* Modal Detail */}
       {selected && (
@@ -1763,6 +1754,13 @@ table.dfc-table{
   background-color:#fff1f2;
   border-color:#ef4444;
   color:#7f1d1d;
+}
+.btn-danger{
+  background:#ef4444;
+  color:white;
+}
+.btn-danger:hover{
+  filter:brightness(1.05);
 }
 `}</style>
     </div>
