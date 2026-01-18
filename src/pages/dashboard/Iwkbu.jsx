@@ -31,8 +31,12 @@ const idr = (n) =>
     maximumFractionDigits: 0,
   });
 
-/* helper: tambah ke opsi kalau belum ada (case-insensitive).
-   return value yg disimpan (kadang dinaikkan ke UPPER utk konsistensi beberapa field) */
+  const normalizeSearch = (str) =>
+    (str || "")
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .trim();
+
 function addOptionIfMissing(
   options,
   setOptions,
@@ -648,19 +652,31 @@ export default function Iwkbu() {
       .from("iwkbu")
       .select("*", { count: "exact" });
 
-    const s = (q || "").trim();
+    const sRaw = (q || "").trim();
+    const s = normalizeSearch(sRaw);
 
     if (s) {
-      query = query.or(
-        [
-          `nopol.ilike.%${s}%`,
-          `wilayah_norm.ilike.%${s}%`,
-          `kota.ilike.%${s}%`,
-          `trayek.ilike.%${s}%`,
-          `nama_perusahaan.ilike.%${s}%`,
-          `pic.ilike.%${s}%`,
-        ].join(",")
-      );
+      const looksLikeNopol =
+        /^\w{0,3}\s?\d{1,4}\s?[A-Z]{1,3}$/.test(s) || /^\d{1,4}\s?[A-Z]{1,3}$/.test(s);
+
+      if (looksLikeNopol) {
+        query = query.or(
+          [
+            `nopol.ilike.%${s}%`,
+          ].join(",")
+        );
+      } else {
+        query = query.or(
+          [
+            `nopol.ilike.%${s}%`,
+            `wilayah_norm.ilike.%${s}%`,
+            `kota.ilike.%${s}%`,
+            `trayek.ilike.%${s}%`,
+            `nama_perusahaan.ilike.%${s}%`,
+            `pic.ilike.%${s}%`,
+          ].join(",")
+        );
+      }
     }
 
     // 🎯 filters
