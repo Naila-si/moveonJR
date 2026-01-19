@@ -22,6 +22,9 @@ async function addVerificationNotification({
       status,
       note,
       ts,
+      petugas: [step1?.petugasDepan, step1?.petugasBelakang]
+        .filter(Boolean)
+        .join(" "),
       payload: { reportId, status, note, perusahaan },
     },
   ]);

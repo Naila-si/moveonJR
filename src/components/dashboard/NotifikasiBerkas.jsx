@@ -63,7 +63,7 @@ async function fetchReportFull(reportCode) {
     .from("crm_reports")
     .select("*")
     .eq("report_code", reportCode)
-    .single();
+    .maybeSingle();
 
   if (repErr || !report) throw repErr || new Error("Report tidak ditemukan");
 
@@ -567,9 +567,30 @@ function mapStatusLabel(status) {
   return "Diproses";
 }
 
+function getPetugasName(it, petugasMap) {
+  if (it?.petugas) return it.petugas;
+  if (petugasMap?.[it?.report_id]) return petugasMap[it.report_id];
+  return "-";
+}
+
+async function fetchPetugasByReportId(reportCode) {
+  const { data, error } = await supabase
+    .from("crm_reports")
+    .select("step1")
+    .eq("report_code", reportCode)
+    .maybeSingle();
+
+  if (error || !data?.step1) return "-";
+
+  const s1 = data.step1;
+  return [s1.petugasDepan, s1.petugasBelakang]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export default function NotifikasiBerkas() {
   const navigate = useNavigate();
-
+  const [petugasMap, setPetugasMap] = useState({});
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
   const [sortKey, setSortKey] = useState("ts");
@@ -582,7 +603,27 @@ export default function NotifikasiBerkas() {
       .select("*")
       .order("ts", { ascending: false });
 
-    if (!error) setItems(data);
+    if (error) {
+      console.error("fetchNotif error:", error);
+      return;
+    }
+
+    setItems(data || []);
+
+    // ===== FETCH PETUGAS PER REPORT (SEKALI) =====
+    const uniqueReports = [
+      ...new Set((data || []).map(d => d.report_id).filter(Boolean))
+    ];
+
+    const map = {};
+
+    await Promise.all(
+      uniqueReports.map(async (rid) => {
+        map[rid] = await fetchPetugasByReportId(rid);
+      })
+    );
+
+    setPetugasMap(map);
   };
 
   // === LOAD AWAL + REALTIME ===
@@ -623,6 +664,12 @@ export default function NotifikasiBerkas() {
     data.sort((a, b) => {
       const va = a[sortKey] ?? "";
       const vb = b[sortKey] ?? "";
+
+      if (sortKey === "petugas") {
+        const pa = getPetugasName(a, petugasMap).toLowerCase();
+        const pb = getPetugasName(b, petugasMap).toLowerCase();
+        return pa > pb ? dir : pa < pb ? -dir : 0;
+      }
 
       if (sortKey === "ts") {
         const ta = Date.parse(va) || 0;
@@ -709,6 +756,7 @@ export default function NotifikasiBerkas() {
             <table className="notif-table">
               <thead>
                 <tr>
+                  <Th label="Petugas" k="petugas" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
                   <Th label="Perusahaan" k="perusahaan" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
                   <Th label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
                   <Th label="Catatan" k="note" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
@@ -725,6 +773,7 @@ export default function NotifikasiBerkas() {
                 ) : (
                   filtered.map((it) => (
                     <tr key={it.id}>
+                      <td>{getPetugasName(it, petugasMap)}</td>
                       <td>{it?.perusahaan || "-"}</td>
                       <td>
                         <span
