@@ -22,58 +22,6 @@ function usePersistentState(key, initialValue) {
   return [state, setState];
 }
 
-const LOKET_OPTS = [
-  "Kantor Wilayah",
-  "Pelalawan",
-  "Siak",
-  "Kota Baru",
-  "Tembilahan",
-  "Sungai Guntung",
-];
-
-const KELAS_OPTS = ["Gold", "Silver"];
-
-const STATUS_PKS_OPTS = ["Aktif", "Non Aktif", "Berakhir", "Addendum", "-"];
-
-const STATUS_PEMB_OPTS = [
-  "Lancar",
-  "Dispensasi",
-  "Outstanding",
-  "Belum Bayar",
-  "Lunas",
-  "Parsial",
-  "-",
-];
-
-const STATUS_KAPAL_OPTS = [
-  "Beroperasi",
-  "Docking",
-  "Cadangan",
-  "Tidak Beroperasi",
-  "Rusak",
-  "-",
-];
-
-const PAS_OPTS = ["Ada", "Tidak", "-"];
-const SERTIF_KSL_OPTS = ["Ada", "Tidak", "-"];
-const IZIN_TRAYEK_OPTS = ["Ada", "Tidak", "-"];
-
-const SISTEM_IWKL_OPTS = [
-  "Manifest",
-  "Borongan",
-  "Manual",
-  "E-Ticket",
-  "Campuran",
-  "-",
-];
-
-const PERHIT_TARIF_OPTS = [
-  "Dalam Provinsi",
-  "Antar Provinsi",
-  "Angkutan Karyawan",
-  "-",
-];
-
 const monthIndex = {
   jan: 1,
   feb: 2,
@@ -245,16 +193,16 @@ const mapRowToDbPayload = (r) => ({
   des: r.des || 0,
 });
 
-const makeEmptyRow = () => ({
+const makeEmptyRow = (loketOpts = [], kelasOpts = [], statusPksOpts = [], statusKapalOpts = [], statusPembOpts = [], pasOpts = [], sertifKslOpts = [], izinTrayekOpts = [], sistemIwklOpts = [], perhitTarifOpts = []) => ({
   id: null,
-  loket: LOKET_OPTS[0],
-  kelas: KELAS_OPTS[0],
+  loket: loketOpts?.[0] || "",
+  kelas: kelasOpts[0] || "",
   namaPerusahaan: "",
   namaKapal: "",
   namaPemilik: "",
-  statusPKS: STATUS_PKS_OPTS[0],
-  statusPembayaran: STATUS_PEMB_OPTS[0],
-  statusKapal: STATUS_KAPAL_OPTS[0],
+  statusPKS: statusPksOpts[0] || "",
+  statusPembayaran: statusPembOpts[0] || "",
+  statusKapal: statusKapalOpts[0] || "",
   potensiPerBulan: 0,
   ruteAwal: "",
   ruteAkhir: "",
@@ -267,12 +215,12 @@ const makeEmptyRow = () => ({
   tglPKS: "",
   tglBerakhirPKS: "",
   tglAddendum: "",
-  pasBesarKecil: PAS_OPTS[0],
-  sertifikatKeselamatan: SERTIF_KSL_OPTS[0],
-  izinTrayek: IZIN_TRAYEK_OPTS[0],
+  pasBesarKecil: pasOpts[0] || "",
+  sertifikatKeselamatan: sertifKslOpts[0] || "",
+  izinTrayek: izinTrayekOpts[0] || "",
   tglJatuhTempoSertifikatKeselamatan: "",
-  sistemPengutipanIWKL: SISTEM_IWKL_OPTS[0],
-  perhitunganTarif: PERHIT_TARIF_OPTS[0],
+  sistemPengutipanIWKL: sistemIwklOpts[0] || "",
+  perhitunganTarif: perhitTarifOpts[0] || "",
   seat: 0,
   rit: 0,
   tarifDasarIwkl: 0,
@@ -328,6 +276,22 @@ const Pagination = ({ page, totalPage, setPage }) => (
   </div>
 );
 
+function addOptionIfMissing(options, setOptions, value) {
+  if (!value) return value;
+  const v = String(value).trim();
+  if (!v) return v;
+
+  const exists = options.some(
+    (o) => String(o).toLowerCase() === v.toLowerCase()
+  );
+
+  if (!exists) {
+    setOptions((prev) => [...prev, v]);
+  }
+
+  return v;
+}
+
 export default function IwklSimple() {
   const [rows, setRows] = useState([]);
   const [q, setQ] = useState("");
@@ -336,6 +300,78 @@ export default function IwklSimple() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tahunAktif, setTahunAktif] = useState(2024);
+
+  const [LOKET_OPTS, setLoketOpts] = usePersistentState(
+    "iwkl:opts:loket",
+    [
+      "Kantor Wilayah",
+      "Pelalawan",
+      "Siak",
+      "Kota Baru",
+      "Tembilahan",
+      "Sungai Guntung",
+    ]
+  );
+
+  const [KELAS_OPTS, setKelasOpts] = usePersistentState(
+    "iwkl:opts:kelas",
+    ["Gold", "Silver"]
+  );
+
+  const [STATUS_PKS_OPTS, setStatusPksOpts] = usePersistentState(
+    "iwkl:opts:status_pks",
+    ["Aktif", "Non Aktif", "Berakhir", "Addendum", "-"]
+  );
+
+  const [STATUS_KAPAL_OPTS, setStatusKapalOpts] = usePersistentState(
+    "iwkl:opts:status_kapal",
+    [
+      "Beroperasi",
+      "Docking",
+      "Cadangan",
+      "Tidak Beroperasi",
+      "Rusak",
+      "-"
+    ]
+  );
+
+  const [STATUS_PEMB_OPTS, setStatusPembOpts] = usePersistentState(
+    "iwkl:opts:status_pembayaran",
+    [
+      "Lancar",
+      "Dispensasi",
+      "Outstanding",
+      "Belum Bayar",
+      "Lunas",
+      "Parsial",
+      "-"
+    ]
+  );
+
+  const [PAS_OPTS, setPasOpts] = usePersistentState(
+    "iwkl:opts:pas",
+    ["Ada", "Tidak", "-"]
+  );
+
+  const [SERTIF_KSL_OPTS, setSertifKslOpts] = usePersistentState(
+    "iwkl:opts:sertifikat_keselamatan",
+    ["Ada", "Tidak", "-"]
+  );
+
+  const [IZIN_TRAYEK_OPTS, setIzinTrayekOpts] = usePersistentState(
+    "iwkl:opts:izin_trayek",
+    ["Ada", "Tidak", "-"]
+  );
+
+  const [SISTEM_IWKL_OPTS, setSistemIwklOpts] = usePersistentState(
+    "iwkl:opts:sistem_iwkl",
+    ["Manifest", "Borongan", "Manual", "E-Ticket", "Campuran", "-"]
+  );
+
+  const [PERHIT_TARIF_OPTS, setPerhitTarifOpts] = usePersistentState(
+    "iwkl:opts:perhitungan_tarif",
+    ["Dalam Provinsi", "Antar Provinsi", "Angkutan Karyawan", "-"]
+  );
 
   const exportIwklToExcel = async () => {
     try {
@@ -499,7 +535,13 @@ export default function IwklSimple() {
 
   // modal tambah
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newForm, setNewForm] = useState(makeEmptyRow());
+  const [newForm, setNewForm] = useState(makeEmptyRow(LOKET_OPTS, KELAS_OPTS, STATUS_PKS_OPTS, STATUS_KAPAL_OPTS, STATUS_PEMB_OPTS, PAS_OPTS, SERTIF_KSL_OPTS, IZIN_TRAYEK_OPTS, SISTEM_IWKL_OPTS, PERHIT_TARIF_OPTS));
+
+  useEffect(() => {
+    setNewForm((prev) =>
+      prev.loket ? prev : makeEmptyRow(LOKET_OPTS, KELAS_OPTS, STATUS_PKS_OPTS, STATUS_KAPAL_OPTS, STATUS_PEMB_OPTS, PAS_OPTS, SERTIF_KSL_OPTS, IZIN_TRAYEK_OPTS, SISTEM_IWKL_OPTS, PERHIT_TARIF_OPTS)
+    );
+  }, [LOKET_OPTS, KELAS_OPTS, STATUS_PKS_OPTS, STATUS_KAPAL_OPTS, STATUS_PEMB_OPTS, PAS_OPTS, SERTIF_KSL_OPTS, IZIN_TRAYEK_OPTS, SISTEM_IWKL_OPTS, PERHIT_TARIF_OPTS]);
 
   const pageSize = 50;
 
@@ -765,7 +807,6 @@ export default function IwklSimple() {
       trayek: "trayek",
       ruteAwal: "rute_awal",
       ruteAkhir: "rute_akhir",
-      // ❌ jan..des DIHAPUS dari sini, karena mereka di iwkl_bulanan
     };
 
     const colName = keyMap[key];
@@ -845,7 +886,7 @@ export default function IwklSimple() {
 
   const addIwkl = async (e) => {
     e.preventDefault();
-    const draft = { ...makeEmptyRow(), ...newForm };
+    const draft = { ...makeEmptyRow(LOKET_OPTS, KELAS_OPTS, STATUS_PKS_OPTS, STATUS_KAPAL_OPTS, STATUS_PEMB_OPTS, PAS_OPTS, SERTIF_KSL_OPTS, IZIN_TRAYEK_OPTS, SISTEM_IWKL_OPTS, PERHIT_TARIF_OPTS), ...newForm };
 
     setSaving(true);
     const { data, error } = await supabase
@@ -863,7 +904,7 @@ export default function IwklSimple() {
     const newRow = mapDbToRow(data);
     setRows((prev) => [newRow, ...prev]);
     setShowAddModal(false);
-    setNewForm(makeEmptyRow());
+    setNewForm(makeEmptyRow(LOKET_OPTS, KELAS_OPTS, STATUS_PKS_OPTS, STATUS_KAPAL_OPTS, STATUS_PEMB_OPTS, PAS_OPTS, SERTIF_KSL_OPTS, IZIN_TRAYEK_OPTS, SISTEM_IWKL_OPTS, PERHIT_TARIF_OPTS));
     setPage(1);
   };
 
@@ -902,7 +943,7 @@ export default function IwklSimple() {
               className="btn primary"
               type="button"
               onClick={() => {
-                setNewForm(makeEmptyRow());
+                setNewForm(makeEmptyRow(LOKET_OPTS, KELAS_OPTS, STATUS_PKS_OPTS, STATUS_KAPAL_OPTS, STATUS_PEMB_OPTS, PAS_OPTS, SERTIF_KSL_OPTS, IZIN_TRAYEK_OPTS, SISTEM_IWKL_OPTS, PERHIT_TARIF_OPTS));
                 setShowAddModal(true);
               }}
             >
@@ -949,7 +990,7 @@ export default function IwklSimple() {
               onChange={(e) => setFilterLoket(e.target.value)}
             >
               <option value="">Semua Loket</option>
-              {LOKET_FILTER_OPTS.map((o) => (
+              {LOKET_OPTS.map((o) => (
                 <option key={o} value={o}>
                   {o}
                 </option>
@@ -962,7 +1003,7 @@ export default function IwklSimple() {
               onChange={(e) => setFilterKelas(e.target.value)}
             >
               <option value="">Semua Kelas</option>
-              {KELAS_FILTER_OPTS.map((o) => (
+              {KELAS_OPTS.map((o) => (
                 <option key={o} value={o}>
                   {o}
                 </option>
@@ -975,10 +1016,8 @@ export default function IwklSimple() {
               onChange={(e) => setFilterStatusPKS(e.target.value)}
             >
               <option value="">Semua Status PKS</option>
-              {STATUS_PKS_FILTER_OPTS.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
+              {STATUS_PKS_OPTS.map((o) => (
+                <option key={o} value={o}>{o}</option>
               ))}
             </select>
 
@@ -988,10 +1027,8 @@ export default function IwklSimple() {
               onChange={(e) => setFilterStatusKapal(e.target.value)}
             >
               <option value="">Semua Status Kapal</option>
-              {STATUS_KAPAL_FILTER_OPTS.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
+              {STATUS_KAPAL_OPTS.map((o) => (
+                <option key={o} value={o}>{o}</option>
               ))}
             </select>
 
@@ -1053,34 +1090,54 @@ export default function IwklSimple() {
 
                         {/* Loket */}
                         <td>
-                          <select
+                          <input
+                            list="loket-list"
                             value={r.loket || ""}
                             onChange={(e) =>
-                              updateCell(r.id, "loket", e.target.value)
+                              updateCell(
+                                r.id,
+                                "loket",
+                                addOptionIfMissing(
+                                  LOKET_OPTS,
+                                  setLoketOpts,
+                                  e.target.value
+                                )
+                              )
                             }
-                          >
+                            placeholder="Loket"
+                          />
+
+                          <datalist id="loket-list">
                             {LOKET_OPTS.map((o) => (
-                              <option key={o} value={o}>
-                                {o}
-                              </option>
+                              <option key={o} value={o} />
                             ))}
-                          </select>
+                          </datalist>
                         </td>
 
                         {/* Kelas */}
                         <td>
-                          <select
+                          <input
+                            list="kelas-list"
                             value={r.kelas || ""}
                             onChange={(e) =>
-                              updateCell(r.id, "kelas", e.target.value)
+                              updateCell(
+                                r.id,
+                                "kelas",
+                                addOptionIfMissing(
+                                  KELAS_OPTS,
+                                  setKelasOpts,
+                                  e.target.value
+                                )
+                              )
                             }
-                          >
+                            placeholder="Kelas"
+                          />
+
+                          <datalist id="kelas-list">
                             {KELAS_OPTS.map((o) => (
-                              <option key={o} value={o}>
-                                {o}
-                              </option>
+                              <option key={o} value={o} />
                             ))}
-                          </select>
+                          </datalist>
                         </td>
 
                         {/* Nama Kapal */}
@@ -1121,34 +1178,54 @@ export default function IwklSimple() {
 
                         {/* Status PKS */}
                         <td>
-                          <select
+                          <input
+                            list="status-pks-list"
                             value={r.statusPKS || ""}
                             onChange={(e) =>
-                              updateCell(r.id, "statusPKS", e.target.value)
+                              updateCell(
+                                r.id,
+                                "statusPKS",
+                                addOptionIfMissing(
+                                  STATUS_PKS_OPTS,
+                                  setStatusPksOpts,
+                                  e.target.value
+                                )
+                              )
                             }
-                          >
+                            placeholder="Status PKS"
+                          />
+
+                          <datalist id="status-pks-list">
                             {STATUS_PKS_OPTS.map((o) => (
-                              <option key={o} value={o}>
-                                {o}
-                              </option>
+                              <option key={o} value={o} />
                             ))}
-                          </select>
+                          </datalist>
                         </td>
 
                         {/* Status Kapal */}
                         <td>
-                          <select
+                          <input
+                            list="status-kapal-list"
                             value={r.statusKapal || ""}
                             onChange={(e) =>
-                              updateCell(r.id, "statusKapal", e.target.value)
+                              updateCell(
+                                r.id,
+                                "statusKapal",
+                                addOptionIfMissing(
+                                  STATUS_KAPAL_OPTS,
+                                  setStatusKapalOpts,
+                                  e.target.value
+                                )
+                              )
                             }
-                          >
+                            placeholder="Status Kapal"
+                          />
+
+                          <datalist id="status-kapal-list">
                             {STATUS_KAPAL_OPTS.map((o) => (
-                              <option key={o} value={o}>
-                                {o}
-                              </option>
+                              <option key={o} value={o} />
                             ))}
-                          </select>
+                          </datalist>
                         </td>
 
                         {/* Rute (gabungan awal-akhir) */}
@@ -1360,82 +1437,106 @@ export default function IwklSimple() {
 
                                   <label>
                                     Status Pembayaran
-                                    <select
+                                    <input
+                                      list="status-pemb-list"
                                       value={r.statusPembayaran || ""}
                                       onChange={(e) =>
                                         updateCell(
                                           r.id,
                                           "statusPembayaran",
-                                          e.target.value
+                                          addOptionIfMissing(
+                                            STATUS_PEMB_OPTS,
+                                            setStatusPembOpts,
+                                            e.target.value
+                                          )
                                         )
                                       }
-                                    >
+                                      placeholder="Status Pembayaran"
+                                    />
+
+                                    <datalist id="status-pemb-list">
                                       {STATUS_PEMB_OPTS.map((o) => (
-                                        <option key={o} value={o}>
-                                          {o}
-                                        </option>
+                                        <option key={o} value={o} />
                                       ))}
-                                    </select>
+                                    </datalist>
                                   </label>
 
                                   <label>
                                     Pas Besar / Kecil
-                                    <select
+                                    <input
+                                      list="pas-list"
                                       value={r.pasBesarKecil || ""}
                                       onChange={(e) =>
                                         updateCell(
                                           r.id,
                                           "pasBesarKecil",
-                                          e.target.value
+                                          addOptionIfMissing(
+                                            PAS_OPTS,
+                                            setPasOpts,
+                                            e.target.value
+                                          )
                                         )
                                       }
-                                    >
+                                      placeholder="Pas"
+                                    />
+
+                                    <datalist id="pas-list">
                                       {PAS_OPTS.map((o) => (
-                                        <option key={o} value={o}>
-                                          {o}
-                                        </option>
+                                        <option key={o} value={o} />
                                       ))}
-                                    </select>
+                                    </datalist>
                                   </label>
 
                                   <label>
                                     Sertifikat Keselamatan
-                                    <select
+                                    <input
+                                      list="sertif-ksl-list"
                                       value={r.sertifikatKeselamatan || ""}
                                       onChange={(e) =>
                                         updateCell(
                                           r.id,
                                           "sertifikatKeselamatan",
-                                          e.target.value
+                                          addOptionIfMissing(
+                                            SERTIF_KSL_OPTS,
+                                            setSertifKslOpts,
+                                            e.target.value
+                                          )
                                         )
                                       }
-                                    >
+                                      placeholder="Sertifikat"
+                                    />
+
+                                    <datalist id="sertif-ksl-list">
                                       {SERTIF_KSL_OPTS.map((o) => (
-                                        <option key={o} value={o}>
-                                          {o}
-                                        </option>
+                                        <option key={o} value={o} />
                                       ))}
-                                    </select>
+                                    </datalist>
                                   </label>
 
                                   <label>
                                     Izin Trayek
-                                    <select
+                                    <input
+                                      list="izin-trayek-list"
                                       value={r.izinTrayek || ""}
                                       onChange={(e) =>
                                         updateCell(
                                           r.id,
                                           "izinTrayek",
-                                          e.target.value
+                                          addOptionIfMissing(
+                                            IZIN_TRAYEK_OPTS,
+                                            setIzinTrayekOpts,
+                                            e.target.value
+                                          )
                                         )
                                       }
-                                    >
+                                      placeholder="Izin Trayek"
+                                    />
+
+                                    <datalist id="izin-trayek-list">
                                       {IZIN_TRAYEK_OPTS.map((o) => (
-                                        <option key={o} value={o}>
-                                          {o}
-                                        </option>
+                                        <option key={o} value={o} />
                                       ))}
-                                    </select>
+                                    </datalist>
                                   </label>
 
                                   <label>
@@ -1458,22 +1559,28 @@ export default function IwklSimple() {
 
                                   <label>
                                     Sistem Pengutipan IWKL
-                                    <select
+                                    <input
+                                      list="sistem-iwkl-list"
                                       value={r.sistemPengutipanIWKL || ""}
                                       onChange={(e) =>
                                         updateCell(
                                           r.id,
                                           "sistemPengutipanIWKL",
-                                          e.target.value
+                                          addOptionIfMissing(
+                                            SISTEM_IWKL_OPTS,
+                                            setSistemIwklOpts,
+                                            e.target.value
+                                          )
                                         )
                                       }
-                                    >
+                                      placeholder="Sistem IWKL"
+                                    />
+
+                                    <datalist id="sistem-iwkl-list">
                                       {SISTEM_IWKL_OPTS.map((o) => (
-                                        <option key={o} value={o}>
-                                          {o}
-                                        </option>
+                                        <option key={o} value={o} />
                                       ))}
-                                    </select>
+                                    </datalist>
                                   </label>
 
                                   <section>
@@ -1691,30 +1798,40 @@ export default function IwklSimple() {
             >
               <label>
                 Loket
-                <select
+                <input
+                  list="loket-list"
                   value={newForm.loket}
-                  onChange={(e) => setF("loket", e.target.value)}
-                >
-                  {LOKET_OPTS.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(e) =>
+                    setF(
+                      "loket",
+                      addOptionIfMissing(
+                        LOKET_OPTS,
+                        setLoketOpts,
+                        e.target.value
+                      )
+                    )
+                  }
+                  placeholder="Loket"
+                />
               </label>
 
               <label>
                 Kelas
-                <select
+                <input
+                  list="kelas-list"
                   value={newForm.kelas}
-                  onChange={(e) => setF("kelas", e.target.value)}
-                >
-                  {KELAS_OPTS.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(e) =>
+                    setF(
+                      "kelas",
+                      addOptionIfMissing(
+                        KELAS_OPTS,
+                        setKelasOpts,
+                        e.target.value
+                      )
+                    )
+                  }
+                  placeholder="Kelas"
+                />
               </label>
 
               <label>
@@ -1813,44 +1930,59 @@ export default function IwklSimple() {
 
               <label>
                 Status PKS
-                <select
+                <input
+                  list="status-pks-list"
                   value={newForm.statusPKS}
-                  onChange={(e) => setF("statusPKS", e.target.value)}
-                >
-                  {STATUS_PKS_OPTS.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(e) =>
+                    setF(
+                      "statusPKS",
+                      addOptionIfMissing(
+                        STATUS_PKS_OPTS,
+                        setStatusPksOpts,
+                        e.target.value
+                      )
+                    )
+                  }
+                  placeholder="Status PKS"
+                />
               </label>
 
               <label>
                 Status Pembayaran
-                <select
+                <input
+                  list="status-pemb-list"
                   value={newForm.statusPembayaran}
-                  onChange={(e) => setF("statusPembayaran", e.target.value)}
-                >
-                  {STATUS_PEMB_OPTS.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(e) =>
+                    setF(
+                      "statusPembayaran",
+                      addOptionIfMissing(
+                        STATUS_PEMB_OPTS,
+                        setStatusPembOpts,
+                        e.target.value
+                      )
+                    )
+                  }
+                  placeholder="Status Pembayaran"
+                />
               </label>
 
               <label>
                 Status Kapal
-                <select
+                <input
+                  list="status-kapal-list"
                   value={newForm.statusKapal}
-                  onChange={(e) => setF("statusKapal", e.target.value)}
-                >
-                  {STATUS_KAPAL_OPTS.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(e) =>
+                    setF(
+                      "statusKapal",
+                      addOptionIfMissing(
+                        STATUS_KAPAL_OPTS,
+                        setStatusKapalOpts,
+                        e.target.value
+                      )
+                    )
+                  }
+                  placeholder="Status Kapal"
+                />
               </label>
 
               <label>
@@ -1870,46 +2002,56 @@ export default function IwklSimple() {
 
               <label>
                 Pas Besar / Kecil
-                <select
+                <input
+                  list="pas-list"
                   value={newForm.pasBesarKecil}
-                  onChange={(e) => setF("pasBesarKecil", e.target.value)}
-                >
-                  {PAS_OPTS.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(e) =>
+                    setF(
+                      "pasBesarKecil",
+                      addOptionIfMissing(
+                        PAS_OPTS,
+                        setPasOpts,
+                        e.target.value
+                      )
+                    )
+                  }
+                />
               </label>
 
               <label>
                 Sertifikat Keselamatan
-                <select
+                <input
+                  list="sertif-ksl-list"
                   value={newForm.sertifikatKeselamatan}
                   onChange={(e) =>
-                    setF("sertifikatKeselamatan", e.target.value)
+                    setF(
+                      "sertifikatKeselamatan",
+                      addOptionIfMissing(
+                        SERTIF_KSL_OPTS,
+                        setSertifKslOpts,
+                        e.target.value
+                      )
+                    )
                   }
-                >
-                  {SERTIF_KSL_OPTS.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
 
               <label>
                 Izin Trayek
-                <select
+                <input
+                  list="izin-trayek-list"
                   value={newForm.izinTrayek}
-                  onChange={(e) => setF("izinTrayek", e.target.value)}
-                >
-                  {IZIN_TRAYEK_OPTS.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(e) =>
+                    setF(
+                      "izinTrayek",
+                      addOptionIfMissing(
+                        IZIN_TRAYEK_OPTS,
+                        setIzinTrayekOpts,
+                        e.target.value
+                      )
+                    )
+                  }
+                />
               </label>
 
               <label>
