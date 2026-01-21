@@ -55,6 +55,19 @@ function checkPage(doc, y, pad, needed = 40) {
 }
 
 /* ===========================
+   FONT UTILITIES (ARIAL / HELVETICA)
+   =========================== */
+function setFontNormal(doc, size = 12) {
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(size);
+}
+
+function setFontBold(doc, size = 12) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(size);
+}
+
+/* ===========================
    FETCH REPORT FULL (From Supabase)
    =========================== */
 
@@ -108,19 +121,23 @@ async function fetchReportFull(reportCode) {
 }
 
 function drawKeyValue(doc, pad, y, label, value) {
-  const lineGap = 14;
-  const labelText = `${label}:`;
-  const valText = value ?? "-";
+  const pageWidth = doc.internal.pageSize.width;
+  const rightMargin = pad;
+  const labelWidth = 150;
+  const lineGap = 16;
 
-  doc.setFont("helvetica", "bold");
-  doc.text(labelText, pad, y);
+  const valText = value ? String(value) : "-";
+  const maxValueWidth = pageWidth - pad - rightMargin - labelWidth;
 
-  doc.setFont("helvetica", "normal");
-  const wrapped = doc.splitTextToSize(String(valText), 360);
-  doc.text(wrapped, pad + 140, y);
+  setFontBold(doc, 12);
+  doc.text(`${label} :`, pad, y);
 
-  const lines = Math.max(1, wrapped.length);
-  return y + lineGap * lines;
+  setFontNormal(doc, 12);
+  const wrapped = doc.splitTextToSize(valText, maxValueWidth);
+
+  doc.text(wrapped, pad + labelWidth, y);
+
+  return y + wrapped.length * lineGap;
 }
 
 /* ===========================
@@ -138,12 +155,10 @@ async function downloadPdfFromRow(row) {
 
   doc.addImage(logoDataUrl, "PNG", pad + 523 - logoSize, y, logoSize, logoSize);
 
-  doc.setFont("times", "bold");
-  doc.setFontSize(14);
+  setFontBold(doc, 13);
   doc.text("LAPORAN CRM / DTD", pad, y + 14);
 
-  doc.setFont("times", "normal");
-  doc.setFontSize(10);
+  setFontNormal(doc, 12);
   doc.text(
     `ID: ${row.id}  •  Validasi: ${row.step4?.statusValidasi}`,
     pad,
@@ -154,13 +169,11 @@ async function downloadPdfFromRow(row) {
   y += 50;
 
   /* STEP 1 */
-  doc.setFont("times", "bold");
-  doc.setFontSize(11);
+  setFontBold(doc, 12);
   doc.text("1. Data Kunjungan", pad, y);
   y += 16;
 
-  doc.setFont("times", "normal");
-  doc.setFontSize(10);
+  setFontNormal(doc, 12);
 
   const step1Fields = [
     ["Tanggal & Waktu", row.step1?.tanggalWaktu],
@@ -183,10 +196,9 @@ async function downloadPdfFromRow(row) {
   y += 10;
 
   /* STEP 2 - ARMADA */
-  doc.setFont("times", "bold");
-  doc.setFontSize(11);
-  y = checkPage(doc, y, pad);
+  setFontBold(doc, 12);
   doc.text("2. Armada", pad, y);
+  y = checkPage(doc, y, pad);
   y += 16;
 
   const rincian = row.step2.rincianArmada || [];
@@ -232,10 +244,23 @@ async function downloadPdfFromRow(row) {
     ],
     body: armadaBody,
     theme: "grid",
-    styles: { font: "times", fontSize: 9, cellPadding: 3 },
+    styles: {
+      font: "helvetica",
+      fontSize: 12,
+      cellPadding: 6,
+      overflow: "linebreak"
+    },
+    columnStyles: {
+      0: { cellWidth: 30 },
+      1: { cellWidth: 70 },
+      2: { cellWidth: 70 },
+      3: { cellWidth: 90 },
+      4: { cellWidth: 80 },
+      5: { cellWidth: 140 },
+      6: { cellWidth: 70 }, 
+    },
     headStyles: { fillColor: [230, 230, 230] },
 
-    // 1) INI PENTING → BESARKAN ROW HEIGHT SEBELUM GAMBAR
     willDrawCell: (data) => {
       if (data.column.index === 6 && data.section === "body") {
         const rIndex = data.row.index;
@@ -322,19 +347,15 @@ async function downloadPdfFromRow(row) {
   y = doc.lastAutoTable.finalY + 12;
 
   // Summary
-  doc.setFont("times", "normal");
+  setFontNormal(doc, 12);
   y = checkPage(doc, y, pad);
-  doc.text(`Total OS Harus Dibayar: ${formatRupiah(row.totalOS || 0)}`, pad, y);
-  y += 14;
-  doc.text(`Hasil Kunjungan : ${row.step2.hasilKunjungan || "-"}`, pad, y);
-  y += 14;
-  doc.text(`Penjelasan      : ${row.step2.penjelasanHasil || "-"}`, pad, y);
-  y += 14;
-  doc.text(`Janji Bayar     : ${row.step2.janjiBayar || "-"}`, pad, y);
-  y += 24;
+  y = drawKeyValue(doc, pad, y, "Total OS Harus Dibayar", formatRupiah(row.totalOS || 0));
+  y = drawKeyValue(doc, pad, y, "Hasil Kunjungan", row.step2.hasilKunjungan);
+  y = drawKeyValue(doc, pad, y, "Janji Bayar", row.step2.janjiBayar);
+  y += 10;
 
   /* STEP 3 */
-  doc.setFont("times", "bold");
+  setFontBold(doc, 12);
   doc.text("3. Upload & Penilaian", pad, y);
   y += 18;
 
@@ -348,7 +369,7 @@ async function downloadPdfFromRow(row) {
   ];
 
   if (!files.length) {
-    doc.setFont("times", "normal");
+    setFontNormal(doc, 12);
     doc.text("- Tidak ada file", pad, y);
     y += 14;
   } else {
@@ -392,8 +413,7 @@ async function downloadPdfFromRow(row) {
         doc.addImage(dataURL, "JPEG", pad, y, w2, h2);
         y += h2 + 12;
       } else {
-        // tampilkan link PDF / file
-        doc.setFont("times", "normal");
+        setFontNormal(doc, 12);
         doc.text(`• ${f.name}`, pad, y);
         doc.link(pad, y - 10, 200, 20, { url: f.url });
         y += 18;
@@ -404,11 +424,11 @@ async function downloadPdfFromRow(row) {
   y += 10;
 
   // ====== PENILAIAN ======
-  doc.setFont("times", "bold");
+  setFontBold(doc, 12);
   doc.text("Penilaian:", pad, y);
   y += 16;
 
-  doc.setFont("times", "normal");
+  setFontNormal(doc, 12);
   const penilaian = [
     `Respon Pemilik/Pengelola: ${row.step3.responPemilik || "-"}`,
     `Ketaatan Perizinan      : ${row.step3.ketaatanPerizinan || "-"}/5`,
@@ -430,7 +450,7 @@ async function downloadPdfFromRow(row) {
   const maxH = 130;
 
   if (row.step3.fotoKunjungan?.length) {
-    doc.setFont("times", "bold");
+    setFontBold(doc, 12);
     y = checkPage(doc, y, pad, 20);
     doc.text("Foto Kunjungan:", pad, y);
     y += 10;
@@ -486,7 +506,7 @@ async function downloadPdfFromRow(row) {
   const ttdPemilik  = row.step3?.tandaTanganPemilik;
 
   if (ttdPetugas || ttdPemilik) {
-    doc.setFont("times", "bold");
+    setFontBold(doc, 12);
     y = checkPage(doc, y, pad, 40);
     doc.text("Tanda Tangan", pad, y);
     y += 12;
@@ -498,7 +518,7 @@ async function downloadPdfFromRow(row) {
     // === TTD PETUGAS ===
     if (ttdPetugas) {
       const imgPetugas = await loadImageAsDataURL(ttdPetugas);
-      doc.setFont("times", "normal");
+      setFontNormal(doc, 12);
       doc.text("Petugas", x, y + 12);
       doc.addImage(imgPetugas, "PNG", x, y + 18, maxW, maxH);
       x += maxW + 40;
@@ -515,11 +535,11 @@ async function downloadPdfFromRow(row) {
   }
 
   /* STEP 4 */
-  doc.setFont("times", "bold");
+  setFontBold(doc, 12);
   doc.text("4. Validasi", pad, y);
   y += 16;
 
-  doc.setFont("times", "normal");
+  setFontNormal(doc, 12);
 
   const val = [
     `Validasi oleh : ${row.step4.validasiOleh || "-"}`,
@@ -529,11 +549,11 @@ async function downloadPdfFromRow(row) {
     `Catatan       : ${row.step4.catatanValidasi || "-"}`,
   ];
 
-  for (let t of val) {
-    y = checkPage(doc, y, pad, 16);
-    doc.text(t, pad, y);
-    y += 14;
-  }
+  y = drawKeyValue(doc, pad, y, "Validasi oleh", row.step4.validasiOleh);
+  y = drawKeyValue(doc, pad, y, "Status", row.step4.statusValidasi);
+  y = drawKeyValue(doc, pad, y, "Waktu", row.step4.waktuValidasi);
+  y = drawKeyValue(doc, pad, y, "Wilayah", row.step4.wilayah);
+  y = drawKeyValue(doc, pad, y, "Catatan", row.step4.catatanValidasi);
 
   y += 20;
 
@@ -801,9 +821,9 @@ export default function NotifikasiBerkas() {
                           title="Unduh Laporan PDF"
                           onClick={async () => {
                             try {
-                              const rid = it?.report_id;
-                              if (!rid) return alert("Report ID tidak ada.");
-                              const row = await fetchReportFull(rid);
+                              const reportCode = it?.report_id;
+                              if (!reportCode) return alert("Report ID tidak ada.");
+                              const row = await fetchReportFull(reportCode);
                               downloadPdfFromRow(row);
                             } catch (e) {
                               alert("Gagal unduh laporan.");
