@@ -10,21 +10,20 @@ async function addVerificationNotification({
   note,
   waktuValidasi,
   perusahaan,
+  petugas,
 }) {
   const ts = waktuValidasi
     ? new Date(waktuValidasi).toISOString()
     : new Date().toISOString();
 
-  const { data, error } = await supabase.from("crm_notifikasi").insert([
+  const { error } = await supabase.from("crm_notifikasi").insert([
     {
       report_id: reportId,
       perusahaan,
       status,
       note,
       ts,
-      petugas: [step1?.petugasDepan, step1?.petugasBelakang]
-        .filter(Boolean)
-        .join(" "),
+      petugas: petugas || "-",
       payload: { reportId, status, note, perusahaan },
     },
   ]);
@@ -100,9 +99,8 @@ export default function DataFormCrm() {
           )
           .order("id", { ascending: false });
 
-        // 🔥 FILTER SERVER-SIDE
         if (filterValidasi !== "Semua") {
-          q = q.ilike("step4->>statusValidasi", `%${filterValidasi}%`);
+          q = q.eq("step4->>statusValidasi", filterValidasi);
         }
 
         // 🔥 PAGINATION SETELAH FILTER
@@ -202,10 +200,11 @@ export default function DataFormCrm() {
       now.getDate(),
     )} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
+    const normalizedStatus = normalizeStatusValidasi(verifyStatus);
     const newStep4 = {
       ...(selected.step4 || {}),
       validasiOleh: "Petugas",
-      statusValidasi: verifyStatus, // ⬅️ LANGSUNG DARI DROPDOWN
+      statusValidasi: normalizedStatus,
       catatanValidasi: verifyNote || "",
       waktuValidasi: ts,
     };
@@ -238,6 +237,7 @@ export default function DataFormCrm() {
       note: finalStep4.catatanValidasi || "",
       waktuValidasi: finalStep4.waktuValidasi,
       perusahaan: selected.step1?.perusahaan || "-",
+      petugas: `${selected.step1?.petugasDepan || ""} ${selected.step1?.petugasBelakang || ""}`.trim(),
     });
 
     setVerifyOpen(false);
@@ -387,11 +387,11 @@ export default function DataFormCrm() {
       logoSize,
     );
 
-    doc.setFont("times", "bold");
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
     doc.text("LAPORAN CRM / DTD", pad, y + 14);
 
-    doc.setFont("times", "normal");
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.text(
       `ID: ${row.id}  •  Validasi: ${row.step4.statusValidasi}`,
@@ -405,13 +405,13 @@ export default function DataFormCrm() {
     // -----------------------------------------------------------
     // STEP 1
     // -----------------------------------------------------------
-    doc.setFont("times", "bold");
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     y = checkPage(doc, y, pad);
     doc.text("1. Data Kunjungan", pad, y);
     y += 16;
 
-    doc.setFont("times", "normal");
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
 
     const step1Fields = [
@@ -437,7 +437,7 @@ export default function DataFormCrm() {
     // -----------------------------------------------------------
     // STEP 2 - ARMADA
     // -----------------------------------------------------------
-    doc.setFont("times", "bold");
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     y = checkPage(doc, y, pad);
     doc.text("2. Armada", pad, y);
@@ -585,19 +585,35 @@ export default function DataFormCrm() {
     y = doc.lastAutoTable.finalY + 12;
 
     // Summary
-    doc.setFont("times", "normal");
+    doc.setFont("helvetica", "normal");
     y = checkPage(doc, y, pad);
     doc.text(`Total OS Harus Dibayar: ${formatRupiah(totalOS || 0)}`, pad, y);
     y += 14;
-    doc.text(`Hasil Kunjungan : ${row.step2.hasilKunjungan || "-"}`, pad, y);
-    y += 14;
+    doc.setFont("helvetica", "normal"); // Arial equivalent
+    doc.setFontSize(12);
+
+    y = checkPage(doc, y, pad, 60);
+
+    doc.text("Hasil Kunjungan :", pad, y);
+    y += 16;
+
+    // WRAP TEXT
+    const hasilText = doc.splitTextToSize(
+      row.step2.hasilKunjungan || "-",
+      420 // lebar aman halaman A4
+    );
+
+    doc.text(hasilText, pad, y);
+
+    // hitung tinggi otomatis
+    y += hasilText.length * 16;
     doc.text(`Janji Bayar     : ${row.step2.janjiBayar || "-"}`, pad, y);
     y += 24;
 
     // -----------------------------------------------------------
     // STEP 3 – Upload & Penilaian
     // -----------------------------------------------------------
-    doc.setFont("times", "bold");
+    doc.setFont("helvetica", "bold");
     doc.text("3. Upload & Penilaian", pad, y);
     y += 18;
 
@@ -611,7 +627,7 @@ export default function DataFormCrm() {
     ];
 
     if (!files.length) {
-      doc.setFont("times", "normal");
+      doc.setFont("helvetica", "normal");
       doc.text("- Tidak ada file", pad, y);
       y += 14;
     } else {
@@ -656,7 +672,7 @@ export default function DataFormCrm() {
           y += h2 + 12;
         } else {
           // tampilkan link PDF / file
-          doc.setFont("times", "normal");
+          doc.setFont("helvetica", "normal");
           doc.text(`• ${f.name}`, pad, y);
           doc.link(pad, y - 10, 200, 20, { url: f.url });
           y += 18;
@@ -667,11 +683,11 @@ export default function DataFormCrm() {
     y += 10;
 
     // ====== PENILAIAN ======
-    doc.setFont("times", "bold");
+    doc.setFont("helvetica", "bold");
     doc.text("Penilaian:", pad, y);
     y += 16;
 
-    doc.setFont("times", "normal");
+    doc.setFont("helvetica", "normal");
     const penilaian = [
       `Respon Pemilik/Pengelola: ${row.step3.responPemilik || "-"}`,
       `Ketaatan Perizinan      : ${row.step3.ketaatanPerizinan || "-"}/5`,
@@ -693,7 +709,7 @@ export default function DataFormCrm() {
     const maxH = 130;
 
     if (row.step3.fotoKunjungan?.length) {
-      doc.setFont("times", "bold");
+      doc.setFont("helvetica", "bold");
       y = checkPage(doc, y, pad, 20);
       doc.text("Foto Kunjungan:", pad, y);
       y += 10;
@@ -749,7 +765,7 @@ export default function DataFormCrm() {
     const ttdPemilik = row.step3?.tandaTanganPemilik;
 
     if (ttdPetugas || ttdPemilik) {
-      doc.setFont("times", "bold");
+      doc.setFont("helvetica", "bold");
       y = checkPage(doc, y, pad, 40);
       doc.text("Tanda Tangan", pad, y);
       y += 12;
@@ -763,7 +779,7 @@ export default function DataFormCrm() {
         try {
           const imgPetugas = await loadImageAsDataURL(ttdPetugas);
 
-          doc.setFont("times", "normal");
+          doc.setFont("helvetica", "normal");
           doc.text("Petugas", x, y + 12);
 
           doc.addImage(
@@ -788,7 +804,7 @@ export default function DataFormCrm() {
         try {
           const imgPemilik = await loadImageAsDataURL(ttdPemilik);
 
-          doc.setFont("times", "normal");
+          doc.setFont("helvetica", "normal");
           doc.text("Pemilik / Pengelola", x, y + 12);
 
           doc.addImage(
@@ -811,36 +827,73 @@ export default function DataFormCrm() {
     // -----------------------------------------------------------
     // STEP 4 – Validasi
     // -----------------------------------------------------------
-    doc.setFont("times", "bold");
-    doc.text("4. Validasi", pad, y);
-    y += 16;
+doc.setFont("helvetica", "bold");
+doc.text("4. Validasi", pad, y);
+y += 16;
 
-    doc.setFont("times", "normal");
+doc.setFont("helvetica", "normal");
 
-    const val = [
-      `Validasi oleh : ${row.step4.validasiOleh || "-"}`,
-      `Status        : ${row.step4.statusValidasi || "-"}`,
-      `Waktu         : ${row.step4.waktuValidasi || "-"}`,
-      `Wilayah       : ${row.step4.wilayah || "-"}`,
-      `Catatan       : ${row.step4.catatanValidasi || "-"}`,
-    ];
+const valSimple = [
+  `Validasi oleh : ${row.step4.validasiOleh || "-"}`,
+  `Status        : ${row.step4.statusValidasi || "-"}`,
+  `Waktu         : ${row.step4.waktuValidasi || "-"}`,
+  `Wilayah       : ${row.step4.wilayah || "-"}`,
+];
 
-    for (let t of val) {
-      y = checkPage(doc, y, pad, 16);
-      doc.text(t, pad, y);
-      y += 14;
-    }
+valSimple.forEach((t) => {
+  if (y + 14 > doc.internal.pageSize.height - pad) {
+    doc.addPage();
+    y = pad;
+  }
+  doc.text(t, pad, y);
+  y += 14;
+});
 
-    y += 20;
+// ===== CATATAN =====
+if (y + 40 > doc.internal.pageSize.height - pad) {
+  doc.addPage();
+  y = pad;
+}
+
+doc.setFont("helvetica", "bold");
+doc.text("Catatan :", pad, y);
+y += 14;
+
+doc.setFont("helvetica", "normal");
+
+const catatanLines = doc.splitTextToSize(
+  row.step4.catatanValidasi || "-",
+  420
+);
+
+const lineHeight = 14;
+
+catatanLines.forEach((line) => {
+  if (y + lineHeight > doc.internal.pageSize.height - pad) {
+    doc.addPage();
+    y = pad;
+  }
+  doc.text(line, pad, y);
+  y += lineHeight;
+});
 
     // -----------------------------------------------------------
     // SAVE
     // -----------------------------------------------------------
-    const perusahaanSafe = (row.step1.perusahaan || "Perusahaan")
-      .replace(/[^a-z0-9 ]/gi, "")
-      .replace(/\s+/g, "_");
+    const rawPerusahaan =
+  row.step1.perusahaan ||
+  row.step1.namaPerusahaan ||
+  row.step1.namaPemilik ||
+  "Perusahaan";
 
-    doc.save(`Laporan_CRM_${perusahaanSafe}.pdf`);
+const perusahaanSafe = rawPerusahaan
+  .toString()
+  .trim()
+  .replace(/[^a-z0-9 ]/gi, "")
+  .replace(/\s+/g, "_");
+
+doc.save(`Laporan_CRM_${perusahaanSafe}.pdf`);
+
   }
 
   return (
