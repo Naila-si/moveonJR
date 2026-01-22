@@ -73,6 +73,15 @@ const LOKET_OPTIONS = [
   "Ujung Tanjung",
 ];
 
+const TIPE_ARMADA_MASTER = [
+  "BUS",
+  "MINIBUS",
+  "ANGKUTAN KOTA",
+  "TRAVEL",
+  "ELF",
+  "KAPAL PENUMPANG",
+];
+
 // === Shared table untuk CRM list (dipakai DataFormCrm juga) ===
 const CRM_LS_KEY = "crmData";
 
@@ -351,6 +360,7 @@ export default function FormCrm() {
   const [showFileLimitPopup, setShowFileLimitPopup] = useState(false);
   const [fileCountSelected, setFileCountSelected] = useState(0);
   const [employeeMaster, setEmployeeMaster] = useState([]);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   // ================== STATE ==================
   const showCutePopup = () => {
@@ -672,8 +682,18 @@ export default function FormCrm() {
       setDirty(false);
       localStorage.removeItem("form_crm_draft_v5");
 
-      // 4) Redirect otomatis ke halaman home
-      window.location.replace("/");
+      // 4) Tampilkan popup sukses
+      setShowSuccessPopup(true);
+
+      // 5) Bersihkan draft & matikan dirty flag
+      setDirty(false);
+      localStorage.removeItem("form_crm_draft_v5");
+
+      // 6) Redirect setelah 2.5 detik
+      setTimeout(() => {
+        window.location.replace("/");
+      }, 2500);
+
     } catch (e) {
       console.error("Gagal menyimpan data CRM:", e);
       alert(
@@ -848,6 +868,21 @@ export default function FormCrm() {
             >
               Okeee ✨
             </button>
+          </div>
+        </div>
+      )}
+      {showSuccessPopup && (
+        <div className="popup-cute">
+          <div className="popup-box success">
+            <div className="popup-emoji">🎉✨</div>
+            <div className="popup-text">
+              <b>Sukses terkirim!</b> 💖
+              <br />
+              Data kunjungan berhasil disimpan 🌸
+            </div>
+            <div className="popup-sub">
+              Kamu akan diarahkan ke halaman utama…
+            </div>
           </div>
         </div>
       )}
@@ -1245,6 +1280,16 @@ function Step2Armada({
     [iwkbuRows]
   );
 
+const tipeArmadaOptions = useMemo(() => {
+  const fromMaster = TIPE_ARMADA_MASTER;
+  const fromIwkbu = (iwkbuRows || [])
+    .map((r) => r.jenis)
+    .filter(Boolean)
+    .map((j) => j.toUpperCase());
+
+  return Array.from(new Set([...fromMaster, ...fromIwkbu])).sort();
+}, [iwkbuRows]);
+
   // pastikan tiap item armada punya field tambahan (osTarif, bayarOs, buktiFiles, rekomendasi)
   const safeList = (armadaList || []).map((a) => ({
     nopol: "",
@@ -1284,24 +1329,24 @@ function Step2Armada({
   };
 
   const handleNopolChange = (idx, raw) => {
-    const value = (raw || "").toUpperCase().trim();
-    // cari di data iwkbu buat perusahaan ini
-    const row = iwkbuRows.find(
-      (r) => (r.nopol || "").toUpperCase().trim() === value
-    );
+  const value = (raw || "").toUpperCase(); // ❌ trim DIHAPUS
 
-    if (row) {
-      update(idx, {
-        nopol: value,
-        osTarif: row.tarif ?? 0,
-        tipeArmada: row.jenis || "",
-        tahun: row.tahun || "",
-      });
-    } else {
-      // manual, tanpa data iwkbu
-      update(idx, { nopol: value, osTarif: null });
-    }
-  };
+  const row = iwkbuRows.find(
+    (r) => (r.nopol || "").toUpperCase().trim() === value.trim()
+  );
+
+  if (row) {
+    update(idx, {
+      nopol: value,
+      osTarif: row.tarif ?? 0,
+      tipeArmada: row.jenis || "",
+      tahun: row.tahun || "",
+    });
+  } else {
+    update(idx, { nopol: value, osTarif: null });
+  }
+};
+
 
   const handleStatusChange = (idx, newStatus) => {
     const normalized = (newStatus || "").toUpperCase();
@@ -1397,6 +1442,14 @@ function Step2Armada({
                   list="armada-nopol-list"
                   value={a.nopol}
                   onChange={(e) => handleNopolChange(i, e.target.value)}
+                  onBlur={(e) =>
+                    update(i, {
+                      nopol: e.target.value
+                        .toUpperCase()
+                        .replace(/\s+/g, " ")
+                        .trim(),
+                    })
+                  }
                   placeholder="BM 1234 TU"
                   autoComplete="off"
                 />
@@ -1426,12 +1479,25 @@ function Step2Armada({
 
               {/* TIPE ARMADA (otomatis dari iwkbu.jenis tapi bisa edit) */}
               <Field label="Tipe Armada">
-                <input
-                  value={a.tipeArmada}
-                  onChange={(e) => update(i, { tipeArmada: e.target.value })}
-                  placeholder="BUS, MINIBUS, dll."
-                />
-              </Field>
+  <input
+    list="tipe-armada-list"
+    value={a.tipeArmada}
+    onChange={(e) =>
+      update(i, { tipeArmada: e.target.value }) // ⬅️ JANGAN DIAPA-APAIN
+    }
+    onBlur={(e) =>
+      update(i, {
+        tipeArmada: e.target.value
+          .toUpperCase()
+          .replace(/\s+/g, " ")
+          .trim(),
+      })
+    }
+    placeholder="Pilih atau ketik tipe armada"
+    autoComplete="off"
+  />
+</Field>
+
 
               {/* TAHUN (otomatis dari iwkbu.tahun tapi bisa edit) */}
               <Field label="Tahun Pembuatan" error={errors[`tahun_${i}`]}>
@@ -1535,6 +1601,12 @@ function Step2Armada({
           <option key={n} value={n} />
         ))}
       </datalist>
+
+<datalist id="tipe-armada-list">
+  {tipeArmadaOptions.map((t) => (
+    <option key={t} value={t} />
+  ))}
+</datalist>
 
       {/* tombol tambah kendaraan */}
       <button type="button" className="btn primary" onClick={add}>
@@ -2369,5 +2441,21 @@ input, select, textarea { text-rendering: optimizeLegibility; }
     max-width:90vw;
     padding:20px 18px;
   }
+}
+.popup-box.success {
+  background: linear-gradient(180deg, #f0fff7, #ecfeff);
+  border: 2px solid #86efac;
+  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.25);
+}
+
+.popup-box.success .popup-text {
+  color: #065f46;
+}
+
+.popup-sub {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #047857;
+  font-weight: 600;
 }
 `;
