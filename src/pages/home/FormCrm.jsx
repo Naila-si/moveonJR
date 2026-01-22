@@ -1485,14 +1485,14 @@ const tipeArmadaOptions = useMemo(() => {
     onChange={(e) =>
       update(i, { tipeArmada: e.target.value }) // ⬅️ JANGAN DIAPA-APAIN
     }
-    onBlur={(e) =>
-      update(i, {
-        tipeArmada: e.target.value
-          .toUpperCase()
-          .replace(/\s+/g, " ")
-          .trim(),
-      })
-    }
+   onBlur={(e) =>
+  update(i, {
+    tipeArmada: e.target.value
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .trim(),
+  })
+}
     placeholder="Pilih atau ketik tipe armada"
     autoComplete="off"
   />
