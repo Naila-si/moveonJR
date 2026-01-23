@@ -515,3 +515,60 @@ body{ background:var(--bg); font-family: "Poppins","Segoe UI",system-ui,sans-ser
   color: var(--ink);
   font-weight: 600;
 }
+.select-filter[multiple] {
+  height: 40px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+/* biar gak keliatan list tinggi */
+.select-filter[multiple] option {
+  padding: 6px;
+}
+
+/* wrapper harus bisa scroll horizontal */
+.table-scroll {
+  overflow-x: auto;
+  position: relative;
+}
+
+/* base sticky */
+.kawaii-table .sticky {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: #fff;
+  box-shadow: 2px 0 0 rgba(0,0,0,0.05);
+}
+
+/* NOPOL paling kiri */
+.kawaii-table .nopol-col {
+  left: 0;
+  min-width: 130px;
+  z-index: 6;
+}
+
+/* AKSI di kanan nopol */
+.kawaii-table .aksi-col {
+  left: 130px; /* HARUS sama dengan width nopol */
+  min-width: 90px;
+  z-index: 5;
+}
+
+/* NO di kanan aksi */
+.kawaii-table .no-col {
+  left: 220px; /* 130 + 90 */
+  min-width: 70px;
+  z-index: 4;
+}
+
+/* header sticky lebih tinggi */
+.kawaii-table thead th.sticky {
+  z-index: 10;
+  background: #f6faff;
+}
+.nopol-badge {
+  font-weight: 700;
+  background: #ffe066;
+  border: 2px solid #000;
+}

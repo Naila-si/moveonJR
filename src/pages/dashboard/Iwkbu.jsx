@@ -16,9 +16,7 @@ function usePersistentState(key, initialValue) {
   useEffect(() => {
     try {
       localStorage.setItem(key, JSON.stringify(state));
-    } catch {
-      // storage penuh / disallow — abaikan saja
-    }
+    } catch {}
   }, [key, state]);
 
   return [state, setState];
@@ -31,23 +29,20 @@ const idr = (n) =>
     maximumFractionDigits: 0,
   });
 
-  const normalizeSearch = (str) =>
-    (str || "")
-      .toUpperCase()
-      .replace(/\s+/g, " ")
-      .trim();
+const normalizeSearch = (str) =>
+  (str || "").toUpperCase().replace(/\s+/g, " ").trim();
 
 function addOptionIfMissing(
   options,
   setOptions,
   value,
-  { forceUpper = false } = {}
+  { forceUpper = false } = {},
 ) {
   if (value == null) return value;
   let v = String(value).trim();
   if (!v) return v;
   const exists = options.some(
-    (opt) => String(opt).toLowerCase() === v.toLowerCase()
+    (opt) => String(opt).toLowerCase() === v.toLowerCase(),
   );
   const valToPush = forceUpper ? v.toUpperCase() : v;
   if (!exists) setOptions((prev) => [...prev, valToPush]);
@@ -129,7 +124,7 @@ function useEmployees() {
               name,
               loket
             )
-          `
+          `,
           )
           .order("name", { ascending: true });
         if (!alive) return;
@@ -170,56 +165,56 @@ export default function Iwkbu() {
   const [totalNominalAll, setTotalNominalAll] = useState(0);
   const [filterWilayah, setFilterWilayah] = usePersistentState(
     "iwkbu:filter:wilayah",
-    ""
+    "",
   );
   const [filterLoket, setFilterLoket] = usePersistentState(
     "iwkbu:filter:loket",
-    ""
+    "",
   );
   const [filterTrayek, setFilterTrayek] = usePersistentState(
     "iwkbu:filter:trayek",
-    ""
+    "",
   );
   const [filterJenis, setFilterJenis] = usePersistentState(
     "iwkbu:filter:jenis",
-    ""
+    "",
   );
   const [filterPIC, setFilterPIC] = usePersistentState("iwkbu:filter:pic", "");
   const [filterBadanHukum, setFilterBadanHukum] = usePersistentState(
     "iwkbu:filter:badanHukum",
-    ""
+    "",
   );
   const [filterNamaPerusahaan, setFilterNamaPerusahaan] = usePersistentState(
     "iwkbu:filter:namaPerusahaan",
-    ""
+    "",
   );
   const [filterStatusBayar, setFilterStatusBayar] = usePersistentState(
     "iwkbu:filter:statusBayar",
-    ""
+    "",
   );
   const [filterStatusKendaraan, setFilterStatusKendaraan] = usePersistentState(
     "iwkbu:filter:statusKendaraan",
-    ""
+    "",
   );
   const [filterKonfirmasi, setFilterKonfirmasi] = usePersistentState(
     "iwkbu:filter:konfirmasi",
-    ""
+    "",
   );
   const [filterTglTransYear, setFilterTglTransYear] = usePersistentState(
     "iwkbu:filter:tglTrans:year",
-    ""
+    "",
   );
   const [filterTglTransMonth, setFilterTglTransMonth] = usePersistentState(
     "iwkbu:filter:tglTrans:month",
-    ""
+    "",
   );
   const [filterMasaYear, setFilterMasaYear] = usePersistentState(
     "iwkbu:filter:masa:year",
-    ""
+    "",
   );
   const [filterMasaMonth, setFilterMasaMonth] = usePersistentState(
     "iwkbu:filter:masa:month",
-    ""
+    "",
   );
 
   const [WILAYAH_FILTER_OPTS, setWilayahFilterOpts] = useState([]);
@@ -239,7 +234,7 @@ export default function Iwkbu() {
 
   const SAMSAT_OPTS = useMemo(() => {
     return Array.from(
-      new Set((EMP_OPTS || []).map((e) => e.samsat?.name).filter(Boolean))
+      new Set((EMP_OPTS || []).map((e) => e.samsat?.name).filter(Boolean)),
     ).sort((a, b) => a.localeCompare(b));
   }, [EMP_OPTS]);
 
@@ -250,7 +245,7 @@ export default function Iwkbu() {
       .filter(Boolean);
 
     const uniq = Array.from(
-      new Set([...fromRows, ...fromEmpSamsat].map((x) => x.trim()))
+      new Set([...fromRows, ...fromEmpSamsat].map((x) => x.trim())),
     ).sort((a, b) => a.localeCompare(b));
 
     return ["", ...uniq];
@@ -298,7 +293,7 @@ export default function Iwkbu() {
     tarif: Number(r.tarif || 0),
     golongan: r.golongan || null,
     nominal: Number(String(r.nominal || 0).replace(/[^\d]/g, "")),
-    trayek: r.trayekNew || null, 
+    trayek: r.trayekNew || null,
     jenis: r.jenis || null,
     tahun: r.tahun ? Number(r.tahun) : null,
     pic: r.pic || null,
@@ -327,7 +322,7 @@ export default function Iwkbu() {
     keterangan: r.keterangan || null,
   });
 
- const exportToExcel = async () => {
+  const exportToExcel = async () => {
     try {
       const PAGE_SIZE = 1000;
       let page = 0;
@@ -337,10 +332,7 @@ export default function Iwkbu() {
       while (!isDone) {
         let query = buildBaseQuery()
           .order("id", { ascending: true })
-          .range(
-            page * PAGE_SIZE,
-            page * PAGE_SIZE + PAGE_SIZE - 1
-          );
+          .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
 
         // FILTER SAMA PERSIS DENGAN TABEL
         if (filterWilayah) query = query.eq("wilayah_norm", filterWilayah);
@@ -355,8 +347,7 @@ export default function Iwkbu() {
           query = query.ilike("status_bayar", filterStatusBayar);
         if (filterStatusKendaraan)
           query = query.ilike("status_kendaraan", filterStatusKendaraan);
-        if (filterKonfirmasi)
-          query = query.eq("konfirmasi", filterKonfirmasi);
+        if (filterKonfirmasi) query = query.eq("konfirmasi", filterKonfirmasi);
 
         const { data, error } = await query;
         if (error) throw error;
@@ -377,9 +368,7 @@ export default function Iwkbu() {
 
       // helper ubah snake_case → Judul Manusia
       const prettify = (k) =>
-        k
-          .replace(/_/g, " ")
-          .replace(/\b\w/g, (c) => c.toUpperCase());
+        k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
       const excelData = allRows.map((row, i) => {
         const out = { No: i + 1 };
@@ -443,8 +432,13 @@ export default function Iwkbu() {
 
             // Format rupiah
             if (
-              ["Nominal", "Tarif", "Outstanding", "Nilai Bayar Os", "Nilai Pemeliharaan Os"]
-                .some((x) => cellAddress.includes(x))
+              [
+                "Nominal",
+                "Tarif",
+                "Outstanding",
+                "Nilai Bayar Os",
+                "Nilai Pemeliharaan Os",
+              ].some((x) => cellAddress.includes(x))
             ) {
               cell.z = '"Rp"#,##0';
             }
@@ -457,7 +451,7 @@ export default function Iwkbu() {
 
       XLSX.writeFile(
         wb,
-        `Data_IWKBU_${new Date().toISOString().slice(0, 10)}.xlsx`
+        `Data_IWKBU_${new Date().toISOString().slice(0, 10)}.xlsx`,
       );
     } catch (err) {
       console.error(err);
@@ -477,10 +471,7 @@ export default function Iwkbu() {
         let query = buildBaseQuery()
           .select("nominal")
           .order("id", { ascending: true })
-          .range(
-            page * PAGE_SIZE,
-            page * PAGE_SIZE + PAGE_SIZE - 1
-          );
+          .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
 
         const { data, error } = await query;
         if (error) throw error;
@@ -526,12 +517,9 @@ export default function Iwkbu() {
         const { data, error } = await supabase
           .from("iwkbu")
           .select(
-            "wilayah_norm, loket, trayek, jenis, pic, badan_hukum, nama_perusahaan, status_bayar, status_kendaraan, konfirmasi, golongan, dok_perizinan"
+            "wilayah_norm, loket, trayek, jenis, pic, badan_hukum, nama_perusahaan, status_bayar, status_kendaraan, konfirmasi, golongan, dok_perizinan",
           )
-          .range(
-            page * PAGE_SIZE,
-            page * PAGE_SIZE + PAGE_SIZE - 1
-          );
+          .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
 
         if (error) throw error;
 
@@ -554,61 +542,61 @@ export default function Iwkbu() {
             (arr || [])
               .map((x) => (x == null ? "" : String(x).trim()))
               .filter(Boolean)
-              .map((x) => (upper ? x.toUpperCase() : x))
-          )
+              .map((x) => (upper ? x.toUpperCase() : x)),
+          ),
         ).sort((a, b) => a.localeCompare(b));
 
       // 🔥 SET SEMUA FILTER (FULL DATA)
       setWilayahFilterOpts(
-        safeUniq(allRows.map((x) => x.wilayah_norm), { upper: true })
+        safeUniq(
+          allRows.map((x) => x.wilayah_norm),
+          { upper: true },
+        ),
       );
 
-      setLoketFilterOpts(
-        safeUniq(allRows.map((x) => x.loket))
-      );
+      setLoketFilterOpts(safeUniq(allRows.map((x) => x.loket)));
 
       setTrayekFilterOpts(
-        safeUniq(allRows.map((x) => x.trayek), { upper: true })
+        safeUniq(
+          allRows.map((x) => x.trayek),
+          { upper: true },
+        ),
       );
 
       setJenisFilterOpts(
-        safeUniq(allRows.map((x) => x.jenis), { upper: true })
+        safeUniq(
+          allRows.map((x) => x.jenis),
+          { upper: true },
+        ),
       );
 
       const picUniqDB = safeUniq(allRows.map((x) => x.pic));
       const picUniqEmp = safeUniq((EMP_OPTS || []).map((e) => e.name));
-      setPicFilterOpts(
-        safeUniq([...picUniqDB, ...picUniqEmp])
-      );
+      setPicFilterOpts(safeUniq([...picUniqDB, ...picUniqEmp]));
 
-      setBadanFilterOpts(
-        safeUniq(allRows.map((x) => x.badan_hukum))
-      );
+      setBadanFilterOpts(safeUniq(allRows.map((x) => x.badan_hukum)));
 
-      setPerusahaanFilterOpts(
-        safeUniq(allRows.map((x) => x.nama_perusahaan))
-      );
+      setPerusahaanFilterOpts(safeUniq(allRows.map((x) => x.nama_perusahaan)));
 
-      setStatusBayarFilterOpts(
-        safeUniq(allRows.map((x) => x.status_bayar))
-      );
+      setStatusBayarFilterOpts(safeUniq(allRows.map((x) => x.status_bayar)));
 
-      setStatusKendFilterOpts(
-        safeUniq(allRows.map((x) => x.status_kendaraan))
-      );
+      setStatusKendFilterOpts(safeUniq(allRows.map((x) => x.status_kendaraan)));
 
-      setKonfFilterOpts(
-        safeUniq(allRows.map((x) => x.konfirmasi))
-      );
+      setKonfFilterOpts(safeUniq(allRows.map((x) => x.konfirmasi)));
 
       setGolonganFilterOpts(
-        safeUniq(allRows.map((x) => x.golongan), { upper: true })
+        safeUniq(
+          allRows.map((x) => x.golongan),
+          { upper: true },
+        ),
       );
 
       setDokPerizinanFilterOpts(
-        safeUniq(allRows.map((x) => x.dok_perizinan), { upper: true })
+        safeUniq(
+          allRows.map((x) => x.dok_perizinan),
+          { upper: true },
+        ),
       );
-
     } catch (e) {
       console.error("fetchFilterOptions error:", e);
       setWilayahFilterOpts([]);
@@ -648,23 +636,18 @@ export default function Iwkbu() {
   };
 
   const buildBaseQuery = () => {
-    let query = supabase
-      .from("iwkbu")
-      .select("*", { count: "exact" });
+    let query = supabase.from("iwkbu").select("*", { count: "exact" });
 
     const sRaw = (q || "").trim();
     const s = normalizeSearch(sRaw);
 
     if (s) {
       const looksLikeNopol =
-        /^\w{0,3}\s?\d{1,4}\s?[A-Z]{1,3}$/.test(s) || /^\d{1,4}\s?[A-Z]{1,3}$/.test(s);
+        /^\w{0,3}\s?\d{1,4}\s?[A-Z]{1,3}$/.test(s) ||
+        /^\d{1,4}\s?[A-Z]{1,3}$/.test(s);
 
       if (looksLikeNopol) {
-        query = query.or(
-          [
-            `nopol.ilike.%${s}%`,
-          ].join(",")
-        );
+        query = query.or([`nopol.ilike.%${s}%`].join(","));
       } else {
         query = query.or(
           [
@@ -674,7 +657,7 @@ export default function Iwkbu() {
             `trayek.ilike.%${s}%`,
             `nama_perusahaan.ilike.%${s}%`,
             `pic.ilike.%${s}%`,
-          ].join(",")
+          ].join(","),
         );
       }
     }
@@ -696,12 +679,11 @@ export default function Iwkbu() {
     if (filterStatusKendaraan)
       query = query.ilike("status_kendaraan", filterStatusKendaraan);
 
-    if (filterKonfirmasi)
-      query = query.eq("konfirmasi", filterKonfirmasi);
+    if (filterKonfirmasi) query = query.eq("konfirmasi", filterKonfirmasi);
 
     const tglTransRange = buildDateRange(
       filterTglTransYear,
-      filterTglTransMonth
+      filterTglTransMonth,
     );
     if (tglTransRange) {
       query = query
@@ -709,10 +691,7 @@ export default function Iwkbu() {
         .lte("tgl_transaksi", tglTransRange.to);
     }
 
-    const masaRange = buildDateRange(
-      filterMasaYear,
-      filterMasaMonth
-    );
+    const masaRange = buildDateRange(filterMasaYear, filterMasaMonth);
     if (masaRange) {
       query = query
         .gte("masa_berlaku", masaRange.from)
@@ -753,15 +732,39 @@ export default function Iwkbu() {
       .replace(/[^a-z0-9]+(\w)/g, (_, c) => c.toUpperCase())
       .replace(/[^a-z0-9]/g, "");
 
-  const [WILAYAH_OPTS, setWilayahOpts] = usePersistentState("iwkbu:opts:wilayah",[]);
-  const [TRAYEK_OPTS, setTrayekOpts] = usePersistentState("iwkbu:opts:trayek", []);
+  const [WILAYAH_OPTS, setWilayahOpts] = usePersistentState(
+    "iwkbu:opts:wilayah",
+    [],
+  );
+  const [TRAYEK_OPTS, setTrayekOpts] = usePersistentState(
+    "iwkbu:opts:trayek",
+    [],
+  );
   const [JENIS_OPTS, setJenisOpts] = usePersistentState("iwkbu:opts:jenis", []);
-  const [BADAN_HUKUM_OPTS, setBadanOpts] = usePersistentState("iwkbu:opts:badan", []);
-  const [STATUS_BAYAR_OPTS, setStatusBayarOpts] = usePersistentState("iwkbu:opts:statusBayar", []);
-  const [STATUS_KENDARAAN_OPTS, setStatusKendaraanOpts] = usePersistentState("iwkbu:opts:statusKend", []);
-  const [GOLONGAN_OPTS, setGolonganOpts] = usePersistentState("iwkbu:opts:golongan", []);
-  const [DOK_PERIZINAN_OPTS, setDokPerizinanOpts] = usePersistentState("iwkbu:opts:dokPerizinan", []);
-  const [HASIL_KONF_OPTS, setHasilKonfOpts] = usePersistentState("iwkbu:opts:hasilKonf", DEFAULT_HASIL_KONF_OPTS);
+  const [BADAN_HUKUM_OPTS, setBadanOpts] = usePersistentState(
+    "iwkbu:opts:badan",
+    [],
+  );
+  const [STATUS_BAYAR_OPTS, setStatusBayarOpts] = usePersistentState(
+    "iwkbu:opts:statusBayar",
+    [],
+  );
+  const [STATUS_KENDARAAN_OPTS, setStatusKendaraanOpts] = usePersistentState(
+    "iwkbu:opts:statusKend",
+    [],
+  );
+  const [GOLONGAN_OPTS, setGolonganOpts] = usePersistentState(
+    "iwkbu:opts:golongan",
+    [],
+  );
+  const [DOK_PERIZINAN_OPTS, setDokPerizinanOpts] = usePersistentState(
+    "iwkbu:opts:dokPerizinan",
+    [],
+  );
+  const [HASIL_KONF_OPTS, setHasilKonfOpts] = usePersistentState(
+    "iwkbu:opts:hasilKonf",
+    DEFAULT_HASIL_KONF_OPTS,
+  );
 
   useEffect(() => {
     if (WILAYAH_FILTER_OPTS.length) {
@@ -782,21 +785,24 @@ export default function Iwkbu() {
   }, [BADAN_FILTER_OPTS]);
 
   useEffect(() => {
-    if (STATUS_BAYAR_FILTER_OPTS.length) setStatusBayarOpts(STATUS_BAYAR_FILTER_OPTS);
+    if (STATUS_BAYAR_FILTER_OPTS.length)
+      setStatusBayarOpts(STATUS_BAYAR_FILTER_OPTS);
   }, [STATUS_BAYAR_FILTER_OPTS]);
 
   useEffect(() => {
-    if (STATUS_KEND_FILTER_OPTS.length) setStatusKendaraanOpts(STATUS_KEND_FILTER_OPTS);
+    if (STATUS_KEND_FILTER_OPTS.length)
+      setStatusKendaraanOpts(STATUS_KEND_FILTER_OPTS);
   }, [STATUS_KEND_FILTER_OPTS]);
 
   useEffect(() => {
-    if (DOK_PERIZINAN_FILTER_OPTS.length) setDokPerizinanOpts(DOK_PERIZINAN_FILTER_OPTS);
+    if (DOK_PERIZINAN_FILTER_OPTS.length)
+      setDokPerizinanOpts(DOK_PERIZINAN_FILTER_OPTS);
   }, [DOK_PERIZINAN_FILTER_OPTS]);
 
   useEffect(() => {
     if (GOLONGAN_FILTER_OPTS.length) setGolonganOpts(GOLONGAN_FILTER_OPTS);
   }, [GOLONGAN_FILTER_OPTS]);
-  
+
   // modal: tambah nopol
   const [showNopolModal, setShowNopolModal] = useState(false);
 
@@ -881,47 +887,47 @@ export default function Iwkbu() {
       WILAYAH_OPTS,
       setWilayahOpts,
       newForm.wilayah,
-      { forceUpper: true }
+      { forceUpper: true },
     );
     const trayekSaved = addOptionIfMissing(
       TRAYEK_OPTS,
       setTrayekOpts,
-      newForm.trayekNew
+      newForm.trayekNew,
     );
     const jenisSaved = addOptionIfMissing(
       JENIS_OPTS,
       setJenisOpts,
-      newForm.jenis
+      newForm.jenis,
     );
     const badanSaved = addOptionIfMissing(
       BADAN_HUKUM_OPTS,
       setBadanOpts,
-      newForm.badanHukum
+      newForm.badanHukum,
     );
     const statusBaySaved = addOptionIfMissing(
       STATUS_BAYAR_OPTS,
       setStatusBayarOpts,
-      newForm.statusBayar
+      newForm.statusBayar,
     );
     const statusKenSaved = addOptionIfMissing(
       STATUS_KENDARAAN_OPTS,
       setStatusKendaraanOpts,
-      newForm.statusKendaraan
+      newForm.statusKendaraan,
     );
     const golSaved = addOptionIfMissing(
       GOLONGAN_OPTS,
       setGolonganOpts,
-      newForm.golongan
+      newForm.golongan,
     );
     const dokSaved = addOptionIfMissing(
       DOK_PERIZINAN_OPTS,
       setDokPerizinanOpts,
-      newForm.dokPerizinan
+      newForm.dokPerizinan,
     );
     addOptionIfMissing(
       HASIL_KONF_OPTS,
       setHasilKonfOpts,
-      newForm.konfirmasi || ""
+      newForm.konfirmasi || "",
     );
 
     const next = {
@@ -954,7 +960,7 @@ export default function Iwkbu() {
 
   const saveCell = async (id, field, value) => {
     setRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
     );
 
     // mapping UI → DB
@@ -980,7 +986,15 @@ export default function Iwkbu() {
     // normalize value
     let dbValue = value;
 
-    if (["tarif", "nominal", "outstanding", "nilaiBayarOs", "nilaiPemeliharaanOs"].includes(field)) {
+    if (
+      [
+        "tarif",
+        "nominal",
+        "outstanding",
+        "nilaiBayarOs",
+        "nilaiPemeliharaanOs",
+      ].includes(field)
+    ) {
       dbValue = Number(value || 0);
     }
 
@@ -1340,10 +1354,9 @@ export default function Iwkbu() {
           <table className="kawaii-table">
             <thead style={{ whiteSpace: "nowrap" }}>
               <tr>
-                <th>Aksi</th>
-                <th>No</th>
+                <th className="sticky nopol-col">Nomor Polisi</th>
+                <th className="sticky aksi-col">Aksi</th>
                 <th>Wilayah</th>
-                <th>Nomor Polisi</th>
                 <th>Tarif</th>
                 <th>Golongan</th>
                 <th>Nominal IWKBU</th>
@@ -1385,8 +1398,11 @@ export default function Iwkbu() {
             <tbody>
               {pageData.map((r, i) => (
                 <tr key={r.id}>
+                  <td className="sticky nopol-col">
+                    <span className="nopol-badge">{r.nopol}</span>
+                  </td>
                   {/* Aksi */}
-                  <td>
+                  <td className="sticky aksi-col">
                     <button
                       className="btn danger ghost xs"
                       onClick={() => deleteRow(r.id)}
@@ -1394,9 +1410,6 @@ export default function Iwkbu() {
                       Hapus
                     </button>
                   </td>
-
-                  {/* No */}
-                  <td>{(page - 1) * pageSize + i + 1}</td>
 
                   {/* Wilayah */}
                   <td>
@@ -1407,9 +1420,7 @@ export default function Iwkbu() {
                       onChange={(e) =>
                         updateRow(r.id, { wilayah: e.target.value })
                       }
-                      onBlur={(e) =>
-                        saveCell(r.id, "wilayah", e.target.value)
-                      }
+                      onBlur={(e) => saveCell(r.id, "wilayah", e.target.value)}
                       placeholder="Wilayah"
                     />
                   </td>
@@ -1418,11 +1429,6 @@ export default function Iwkbu() {
                       <option key={w} value={w} />
                     ))}
                   </datalist>
-
-                  {/* Nopol */}
-                  <td className="nopol">
-                    <span className="nopol-badge">{r.nopol}</span>
-                  </td>
 
                   {/* Tarif */}
                   <td>
@@ -1441,7 +1447,7 @@ export default function Iwkbu() {
                         saveCell(
                           r.id,
                           "tarif",
-                          e.target.value === "" ? 0 : Number(e.target.value)
+                          e.target.value === "" ? 0 : Number(e.target.value),
                         )
                       }
                     />
@@ -1449,16 +1455,15 @@ export default function Iwkbu() {
                   </td>
 
                   {/* Golongan */}
-                  <td> 
-                    <input list="golongan-list" 
-                    type="text"
-                    value={r.golongan || ""} 
-                    onChange={(e) =>
-                      updateRow(r.id, { golongan: e.target.value })
-                    }
-                    onBlur={(e) =>
-                        saveCell(r.id, "golongan", e.target.value)
+                  <td>
+                    <input
+                      list="golongan-list"
+                      type="text"
+                      value={r.golongan || ""}
+                      onChange={(e) =>
+                        updateRow(r.id, { golongan: e.target.value })
                       }
+                      onBlur={(e) => saveCell(r.id, "golongan", e.target.value)}
                       placeholder="Pilih Golongan"
                     />
                   </td>
@@ -1467,7 +1472,7 @@ export default function Iwkbu() {
                       <option key={g} value={g} />
                     ))}
                   </datalist>
-          
+
                   {/* PIC */}
                   <datalist id="pic-list">
                     {EMP_OPTS.map((emp) => (
@@ -1515,12 +1520,10 @@ export default function Iwkbu() {
                       list="jenis-list"
                       type="text"
                       value={r.jenis}
-                      onChange={(e) => 
+                      onChange={(e) =>
                         updateRow(r.id, { jenis: e.target.value })
                       }
-                      onBlur={(e) =>
-                        saveCell(r.id, "jenis", e.target.value)
-                      }
+                      onBlur={(e) => saveCell(r.id, "jenis", e.target.value)}
                       placeholder="Jenis Kendaraan"
                     />
                   </td>
@@ -1549,7 +1552,7 @@ export default function Iwkbu() {
                         saveCell(
                           r.id,
                           "tahun",
-                          e.target.value === "" ? null : Number(e.target.value)
+                          e.target.value === "" ? null : Number(e.target.value),
                         )
                       }
                     />
@@ -1787,7 +1790,7 @@ export default function Iwkbu() {
                         saveCell(
                           r.id,
                           "outstanding",
-                          Number(e.target.value || 0)
+                          Number(e.target.value || 0),
                         )
                       }
                     />
@@ -1902,7 +1905,7 @@ export default function Iwkbu() {
                         saveCell(
                           r.id,
                           "nilaiBayarOs",
-                          Number(e.target.value || 0)
+                          Number(e.target.value || 0),
                         )
                       }
                     />
@@ -1939,7 +1942,7 @@ export default function Iwkbu() {
                         saveCell(
                           r.id,
                           "nilaiPemeliharaanOs",
-                          Number(e.target.value || 0)
+                          Number(e.target.value || 0),
                         )
                       }
                     />

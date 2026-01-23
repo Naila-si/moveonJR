@@ -276,20 +276,27 @@ const Pagination = ({ page, totalPage, setPage }) => (
   </div>
 );
 
-function addOptionIfMissing(options, setOptions, value) {
-  if (!value) return value;
-  const v = String(value).trim();
+function addOptionIfMissing(
+  options,
+  setOptions,
+  value,
+  { forceUpper = false } = {}
+) {
+  if (value == null) return value;
+  let v = String(value).trim();
   if (!v) return v;
 
   const exists = options.some(
     (o) => String(o).toLowerCase() === v.toLowerCase()
   );
 
+  const finalVal = forceUpper ? v.toUpperCase() : v;
+
   if (!exists) {
-    setOptions((prev) => [...prev, v]);
+    setOptions((prev) => [...prev, finalVal]);
   }
 
-  return v;
+  return finalVal;
 }
 
 export default function IwklSimple() {
@@ -827,6 +834,11 @@ export default function IwklSimple() {
     }
   };
 
+  const updateRowOnly = (id, patch) =>
+  setRows((prev) =>
+    prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
+  );
+
   const updateBulan = async (iwklId, key, value) => {
     const bulan = monthIndex[key];
     if (!bulan) return;
@@ -1092,53 +1104,43 @@ export default function IwklSimple() {
                         <td>
                           <input
                             list="loket-list"
+                            type="text"
                             value={r.loket || ""}
                             onChange={(e) =>
-                              updateCell(
-                                r.id,
-                                "loket",
-                                addOptionIfMissing(
-                                  LOKET_OPTS,
-                                  setLoketOpts,
-                                  e.target.value
-                                )
-                              )
+                              updateRowOnly(r.id, { loket: e.target.value })
+                            }
+                            onBlur={(e) =>
+                              saveCell(r.id, "wilayah", e.target.value)
                             }
                             placeholder="Loket"
                           />
-
-                          <datalist id="loket-list">
-                            {LOKET_OPTS.map((o) => (
-                              <option key={o} value={o} />
-                            ))}
-                          </datalist>
                         </td>
+                        <datalist id="loket-list">
+                          {LOKET_OPTS.map((o) => (
+                            <option key={o} value={o} />
+                          ))}
+                        </datalist>
 
                         {/* Kelas */}
                         <td>
                           <input
                             list="kelas-list"
+                            type="text"
                             value={r.kelas || ""}
                             onChange={(e) =>
-                              updateCell(
-                                r.id,
-                                "kelas",
-                                addOptionIfMissing(
-                                  KELAS_OPTS,
-                                  setKelasOpts,
-                                  e.target.value
-                                )
-                              )
+                              updateRow(r.id, { kelas: e.target.value })
+                            }
+                            onBlur={(e) =>
+                              saveCell(r.id, "kelas", e.target.value)
                             }
                             placeholder="Kelas"
                           />
-
-                          <datalist id="kelas-list">
-                            {KELAS_OPTS.map((o) => (
-                              <option key={o} value={o} />
-                            ))}
-                          </datalist>
                         </td>
+                        <datalist id="kelas-list">
+                         {KELAS_OPTS.map((o) => (
+                          <option key={o} value={o} />
+                         ))}
+                        </datalist>
 
                         {/* Nama Kapal */}
                         <td>
@@ -1180,53 +1182,43 @@ export default function IwklSimple() {
                         <td>
                           <input
                             list="status-pks-list"
+                            type="text"
                             value={r.statusPKS || ""}
                             onChange={(e) =>
-                              updateCell(
-                                r.id,
-                                "statusPKS",
-                                addOptionIfMissing(
-                                  STATUS_PKS_OPTS,
-                                  setStatusPksOpts,
-                                  e.target.value
-                                )
-                              )
+                              updateRow(r.id, { statusPKS: e.target.value })
+                            }
+                            onBlur={(e) =>
+                              saveCell(r.id, "statusPKS", e.target.value)
                             }
                             placeholder="Status PKS"
                           />
-
-                          <datalist id="status-pks-list">
-                            {STATUS_PKS_OPTS.map((o) => (
-                              <option key={o} value={o} />
-                            ))}
-                          </datalist>
                         </td>
+                        <datalist id="status-pks-list">
+                          {STATUS_PKS_OPTS.map((o) => (
+                            <option key={o} value={o} />
+                          ))}
+                        </datalist>
 
                         {/* Status Kapal */}
                         <td>
                           <input
                             list="status-kapal-list"
+                            type="text"
                             value={r.statusKapal || ""}
                             onChange={(e) =>
-                              updateCell(
-                                r.id,
-                                "statusKapal",
-                                addOptionIfMissing(
-                                  STATUS_KAPAL_OPTS,
-                                  setStatusKapalOpts,
-                                  e.target.value
-                                )
-                              )
+                              updateRow(r.id, { statusKapal: e.target.value })
+                            }
+                            onBlur={(e) =>
+                              saveCell(r.id, "statusKapal", e.target.value)
                             }
                             placeholder="Status Kapal"
                           />
-
-                          <datalist id="status-kapal-list">
-                            {STATUS_KAPAL_OPTS.map((o) => (
-                              <option key={o} value={o} />
-                            ))}
-                          </datalist>
                         </td>
+                        <datalist id="status-kapal-list">
+                          {STATUS_KAPAL_OPTS.map((o) => (
+                            <option key={o} value={o} />
+                          ))}
+                        </datalist>
 
                         {/* Rute (gabungan awal-akhir) */}
                         <td>
