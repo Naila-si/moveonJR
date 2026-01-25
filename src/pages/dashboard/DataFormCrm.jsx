@@ -291,30 +291,49 @@ export default function DataFormCrm() {
   }
 
   const filtered = useMemo(() => {
-    const q = query.toLowerCase();
+  const q = query.toLowerCase().trim();
 
-    const filteredData = rows.filter((d) => {
-      const s1 = d.step1 || {};
-      const s4 = d.step4 || {};
+  const filteredData = rows.filter((d) => {
+    const s1 = d.step1 || {};
+    const s2 = d.step2 || {};
+    const s4 = d.step4 || {};
 
-      const matchText =
-        (d.id || "").toLowerCase().includes(q) ||
-        (s1.namaPemilik || "").toLowerCase().includes(q) ||
-        (s1.perusahaan || "").toLowerCase().includes(q);
+    // 🔥 gabung nama petugas
+    const namaPetugas = `${s1.petugasDepan || ""} ${s1.petugasBelakang || ""}`.toLowerCase();
 
-      const matchJenis =
-        filterJenis === "Semua" || s1.jenisAngkutan === filterJenis;
+    const searchableText = [
+      d.id,                       // CRM-2026-xxx
+      s1.namaPemilik,
+      s1.perusahaan,
+      s1.loket,
+      s1.jenisAngkutan,
+      namaPetugas,                // ✅ PETUGAS
+      s2.janjiBayar,
+      s4.statusValidasi,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
 
-      return matchText && matchJenis;
-    });
+    const matchText = searchableText.includes(q);
 
-    // 🔥 SORT TANGGAL: TERBARU → TERLAMA
-    return filteredData.sort((a, b) => {
-      const ta = new Date(a.step1?.tanggalWaktu || 0).getTime();
-      const tb = new Date(b.step1?.tanggalWaktu || 0).getTime();
-      return tb - ta; // DESC
-    });
-  }, [rows, query, filterJenis, filterValidasi]);
+    const matchJenis =
+      filterJenis === "Semua" || s1.jenisAngkutan === filterJenis;
+
+    const matchValidasi =
+      filterValidasi === "Semua" ||
+      normalizeStatusValidasi(s4.statusValidasi) === filterValidasi;
+
+    return matchText && matchJenis && matchValidasi;
+  });
+
+  // 🔥 sort terbaru → terlama
+  return filteredData.sort((a, b) => {
+    const ta = new Date(a.step1?.tanggalWaktu || 0).getTime();
+    const tb = new Date(b.step1?.tanggalWaktu || 0).getTime();
+    return tb - ta;
+  });
+}, [rows, query, filterJenis, filterValidasi]);
 
   // reset ke halaman 1 kalau filter / search berubah
   useEffect(() => {
