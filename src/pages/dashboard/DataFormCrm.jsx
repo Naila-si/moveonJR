@@ -300,14 +300,19 @@ export default function DataFormCrm() {
 
     // 🔥 gabung nama petugas
     const namaPetugas = `${s1.petugasDepan || ""} ${s1.petugasBelakang || ""}`.toLowerCase();
+    const semuaNopol = Array.isArray(s2.rincianArmada)
+      ? s2.rincianArmada.map((r) => r.nopol).filter(Boolean)
+      : [];
+    const nopolText = semuaNopol.join(" ");  
 
     const searchableText = [
-      d.id,                       // CRM-2026-xxx
+      d.id,                    
       s1.namaPemilik,
       s1.perusahaan,
       s1.loket,
       s1.jenisAngkutan,
-      namaPetugas,                // ✅ PETUGAS
+      namaPetugas,   
+      nopolText,          
       s2.janjiBayar,
       s4.statusValidasi,
     ]
