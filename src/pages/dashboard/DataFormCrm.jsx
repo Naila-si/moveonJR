@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 async function addVerificationNotification({
   reportId,
+  reportCode,
   status,
   note,
   waktuValidasi,
@@ -16,19 +17,26 @@ async function addVerificationNotification({
     ? new Date(waktuValidasi).toISOString()
     : new Date().toISOString();
 
-  const { error } = await supabase.from("crm_notifikasi").insert([
-    {
-      report_id: reportId,
-      perusahaan,
-      status,
-      note,
-      ts,
-      petugas: petugas || "-",
-      payload: { reportId, status, note, perusahaan },
-    },
-  ]);
+  const payload = {
+  report_id: reportCode || null,
+  report_uuid: reportId,
+  perusahaan,
+  status,
+  note,
+  ts,
+  petugas: petugas || "-",
+  payload: { reportId, status, note, perusahaan },
+};
 
-  if (error) console.error("Gagal insert notif:", error);
+const { data, error } = await supabase
+  .from("crm_notifikasi")
+  .insert([payload]);
+
+console.log("INSERT NOTIF:", { data, error });
+
+if (error) {
+  console.error("Gagal insert notif:", error);
+}
 }
 
 const PAGE_SIZE = 50;
@@ -232,7 +240,8 @@ export default function DataFormCrm() {
     setSelected((prev) => (prev ? { ...prev, step4: finalStep4 } : prev));
 
     await addVerificationNotification({
-      reportId: selected.id,
+      reportId: selected.dbId,              // UUID
+      reportCode: selected.id,              // CRM-2026-xxx
       status: finalStep4.statusValidasi,
       note: finalStep4.catatanValidasi || "",
       waktuValidasi: finalStep4.waktuValidasi,

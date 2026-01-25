@@ -71,11 +71,11 @@ function setFontBold(doc, size = 12) {
    FETCH REPORT FULL (From Supabase)
    =========================== */
 
-async function fetchReportFull(reportCode) {
+async function fetchReportFull(reportId) {
   const { data: report, error: repErr } = await supabase
     .from("crm_reports")
     .select("*")
-    .eq("report_code", reportCode)
+    .eq("id", reportId)
     .maybeSingle();
 
   if (repErr || !report) throw repErr || new Error("Report tidak ditemukan");
@@ -589,15 +589,17 @@ function mapStatusLabel(status) {
 
 function getPetugasName(it, petugasMap) {
   if (it?.petugas) return it.petugas;
-  if (petugasMap?.[it?.report_id]) return petugasMap[it.report_id];
+  if (petugasMap?.[it?.report_uuid]) {
+    return petugasMap[it.report_uuid];
+  }
   return "-";
 }
 
-async function fetchPetugasByReportId(reportCode) {
+async function fetchPetugasByReportId(reportId) {
   const { data, error } = await supabase
     .from("crm_reports")
     .select("step1")
-    .eq("report_code", reportCode)
+    .eq("id", reportId)
     .maybeSingle();
 
   if (error || !data?.step1) return "-";
@@ -632,7 +634,7 @@ export default function NotifikasiBerkas() {
 
     // ===== FETCH PETUGAS PER REPORT (SEKALI) =====
     const uniqueReports = [
-      ...new Set((data || []).map(d => d.report_id).filter(Boolean))
+      ...new Set((data || []).map(d => d.report_uuid).filter(Boolean))
     ];
 
     const map = {};
@@ -821,9 +823,9 @@ export default function NotifikasiBerkas() {
                           title="Unduh Laporan PDF"
                           onClick={async () => {
                             try {
-                              const reportCode = it?.report_id;
-                              if (!reportCode) return alert("Report ID tidak ada.");
-                              const row = await fetchReportFull(reportCode);
+                              const reportId = it?.report_uuid;
+                              if (!reportId) return alert("Report ID tidak ada.");
+                              const row = await fetchReportFull(reportId);
                               downloadPdfFromRow(row);
                             } catch (e) {
                               alert("Gagal unduh laporan.");
