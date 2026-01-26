@@ -666,44 +666,52 @@ export default function NotifikasiBerkas() {
 
   /* ====== FILTERING ====== */
   const filtered = useMemo(() => {
-    let data = [...items];
-    if (q.trim()) {
-      const s = q.toLowerCase();
-      data = data.filter((it) => {
-        const msg = [
-          it?.report_id || "",
-          it?.status || "",
-          it?.note || "",
-          it?.perusahaan || "",
-          it?.ts || "",
-        ].join(" ").toLowerCase();
-        return msg.includes(s);
-      });
+  let data = [...items];
+
+  if (q.trim()) {
+    const s = q.toLowerCase();
+
+    data = data.filter((it) => {
+      const petugasName = getPetugasName(it, petugasMap);
+
+      const msg = [
+        petugasName || "",        // ✅ NAMA PETUGAS
+        it?.perusahaan || "",     // ✅ NAMA PERUSAHAAN
+        it?.status || "",
+        it?.note || "",
+        it?.report_id || "",
+        it?.ts || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return msg.includes(s);
+    });
+  }
+
+  const dir = sortDir === "asc" ? 1 : -1;
+
+  data.sort((a, b) => {
+    const va = a[sortKey] ?? "";
+    const vb = b[sortKey] ?? "";
+
+    if (sortKey === "petugas") {
+      const pa = getPetugasName(a, petugasMap).toLowerCase();
+      const pb = getPetugasName(b, petugasMap).toLowerCase();
+      return pa > pb ? dir : pa < pb ? -dir : 0;
     }
 
-    const dir = sortDir === "asc" ? 1 : -1;
+    if (sortKey === "ts") {
+      const ta = Date.parse(va) || 0;
+      const tb = Date.parse(vb) || 0;
+      return (ta - tb) * dir;
+    }
 
-    data.sort((a, b) => {
-      const va = a[sortKey] ?? "";
-      const vb = b[sortKey] ?? "";
+    return va > vb ? dir : va < vb ? -dir : 0;
+  });
 
-      if (sortKey === "petugas") {
-        const pa = getPetugasName(a, petugasMap).toLowerCase();
-        const pb = getPetugasName(b, petugasMap).toLowerCase();
-        return pa > pb ? dir : pa < pb ? -dir : 0;
-      }
-
-      if (sortKey === "ts") {
-        const ta = Date.parse(va) || 0;
-        const tb = Date.parse(vb) || 0;
-        return (ta - tb) * dir;
-      }
-      return va > vb ? dir : va < vb ? -dir : 0;
-    });
-
-    return data;
-  }, [items, q, sortKey, sortDir]);
-
+  return data;
+}, [items, q, sortKey, sortDir, petugasMap]);
 
   function toggleSort(key) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
