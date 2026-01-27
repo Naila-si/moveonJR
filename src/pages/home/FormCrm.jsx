@@ -34,7 +34,7 @@ const ARMADA_STATUS_NEED_UPLOAD = new Set(
     "Rusak Sementara",
     "Rusak Selamanya",
     "Tidak Ditemukan",
-  ].map((s) => s.toUpperCase())
+  ].map((s) => s.toUpperCase()),
 );
 
 const LOKET_OPTIONS = [
@@ -212,7 +212,7 @@ async function saveCrmToSupabase(form) {
     const up = await uploadToCrmStorage(
       form.fotoKunjungan,
       reportCode,
-      "foto_kunjungan"
+      "foto_kunjungan",
     );
     if (up?.url) {
       // DataFormCrm pakai array string untuk fotoKunjungan
@@ -224,7 +224,7 @@ async function saveCrmToSupabase(form) {
   const suratUploads = await uploadMany(
     form.suratPernyataanEvidence || [],
     reportCode,
-    "surat"
+    "surat",
   );
   // DataFormCrm pakai bentuk { name, url }
   const suratJson = suratUploads.map((f) => ({
@@ -276,7 +276,7 @@ async function saveCrmToSupabase(form) {
       buktiUploads = await uploadMany(
         a.buktiFiles,
         reportCode,
-        `armada_${i + 1}`
+        `armada_${i + 1}`,
       );
     }
 
@@ -458,7 +458,7 @@ export default function FormCrm() {
             }
           }
           const arr = Array.from(map.values()).sort((a, b) =>
-            a.pic.localeCompare(b.pic, "id")
+            a.pic.localeCompare(b.pic, "id"),
           );
           setPicMaster(arr);
         } else if (picErr) {
@@ -487,7 +487,7 @@ export default function FormCrm() {
             }
           }
           const arr2 = Array.from(map2.values()).sort((a, b) =>
-            a.nama_perusahaan.localeCompare(b.nama_perusahaan, "id")
+            a.nama_perusahaan.localeCompare(b.nama_perusahaan, "id"),
           );
           setCompanyMaster(arr2);
         } else if (compErr) {
@@ -515,7 +515,7 @@ export default function FormCrm() {
               name,
               loket
             )
-          `
+          `,
           )
           .order("name", { ascending: true });
 
@@ -561,7 +561,7 @@ export default function FormCrm() {
 
   const progressPct = useMemo(
     () => (step - 1) * (100 / (steps.length - 1)),
-    [step]
+    [step],
   );
 
   // ================== VALIDASI ==================
@@ -579,14 +579,28 @@ export default function FormCrm() {
   const step2Errors = useMemo(() => {
     const e = {};
     const list = form.armadaList || [];
-    if (list.length === 0) e.list = "Tambah minimal 1 kendaraan";
+
+    if (list.length === 0) {
+      e.list = "Tambah minimal 1 kendaraan";
+    }
+
     list.forEach((k, i) => {
-      if (!k.nopol) e[`nopol_${i}`] = "Isi nopol";
-      if (!k.status) e[`status_${i}`] = "Pilih status";
+      if (!k.nopol || !k.nopol.trim()) {
+        e[`nopol_${i}`] = "No. Polisi wajib diisi";
+      }
+      if (!k.status) {
+        e[`status_${i}`] = "Status kendaraan wajib dipilih";
+      }
     });
-    if (!form.hasilKunjungan)
-      e.HasilKunjungan = "Isi penjelasan hasil kunjungan";
-    if (!form.janjiBayar) e.janjiBayar = "Isi jadwal janji bayar";
+
+    if (!form.hasilKunjungan) {
+      e.hasilKunjungan = "Isi penjelasan hasil kunjungan";
+    }
+
+    if (!form.janjiBayar) {
+      e.janjiBayar = "Isi jadwal janji bayar";
+    }
+
     return e;
   }, [form.armadaList, form.hasilKunjungan, form.janjiBayar]);
 
@@ -644,9 +658,10 @@ export default function FormCrm() {
       (step === 3 && !canNext3)
     ) {
       focusFirstError();
-      showCutePopup(); // ✨ tampilkan popup kawaii
+      showCutePopup();
       return;
     }
+
     setStep((s) => Math.min(3, s + 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step, canNext1, canNext2, canNext3, focusFirstError]);
@@ -693,11 +708,10 @@ export default function FormCrm() {
       setTimeout(() => {
         window.location.replace("/");
       }, 2500);
-
     } catch (e) {
       console.error("Gagal menyimpan data CRM:", e);
       alert(
-        "Terjadi kesalahan saat menyimpan ke server. Coba lagi sebentar ya 🙏"
+        "Terjadi kesalahan saat menyimpan ke server. Coba lagi sebentar ya 🙏",
       );
     }
   };
@@ -814,7 +828,9 @@ export default function FormCrm() {
                   <button
                     className="btn primary"
                     onClick={guardNext}
-                    title="Ctrl+Enter untuk lanjut, Shift+Enter untuk kembali"
+                    disabled={
+                      (step === 1 && !canNext1) || (step === 2 && !canNext2)
+                    }
                   >
                     Lanjut ⟶
                   </button>
@@ -976,10 +992,10 @@ function ErrorSummary({ step, step1Errors, step2Errors, step3Errors }) {
     step === 1
       ? Object.values(step1Errors)
       : step === 2
-      ? Object.values(step2Errors)
-      : step === 3
-      ? Object.values(step3Errors)
-      : [];
+        ? Object.values(step2Errors)
+        : step === 3
+          ? Object.values(step3Errors)
+          : [];
   if (list.length === 0) return null;
   return (
     <div className="alert warn" style={{ marginBottom: 16 }}>
@@ -1099,7 +1115,7 @@ function Step1Datakunjungan({
                 (employeeMaster || []).find(
                   (x) =>
                     (x.name || "").trim().toLowerCase() ===
-                    val.trim().toLowerCase()
+                    val.trim().toLowerCase(),
                 ) || null;
 
               if (match?.samsat?.loket) {
@@ -1274,21 +1290,21 @@ function Step2Armada({
           (iwkbuRows || [])
             .map((r) => r.nopol)
             .filter(Boolean)
-            .map((n) => n.toUpperCase())
-        )
+            .map((n) => n.toUpperCase()),
+        ),
       ).sort(),
-    [iwkbuRows]
+    [iwkbuRows],
   );
 
-const tipeArmadaOptions = useMemo(() => {
-  const fromMaster = TIPE_ARMADA_MASTER;
-  const fromIwkbu = (iwkbuRows || [])
-    .map((r) => r.jenis)
-    .filter(Boolean)
-    .map((j) => j.toUpperCase());
+  const tipeArmadaOptions = useMemo(() => {
+    const fromMaster = TIPE_ARMADA_MASTER;
+    const fromIwkbu = (iwkbuRows || [])
+      .map((r) => r.jenis)
+      .filter(Boolean)
+      .map((j) => j.toUpperCase());
 
-  return Array.from(new Set([...fromMaster, ...fromIwkbu])).sort();
-}, [iwkbuRows]);
+    return Array.from(new Set([...fromMaster, ...fromIwkbu])).sort();
+  }, [iwkbuRows]);
 
   // pastikan tiap item armada punya field tambahan (osTarif, bayarOs, buktiFiles, rekomendasi)
   const safeList = (armadaList || []).map((a) => ({
@@ -1329,24 +1345,23 @@ const tipeArmadaOptions = useMemo(() => {
   };
 
   const handleNopolChange = (idx, raw) => {
-  const value = (raw || "").toUpperCase(); // ❌ trim DIHAPUS
+    const value = (raw || "").toUpperCase(); // ❌ trim DIHAPUS
 
-  const row = iwkbuRows.find(
-    (r) => (r.nopol || "").toUpperCase().trim() === value.trim()
-  );
+    const row = iwkbuRows.find(
+      (r) => (r.nopol || "").toUpperCase().trim() === value.trim(),
+    );
 
-  if (row) {
-    update(idx, {
-      nopol: value,
-      osTarif: row.tarif ?? 0,
-      tipeArmada: row.jenis || "",
-      tahun: row.tahun || "",
-    });
-  } else {
-    update(idx, { nopol: value, osTarif: null });
-  }
-};
-
+    if (row) {
+      update(idx, {
+        nopol: value,
+        osTarif: row.tarif ?? 0,
+        tipeArmada: row.jenis || "",
+        tahun: row.tahun || "",
+      });
+    } else {
+      update(idx, { nopol: value, osTarif: null });
+    }
+  };
 
   const handleStatusChange = (idx, newStatus) => {
     const normalized = (newStatus || "").toUpperCase();
@@ -1394,7 +1409,7 @@ const tipeArmadaOptions = useMemo(() => {
       alert(
         "Beberapa file tidak digunakan:\n" +
           rejected.map((r) => "- " + r).join("\n") +
-          "\nSyarat: maks 3 file, masing-masing ≤ 5MB."
+          "\nSyarat: maks 3 file, masing-masing ≤ 5MB.",
       );
     }
 
@@ -1479,25 +1494,24 @@ const tipeArmadaOptions = useMemo(() => {
 
               {/* TIPE ARMADA (otomatis dari iwkbu.jenis tapi bisa edit) */}
               <Field label="Tipe Armada">
-  <input
-    list="tipe-armada-list"
-    value={a.tipeArmada}
-    onChange={(e) =>
-      update(i, { tipeArmada: e.target.value }) // ⬅️ JANGAN DIAPA-APAIN
-    }
-   onBlur={(e) =>
-  update(i, {
-    tipeArmada: e.target.value
-      .toUpperCase()
-      .replace(/\s+/g, " ")
-      .trim(),
-  })
-}
-    placeholder="Pilih atau ketik tipe armada"
-    autoComplete="off"
-  />
-</Field>
-
+                <input
+                  list="tipe-armada-list"
+                  value={a.tipeArmada}
+                  onChange={
+                    (e) => update(i, { tipeArmada: e.target.value }) // ⬅️ JANGAN DIAPA-APAIN
+                  }
+                  onBlur={(e) =>
+                    update(i, {
+                      tipeArmada: e.target.value
+                        .toUpperCase()
+                        .replace(/\s+/g, " ")
+                        .trim(),
+                    })
+                  }
+                  placeholder="Pilih atau ketik tipe armada"
+                  autoComplete="off"
+                />
+              </Field>
 
               {/* TAHUN (otomatis dari iwkbu.tahun tapi bisa edit) */}
               <Field label="Tahun Pembuatan" error={errors[`tahun_${i}`]}>
@@ -1602,11 +1616,11 @@ const tipeArmadaOptions = useMemo(() => {
         ))}
       </datalist>
 
-<datalist id="tipe-armada-list">
-  {tipeArmadaOptions.map((t) => (
-    <option key={t} value={t} />
-  ))}
-</datalist>
+      <datalist id="tipe-armada-list">
+        {tipeArmadaOptions.map((t) => (
+          <option key={t} value={t} />
+        ))}
+      </datalist>
 
       {/* tombol tambah kendaraan */}
       <button type="button" className="btn primary" onClick={add}>
@@ -1723,7 +1737,7 @@ function SignaturePad({ value, onChange, height = 160 }) {
         0,
         0,
         canvasRef.current.width,
-        canvasRef.current.height
+        canvasRef.current.height,
       );
     };
     if (value.startsWith("data:image")) img.src = value;

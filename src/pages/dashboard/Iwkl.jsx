@@ -322,12 +322,12 @@ export default function IwklSimple() {
 
   const [KELAS_OPTS, setKelasOpts] = usePersistentState(
     "iwkl:opts:kelas",
-    ["Gold", "Silver"]
+    ["Gold", "Platinum", "Silver", "-"]
   );
 
   const [STATUS_PKS_OPTS, setStatusPksOpts] = usePersistentState(
     "iwkl:opts:status_pks",
-    ["Aktif", "Non Aktif", "Berakhir", "Addendum", "-"]
+    ["Aktif", "Non Aktif", "-"]
   );
 
   const [STATUS_KAPAL_OPTS, setStatusKapalOpts] = usePersistentState(
@@ -336,8 +336,6 @@ export default function IwklSimple() {
       "Beroperasi",
       "Docking",
       "Cadangan",
-      "Tidak Beroperasi",
-      "Rusak",
       "-"
     ]
   );
@@ -348,9 +346,6 @@ export default function IwklSimple() {
       "Lancar",
       "Dispensasi",
       "Outstanding",
-      "Belum Bayar",
-      "Lunas",
-      "Parsial",
       "-"
     ]
   );
@@ -372,7 +367,7 @@ export default function IwklSimple() {
 
   const [SISTEM_IWKL_OPTS, setSistemIwklOpts] = usePersistentState(
     "iwkl:opts:sistem_iwkl",
-    ["Manifest", "Borongan", "Manual", "E-Ticket", "Campuran", "-"]
+    ["Manifest", "Borongan", "-"]
   );
 
   const [PERHIT_TARIF_OPTS, setPerhitTarifOpts] = usePersistentState(
