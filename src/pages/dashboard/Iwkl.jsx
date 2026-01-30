@@ -193,7 +193,18 @@ const mapRowToDbPayload = (r) => ({
   des: r.des || 0,
 });
 
-const makeEmptyRow = (loketOpts = [], kelasOpts = [], statusPksOpts = [], statusKapalOpts = [], statusPembOpts = [], pasOpts = [], sertifKslOpts = [], izinTrayekOpts = [], sistemIwklOpts = [], perhitTarifOpts = []) => ({
+const makeEmptyRow = (
+  loketOpts = [],
+  kelasOpts = [],
+  statusPksOpts = [],
+  statusKapalOpts = [],
+  statusPembOpts = [],
+  pasOpts = [],
+  sertifKslOpts = [],
+  izinTrayekOpts = [],
+  sistemIwklOpts = [],
+  perhitTarifOpts = [],
+) => ({
   id: null,
   loket: loketOpts?.[0] || "",
   kelas: kelasOpts[0] || "",
@@ -280,14 +291,14 @@ function addOptionIfMissing(
   options,
   setOptions,
   value,
-  { forceUpper = false } = {}
+  { forceUpper = false } = {},
 ) {
   if (value == null) return value;
   let v = String(value).trim();
   if (!v) return v;
 
   const exists = options.some(
-    (o) => String(o).toLowerCase() === v.toLowerCase()
+    (o) => String(o).toLowerCase() === v.toLowerCase(),
   );
 
   const finalVal = forceUpper ? v.toUpperCase() : v;
@@ -299,6 +310,61 @@ function addOptionIfMissing(
   return finalVal;
 }
 
+const cleanLoketOpts = (arr) => arr.filter((v) => v.length > 2);
+
+const normalizeLoket = (v) =>
+  String(v || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+
+function LoketInput({
+  value,
+  onChange,
+  options = [],
+  onCommitNew,
+  placeholder = "Loket",
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="loket-input-wrap">
+      <input
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        onFocus={() => setOpen(true)}   // 👈 klik → buka dropdown
+        onChange={(e) => {
+          onChange(e.target.value);    // 👈 bebas ngetik (NO FILTER)
+        }}
+        onBlur={() => {
+          setTimeout(() => setOpen(false), 150);
+          if (value && !options.includes(value)) {
+            onCommitNew?.(value);      // 👈 loket baru
+          }
+        }}
+      />
+
+      {open && options.length > 0 && (
+        <div className="loket-dropdown">
+          {options.map((opt) => (
+            <div
+              key={opt}
+              className="loket-item"
+              onMouseDown={() => {
+                onChange(opt);
+                setOpen(false);
+              }}
+            >
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function IwklSimple() {
   const [rows, setRows] = useState([]);
   const [q, setQ] = useState("");
@@ -308,72 +374,37 @@ export default function IwklSimple() {
   const [saving, setSaving] = useState(false);
   const [tahunAktif, setTahunAktif] = useState(2024);
 
-  const [LOKET_OPTS, setLoketOpts] = usePersistentState(
-    "iwkl:opts:loket",
-    [
-      "Kantor Wilayah",
-      "Pelalawan",
-      "Siak",
-      "Kota Baru",
-      "Tembilahan",
-      "Sungai Guntung",
-    ]
-  );
+  const [LOKET_OPTS, setLoketOpts] = usePersistentState("iwkl:opts:loket", [
+    "Kantor Wilayah",
+    "Pelalawan",
+    "Siak",
+    "Kota Baru",
+    "Tembilahan",
+    "Sungai Guntung",
+  ]);
 
-  const [KELAS_OPTS, setKelasOpts] = usePersistentState(
-    "iwkl:opts:kelas",
-    ["Gold", "Platinum", "Silver", "-"]
-  );
+  const KELAS_OPTS = ["Gold", "Platinum", "Silver", "-"];
 
-  const [STATUS_PKS_OPTS, setStatusPksOpts] = usePersistentState(
-    "iwkl:opts:status_pks",
-    ["Aktif", "Non Aktif", "-"]
-  );
+  const STATUS_PKS_OPTS = ["Aktif", "Non Aktif", "-"];
 
-  const [STATUS_KAPAL_OPTS, setStatusKapalOpts] = usePersistentState(
-    "iwkl:opts:status_kapal",
-    [
-      "Beroperasi",
-      "Docking",
-      "Cadangan",
-      "-"
-    ]
-  );
+  const STATUS_KAPAL_OPTS = ["Beroperasi", "Docking", "Cadangan", "-"];
 
-  const [STATUS_PEMB_OPTS, setStatusPembOpts] = usePersistentState(
-    "iwkl:opts:status_pembayaran",
-    [
-      "Lancar",
-      "Dispensasi",
-      "Outstanding",
-      "-"
-    ]
-  );
+  const STATUS_PEMB_OPTS = ["Lancar", "Dispensasi", "Outstanding", "-"];
 
-  const [PAS_OPTS, setPasOpts] = usePersistentState(
-    "iwkl:opts:pas",
-    ["Ada", "Tidak", "-"]
-  );
+  const PAS_OPTS = ["Ada", "Tidak", "-"];
 
-  const [SERTIF_KSL_OPTS, setSertifKslOpts] = usePersistentState(
-    "iwkl:opts:sertifikat_keselamatan",
-    ["Ada", "Tidak", "-"]
-  );
+  const SERTIF_KSL_OPTS = ["Ada", "Tidak", "-"];
 
-  const [IZIN_TRAYEK_OPTS, setIzinTrayekOpts] = usePersistentState(
-    "iwkl:opts:izin_trayek",
-    ["Ada", "Tidak", "-"]
-  );
+  const IZIN_TRAYEK_OPTS = ["Ada", "Tidak", "-"];
 
-  const [SISTEM_IWKL_OPTS, setSistemIwklOpts] = usePersistentState(
-    "iwkl:opts:sistem_iwkl",
-    ["Manifest", "Borongan", "-"]
-  );
+  const SISTEM_IWKL_OPTS = ["Manifest", "Borongan", "-"];
 
-  const [PERHIT_TARIF_OPTS, setPerhitTarifOpts] = usePersistentState(
-    "iwkl:opts:perhitungan_tarif",
-    ["Dalam Provinsi", "Antar Provinsi", "Angkutan Karyawan", "-"]
-  );
+  const PERHIT_TARIF_OPTS = [
+    "Dalam Provinsi",
+    "Antar Provinsi",
+    "Angkutan Karyawan",
+    "-",
+  ];
 
   const exportIwklToExcel = async () => {
     try {
@@ -390,7 +421,8 @@ export default function IwklSimple() {
       if (filterLoket) query = query.eq("loket", filterLoket);
       if (filterKelas) query = query.eq("kelas", filterKelas);
       if (filterStatusPKS) query = query.eq("status_pks", filterStatusPKS);
-      if (filterStatusKapal) query = query.eq("status_kapal", filterStatusKapal);
+      if (filterStatusKapal)
+        query = query.eq("status_kapal", filterStatusKapal);
       if (filterTrayek) query = query.eq("trayek", filterTrayek);
 
       const { data: iwklData, error } = await query;
@@ -420,17 +452,17 @@ export default function IwklSimple() {
         const bulan = bulanMap[r.id] || {};
         const totalJanDes = monthKeys.reduce(
           (sum, k) => sum + Number(bulan[k] || 0),
-          0
+          0,
         );
 
         return {
-          "No": i + 1,
-          "Loket": r.loket,
-          "Kelas": r.kelas,
+          No: i + 1,
+          Loket: r.loket,
+          Kelas: r.kelas,
           "Nama Kapal": r.nama_kapal,
           "Nama Perusahaan": r.nama_perusahaan,
           "Nama Pemilik / Pengelola": r.nama_pemilik,
-          "Alamat": r.alamat,
+          Alamat: r.alamat,
           "No Kontak": r.no_kontak,
           "Tanggal Lahir": r.tgl_lahir,
           "Status PKS": r.status_pks,
@@ -439,19 +471,20 @@ export default function IwklSimple() {
           "Pas Besar / Kecil": r.pas_besar_kecil,
           "Sertifikat Keselamatan": r.sertifikat_keselamatan,
           "Izin Trayek": r.izin_trayek,
-          "Trayek": r.trayek,
+          Trayek: r.trayek,
           "Rute Awal": r.rute_awal,
           "Rute Akhir": r.rute_akhir,
           "Tanggal PKS": r.tgl_pks,
           "Tanggal Berakhir PKS": r.tgl_berakhir_pks,
           "Tanggal Addendum": r.tgl_addendum,
-          "Tgl Jatuh Tempo Sertifikat": r.tgl_jatuh_tempo_sertifikat_keselamatan,
+          "Tgl Jatuh Tempo Sertifikat":
+            r.tgl_jatuh_tempo_sertifikat_keselamatan,
           "Sistem Pengutipan IWKL": r.sistem_pengutipan_iwkl,
           "Perhitungan Tarif": r.perhitungan_tarif,
-          "Seat": r.seat,
-          "Rit": r.rit,
+          Seat: r.seat,
+          Rit: r.rit,
           "Tarif Dasar IWKL": r.tarif_dasar_iwkl,
-          "Hari": r.hari,
+          Hari: r.hari,
           "Load Factor (%)": r.load_factor,
           "Tarif Borongan Disepakati": r.tarif_borongan_disepakati,
           "Potensi / Bulan": r.potensi_per_bulan,
@@ -459,20 +492,20 @@ export default function IwklSimple() {
           "% Akt 24–23": r.persen_akt_24_23,
 
           // BULANAN
-          "Jan": bulan.jan || 0,
-          "Feb": bulan.feb || 0,
-          "Mar": bulan.mar || 0,
-          "Apr": bulan.apr || 0,
-          "Mei": bulan.mei || 0,
-          "Jun": bulan.jun || 0,
-          "Jul": bulan.jul || 0,
-          "Agust": bulan.agust || 0,
-          "Sept": bulan.sept || 0,
-          "Okt": bulan.okt || 0,
-          "Nov": bulan.nov || 0,
-          "Des": bulan.des || 0,
+          Jan: bulan.jan || 0,
+          Feb: bulan.feb || 0,
+          Mar: bulan.mar || 0,
+          Apr: bulan.apr || 0,
+          Mei: bulan.mei || 0,
+          Jun: bulan.jun || 0,
+          Jul: bulan.jul || 0,
+          Agust: bulan.agust || 0,
+          Sept: bulan.sept || 0,
+          Okt: bulan.okt || 0,
+          Nov: bulan.nov || 0,
+          Des: bulan.des || 0,
 
-          "Keterangan": r.keterangan,
+          Keterangan: r.keterangan,
         };
       });
 
@@ -482,10 +515,11 @@ export default function IwklSimple() {
       const ws = XLSX.utils.json_to_sheet(excelData);
 
       ws["!cols"] = Object.keys(excelData[0] || {}).map((k) => ({
-        wch: Math.max(
-          k.length,
-          ...excelData.map((r) => String(r[k] ?? "").length)
-        ) + 2,
+        wch:
+          Math.max(
+            k.length,
+            ...excelData.map((r) => String(r[k] ?? "").length),
+          ) + 2,
       }));
 
       const wb = XLSX.utils.book_new();
@@ -493,9 +527,7 @@ export default function IwklSimple() {
 
       XLSX.writeFile(
         wb,
-        `IWKL_FULL_${tahunAktif}_${new Date()
-          .toISOString()
-          .slice(0, 10)}.xlsx`
+        `IWKL_FULL_${tahunAktif}_${new Date().toISOString().slice(0, 10)}.xlsx`,
       );
 
       setLoading(false);
@@ -509,23 +541,23 @@ export default function IwklSimple() {
   // ================= FILTERS (persistent) =================
   const [filterLoket, setFilterLoket] = usePersistentState(
     "iwkl:filter:loket",
-    ""
+    "",
   );
   const [filterKelas, setFilterKelas] = usePersistentState(
     "iwkl:filter:kelas",
-    ""
+    "",
   );
   const [filterStatusPKS, setFilterStatusPKS] = usePersistentState(
     "iwkl:filter:statusPKS",
-    ""
+    "",
   );
   const [filterStatusKapal, setFilterStatusKapal] = usePersistentState(
     "iwkl:filter:statusKapal",
-    ""
+    "",
   );
   const [filterTrayek, setFilterTrayek] = usePersistentState(
     "iwkl:filter:trayek",
-    ""
+    "",
   );
 
   const [LOKET_FILTER_OPTS, setLoketFilterOpts] = useState([]);
@@ -537,13 +569,50 @@ export default function IwklSimple() {
 
   // modal tambah
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newForm, setNewForm] = useState(makeEmptyRow(LOKET_OPTS, KELAS_OPTS, STATUS_PKS_OPTS, STATUS_KAPAL_OPTS, STATUS_PEMB_OPTS, PAS_OPTS, SERTIF_KSL_OPTS, IZIN_TRAYEK_OPTS, SISTEM_IWKL_OPTS, PERHIT_TARIF_OPTS));
+  const [newForm, setNewForm] = useState(
+    makeEmptyRow(
+      LOKET_OPTS,
+      KELAS_OPTS,
+      STATUS_PKS_OPTS,
+      STATUS_KAPAL_OPTS,
+      STATUS_PEMB_OPTS,
+      PAS_OPTS,
+      SERTIF_KSL_OPTS,
+      IZIN_TRAYEK_OPTS,
+      SISTEM_IWKL_OPTS,
+      PERHIT_TARIF_OPTS,
+    ),
+  );
 
   useEffect(() => {
     setNewForm((prev) =>
-      prev.loket ? prev : makeEmptyRow(LOKET_OPTS, KELAS_OPTS, STATUS_PKS_OPTS, STATUS_KAPAL_OPTS, STATUS_PEMB_OPTS, PAS_OPTS, SERTIF_KSL_OPTS, IZIN_TRAYEK_OPTS, SISTEM_IWKL_OPTS, PERHIT_TARIF_OPTS)
+      prev.loket
+        ? prev
+        : makeEmptyRow(
+            LOKET_OPTS,
+            KELAS_OPTS,
+            STATUS_PKS_OPTS,
+            STATUS_KAPAL_OPTS,
+            STATUS_PEMB_OPTS,
+            PAS_OPTS,
+            SERTIF_KSL_OPTS,
+            IZIN_TRAYEK_OPTS,
+            SISTEM_IWKL_OPTS,
+            PERHIT_TARIF_OPTS,
+          ),
     );
-  }, [LOKET_OPTS, KELAS_OPTS, STATUS_PKS_OPTS, STATUS_KAPAL_OPTS, STATUS_PEMB_OPTS, PAS_OPTS, SERTIF_KSL_OPTS, IZIN_TRAYEK_OPTS, SISTEM_IWKL_OPTS, PERHIT_TARIF_OPTS]);
+  }, [
+    LOKET_OPTS,
+    KELAS_OPTS,
+    STATUS_PKS_OPTS,
+    STATUS_KAPAL_OPTS,
+    STATUS_PEMB_OPTS,
+    PAS_OPTS,
+    SERTIF_KSL_OPTS,
+    IZIN_TRAYEK_OPTS,
+    SISTEM_IWKL_OPTS,
+    PERHIT_TARIF_OPTS,
+  ]);
 
   const pageSize = 50;
 
@@ -561,7 +630,7 @@ export default function IwklSimple() {
       if (error) throw error;
 
       const years = Array.from(
-        new Set((data || []).map((d) => Number(d.tahun)).filter(Boolean))
+        new Set((data || []).map((d) => Number(d.tahun)).filter(Boolean)),
       ).sort((a, b) => b - a);
 
       // fallback kalau tabel kosong, tetap kasih tahun sekarang
@@ -590,44 +659,48 @@ export default function IwklSimple() {
 
       if (error) throw error;
 
-      const safeUniq = (arr) =>
+      const uniqLoket = (arr) =>
         Array.from(
-          new Set(
+          new Map(
             (arr || [])
-              .map((x) => (x == null ? "" : String(x).trim()))
               .filter(Boolean)
-          )
+              .map((v) => [normalizeLoket(v), v.trim()])
+          ).values()
         ).sort((a, b) => a.localeCompare(b));
 
-      // gabung seed + data DB
-      setLoketFilterOpts(
-        safeUniq([
-          ...LOKET_OPTS.filter((o) => o && o !== "-"),
-          ...data.map((d) => d.loket),
-        ])
+      setLoketFilterOpts((prev) =>
+        cleanLoketOpts(
+          uniqLoket([
+            ...LOKET_OPTS,
+            ...data.map((d) => d.loket),
+          ])
+        )
       );
+
       setKelasFilterOpts(
         safeUniq([
           ...KELAS_OPTS.filter((o) => o && o !== "-"),
           ...data.map((d) => d.kelas),
-        ])
+        ]),
       );
+
       setStatusPksFilterOpts(
         safeUniq([
           ...STATUS_PKS_OPTS.filter((o) => o && o !== "-"),
           ...data.map((d) => d.status_pks),
-        ])
+        ]),
       );
+
       setStatusKapalFilterOpts(
         safeUniq([
           ...STATUS_KAPAL_OPTS.filter((o) => o && o !== "-"),
           ...data.map((d) => d.status_kapal),
-        ])
+        ]),
       );
+
       setTrayekFilterOpts(safeUniq(data.map((d) => d.trayek)));
     } catch (e) {
       console.error("fetchFilterOptions IWKL error:", e);
-      // fallback seed aja
       setLoketFilterOpts(LOKET_OPTS.filter((o) => o && o !== "-"));
       setKelasFilterOpts(KELAS_OPTS.filter((o) => o && o !== "-"));
       setStatusPksFilterOpts(STATUS_PKS_OPTS.filter((o) => o && o !== "-"));
@@ -745,7 +818,7 @@ export default function IwklSimple() {
   const totalPage = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageData = useMemo(
     () => filtered.slice((page - 1) * pageSize, page * pageSize),
-    [filtered, page, pageSize]
+    [filtered, page, pageSize],
   );
 
   const deleteRow = async (id) => {
@@ -763,9 +836,18 @@ export default function IwklSimple() {
   };
 
   const updateCell = async (id, key, value) => {
+    if (key === "loket") {
+      setLoketFilterOpts((prev) =>
+        prev.includes(value) ? prev : [...prev, value],
+      );
+    }
     // update state dulu biar UI responsif
     setRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, [key]: value } : r))
+      prev.map((r) =>
+        r.id === id
+          ? { ...r, [key]: value ?? "" } // ⬅️ INI PENTING
+          : r
+      )
     );
 
     // kalau yang diubah adalah bulan, arahkan ke iwkl_bulanan
@@ -830,9 +912,7 @@ export default function IwklSimple() {
   };
 
   const updateRowOnly = (id, patch) =>
-  setRows((prev) =>
-    prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
-  );
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 
   const updateBulan = async (iwklId, key, value) => {
     const bulan = monthIndex[key];
@@ -893,7 +973,21 @@ export default function IwklSimple() {
 
   const addIwkl = async (e) => {
     e.preventDefault();
-    const draft = { ...makeEmptyRow(LOKET_OPTS, KELAS_OPTS, STATUS_PKS_OPTS, STATUS_KAPAL_OPTS, STATUS_PEMB_OPTS, PAS_OPTS, SERTIF_KSL_OPTS, IZIN_TRAYEK_OPTS, SISTEM_IWKL_OPTS, PERHIT_TARIF_OPTS), ...newForm };
+    const draft = {
+      ...makeEmptyRow(
+        LOKET_OPTS,
+        KELAS_OPTS,
+        STATUS_PKS_OPTS,
+        STATUS_KAPAL_OPTS,
+        STATUS_PEMB_OPTS,
+        PAS_OPTS,
+        SERTIF_KSL_OPTS,
+        IZIN_TRAYEK_OPTS,
+        SISTEM_IWKL_OPTS,
+        PERHIT_TARIF_OPTS,
+      ),
+      ...newForm,
+    };
 
     setSaving(true);
     const { data, error } = await supabase
@@ -911,7 +1005,20 @@ export default function IwklSimple() {
     const newRow = mapDbToRow(data);
     setRows((prev) => [newRow, ...prev]);
     setShowAddModal(false);
-    setNewForm(makeEmptyRow(LOKET_OPTS, KELAS_OPTS, STATUS_PKS_OPTS, STATUS_KAPAL_OPTS, STATUS_PEMB_OPTS, PAS_OPTS, SERTIF_KSL_OPTS, IZIN_TRAYEK_OPTS, SISTEM_IWKL_OPTS, PERHIT_TARIF_OPTS));
+    setNewForm(
+      makeEmptyRow(
+        LOKET_OPTS,
+        KELAS_OPTS,
+        STATUS_PKS_OPTS,
+        STATUS_KAPAL_OPTS,
+        STATUS_PEMB_OPTS,
+        PAS_OPTS,
+        SERTIF_KSL_OPTS,
+        IZIN_TRAYEK_OPTS,
+        SISTEM_IWKL_OPTS,
+        PERHIT_TARIF_OPTS,
+      ),
+    );
     setPage(1);
   };
 
@@ -950,7 +1057,20 @@ export default function IwklSimple() {
               className="btn primary"
               type="button"
               onClick={() => {
-                setNewForm(makeEmptyRow(LOKET_OPTS, KELAS_OPTS, STATUS_PKS_OPTS, STATUS_KAPAL_OPTS, STATUS_PEMB_OPTS, PAS_OPTS, SERTIF_KSL_OPTS, IZIN_TRAYEK_OPTS, SISTEM_IWKL_OPTS, PERHIT_TARIF_OPTS));
+                setNewForm(
+                  makeEmptyRow(
+                    LOKET_OPTS,
+                    KELAS_OPTS,
+                    STATUS_PKS_OPTS,
+                    STATUS_KAPAL_OPTS,
+                    STATUS_PEMB_OPTS,
+                    PAS_OPTS,
+                    SERTIF_KSL_OPTS,
+                    IZIN_TRAYEK_OPTS,
+                    SISTEM_IWKL_OPTS,
+                    PERHIT_TARIF_OPTS,
+                  ),
+                );
                 setShowAddModal(true);
               }}
             >
@@ -997,7 +1117,7 @@ export default function IwklSimple() {
               onChange={(e) => setFilterLoket(e.target.value)}
             >
               <option value="">Semua Loket</option>
-              {LOKET_OPTS.map((o) => (
+              {LOKET_FILTER_OPTS.map((o) => (
                 <option key={o} value={o}>
                   {o}
                 </option>
@@ -1024,7 +1144,9 @@ export default function IwklSimple() {
             >
               <option value="">Semua Status PKS</option>
               {STATUS_PKS_OPTS.map((o) => (
-                <option key={o} value={o}>{o}</option>
+                <option key={o} value={o}>
+                  {o}
+                </option>
               ))}
             </select>
 
@@ -1035,7 +1157,9 @@ export default function IwklSimple() {
             >
               <option value="">Semua Status Kapal</option>
               {STATUS_KAPAL_OPTS.map((o) => (
-                <option key={o} value={o}>{o}</option>
+                <option key={o} value={o}>
+                  {o}
+                </option>
               ))}
             </select>
 
@@ -1104,38 +1228,45 @@ export default function IwklSimple() {
                             onChange={(e) =>
                               updateRowOnly(r.id, { loket: e.target.value })
                             }
-                            onBlur={(e) =>
-                              saveCell(r.id, "wilayah", e.target.value)
-                            }
-                            placeholder="Loket"
+                            onBlur={(e) => {
+                              const val = e.target.value.trim();
+
+                              if (val === "") {
+                                updateCell(r.id, "loket", null);
+                                return;
+                              }
+
+                              updateCell(r.id, "loket", val);
+
+                              setLoketOpts((prev) =>
+                                prev.some((o) => o.toLowerCase() === val.toLowerCase())
+                                  ? prev
+                                  : [...prev, val]
+                              );
+
+                              setLoketFilterOpts((prev) =>
+                                prev.includes(val) ? prev : [...prev, val]
+                              );
+                            }}
+                            placeholder="Pilih / ketik loket"
                           />
                         </td>
-                        <datalist id="loket-list">
-                          {LOKET_OPTS.map((o) => (
-                            <option key={o} value={o} />
-                          ))}
-                        </datalist>
 
                         {/* Kelas */}
                         <td>
-                          <input
-                            list="kelas-list"
-                            type="text"
+                          <select
                             value={r.kelas || ""}
                             onChange={(e) =>
-                              updateRow(r.id, { kelas: e.target.value })
+                              updateCell(r.id, "kelas", e.target.value)
                             }
-                            onBlur={(e) =>
-                              saveCell(r.id, "kelas", e.target.value)
-                            }
-                            placeholder="Kelas"
-                          />
+                          >
+                            {KELAS_OPTS.map((o) => (
+                              <option key={o} value={o}>
+                                {o}
+                              </option>
+                            ))}
+                          </select>
                         </td>
-                        <datalist id="kelas-list">
-                         {KELAS_OPTS.map((o) => (
-                          <option key={o} value={o} />
-                         ))}
-                        </datalist>
 
                         {/* Nama Kapal */}
                         <td>
@@ -1175,45 +1306,35 @@ export default function IwklSimple() {
 
                         {/* Status PKS */}
                         <td>
-                          <input
-                            list="status-pks-list"
-                            type="text"
+                          <select
                             value={r.statusPKS || ""}
                             onChange={(e) =>
-                              updateRow(r.id, { statusPKS: e.target.value })
+                              updateCell(r.id, "statusPKS", e.target.value)
                             }
-                            onBlur={(e) =>
-                              saveCell(r.id, "statusPKS", e.target.value)
-                            }
-                            placeholder="Status PKS"
-                          />
+                          >
+                            {STATUS_PKS_OPTS.map((o) => (
+                              <option key={o} value={o}>
+                                {o}
+                              </option>
+                            ))}
+                          </select>
                         </td>
-                        <datalist id="status-pks-list">
-                          {STATUS_PKS_OPTS.map((o) => (
-                            <option key={o} value={o} />
-                          ))}
-                        </datalist>
 
                         {/* Status Kapal */}
                         <td>
-                          <input
-                            list="status-kapal-list"
-                            type="text"
+                          <select
                             value={r.statusKapal || ""}
                             onChange={(e) =>
-                              updateRow(r.id, { statusKapal: e.target.value })
+                              updateCell(r.id, "statusKapal", e.target.value)
                             }
-                            onBlur={(e) =>
-                              saveCell(r.id, "statusKapal", e.target.value)
-                            }
-                            placeholder="Status Kapal"
-                          />
+                          >
+                            {STATUS_KAPAL_OPTS.map((o) => (
+                              <option key={o} value={o}>
+                                {o}
+                              </option>
+                            ))}
+                          </select>
                         </td>
-                        <datalist id="status-kapal-list">
-                          {STATUS_KAPAL_OPTS.map((o) => (
-                            <option key={o} value={o} />
-                          ))}
-                        </datalist>
 
                         {/* Rute (gabungan awal-akhir) */}
                         <td>
@@ -1242,7 +1363,7 @@ export default function IwklSimple() {
                               updateCell(
                                 r.id,
                                 "potensiPerBulan",
-                                Number(e.target.value)
+                                Number(e.target.value),
                               )
                             }
                           />
@@ -1294,7 +1415,7 @@ export default function IwklSimple() {
                                         updateCell(
                                           r.id,
                                           "ruteAwal",
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                     />
@@ -1309,7 +1430,7 @@ export default function IwklSimple() {
                                         updateCell(
                                           r.id,
                                           "ruteAkhir",
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                     />
@@ -1324,7 +1445,7 @@ export default function IwklSimple() {
                                         updateCell(
                                           r.id,
                                           "alamat",
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                     />
@@ -1339,7 +1460,7 @@ export default function IwklSimple() {
                                         updateCell(
                                           r.id,
                                           "noKontak",
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                       placeholder="08xx…"
@@ -1355,7 +1476,7 @@ export default function IwklSimple() {
                                         updateCell(
                                           r.id,
                                           "tglLahir",
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                     />
@@ -1371,7 +1492,7 @@ export default function IwklSimple() {
                                         updateCell(
                                           r.id,
                                           "kapasitasPenumpang",
-                                          Number(e.target.value)
+                                          Number(e.target.value),
                                         )
                                       }
                                     />
@@ -1386,7 +1507,7 @@ export default function IwklSimple() {
                                         updateCell(
                                           r.id,
                                           "tglPKS",
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                     />
@@ -1401,7 +1522,7 @@ export default function IwklSimple() {
                                         updateCell(
                                           r.id,
                                           "tglBerakhirPKS",
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                     />
@@ -1416,7 +1537,7 @@ export default function IwklSimple() {
                                         updateCell(
                                           r.id,
                                           "tglAddendum",
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                     />
@@ -1424,106 +1545,86 @@ export default function IwklSimple() {
 
                                   <label>
                                     Status Pembayaran
-                                    <input
-                                      list="status-pemb-list"
+                                    <select
+                                      className="input-like"
                                       value={r.statusPembayaran || ""}
                                       onChange={(e) =>
                                         updateCell(
                                           r.id,
                                           "statusPembayaran",
-                                          addOptionIfMissing(
-                                            STATUS_PEMB_OPTS,
-                                            setStatusPembOpts,
-                                            e.target.value
-                                          )
+                                          e.target.value,
                                         )
                                       }
-                                      placeholder="Status Pembayaran"
-                                    />
-
-                                    <datalist id="status-pemb-list">
+                                    >
                                       {STATUS_PEMB_OPTS.map((o) => (
-                                        <option key={o} value={o} />
+                                        <option key={o} value={o}>
+                                          {o}
+                                        </option>
                                       ))}
-                                    </datalist>
+                                    </select>
                                   </label>
 
                                   <label>
-                                    Pas Besar / Kecil
-                                    <input
-                                      list="pas-list"
+                                    Pas Besar/Kecil
+                                    <select
+                                      className="input-like"
                                       value={r.pasBesarKecil || ""}
                                       onChange={(e) =>
                                         updateCell(
                                           r.id,
                                           "pasBesarKecil",
-                                          addOptionIfMissing(
-                                            PAS_OPTS,
-                                            setPasOpts,
-                                            e.target.value
-                                          )
+                                          e.target.value,
                                         )
                                       }
-                                      placeholder="Pas"
-                                    />
-
-                                    <datalist id="pas-list">
+                                    >
                                       {PAS_OPTS.map((o) => (
-                                        <option key={o} value={o} />
+                                        <option key={o} value={o}>
+                                          {o}
+                                        </option>
                                       ))}
-                                    </datalist>
+                                    </select>
                                   </label>
 
                                   <label>
                                     Sertifikat Keselamatan
-                                    <input
-                                      list="sertif-ksl-list"
+                                    <select
+                                      className="input-like"
                                       value={r.sertifikatKeselamatan || ""}
                                       onChange={(e) =>
                                         updateCell(
                                           r.id,
                                           "sertifikatKeselamatan",
-                                          addOptionIfMissing(
-                                            SERTIF_KSL_OPTS,
-                                            setSertifKslOpts,
-                                            e.target.value
-                                          )
+                                          e.target.value,
                                         )
                                       }
-                                      placeholder="Sertifikat"
-                                    />
-
-                                    <datalist id="sertif-ksl-list">
+                                    >
                                       {SERTIF_KSL_OPTS.map((o) => (
-                                        <option key={o} value={o} />
+                                        <option key={o} value={o}>
+                                          {o}
+                                        </option>
                                       ))}
-                                    </datalist>
+                                    </select>
                                   </label>
 
                                   <label>
                                     Izin Trayek
-                                    <input
-                                      list="izin-trayek-list"
+                                    <select
+                                      className="input-like"
                                       value={r.izinTrayek || ""}
                                       onChange={(e) =>
                                         updateCell(
                                           r.id,
                                           "izinTrayek",
-                                          addOptionIfMissing(
-                                            IZIN_TRAYEK_OPTS,
-                                            setIzinTrayekOpts,
-                                            e.target.value
-                                          )
+                                          e.target.value,
                                         )
                                       }
-                                      placeholder="Izin Trayek"
-                                    />
-
-                                    <datalist id="izin-trayek-list">
+                                    >
                                       {IZIN_TRAYEK_OPTS.map((o) => (
-                                        <option key={o} value={o} />
+                                        <option key={o} value={o}>
+                                          {o}
+                                        </option>
                                       ))}
-                                    </datalist>
+                                    </select>
                                   </label>
 
                                   <label>
@@ -1538,7 +1639,7 @@ export default function IwklSimple() {
                                         updateCell(
                                           r.id,
                                           "tglJatuhTempoSertifikatKeselamatan",
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                     />
@@ -1546,28 +1647,23 @@ export default function IwklSimple() {
 
                                   <label>
                                     Sistem Pengutipan IWKL
-                                    <input
-                                      list="sistem-iwkl-list"
+                                    <select
+                                      className="input-like"
                                       value={r.sistemPengutipanIWKL || ""}
                                       onChange={(e) =>
                                         updateCell(
                                           r.id,
                                           "sistemPengutipanIWKL",
-                                          addOptionIfMissing(
-                                            SISTEM_IWKL_OPTS,
-                                            setSistemIwklOpts,
-                                            e.target.value
-                                          )
+                                          e.target.value,
                                         )
                                       }
-                                      placeholder="Sistem IWKL"
-                                    />
-
-                                    <datalist id="sistem-iwkl-list">
+                                    >
                                       {SISTEM_IWKL_OPTS.map((o) => (
-                                        <option key={o} value={o} />
+                                        <option key={o} value={o}>
+                                          {o}
+                                        </option>
                                       ))}
-                                    </datalist>
+                                    </select>
                                   </label>
 
                                   <section>
@@ -1583,7 +1679,7 @@ export default function IwklSimple() {
                                             updateCell(
                                               r.id,
                                               "seat",
-                                              Number(e.target.value)
+                                              Number(e.target.value),
                                             )
                                           }
                                         />
@@ -1599,7 +1695,7 @@ export default function IwklSimple() {
                                             updateCell(
                                               r.id,
                                               "rit",
-                                              Number(e.target.value)
+                                              Number(e.target.value),
                                             )
                                           }
                                         />
@@ -1615,7 +1711,7 @@ export default function IwklSimple() {
                                             updateCell(
                                               r.id,
                                               "tarifDasarIwkl",
-                                              Number(e.target.value)
+                                              Number(e.target.value),
                                             )
                                           }
                                         />
@@ -1631,7 +1727,7 @@ export default function IwklSimple() {
                                             updateCell(
                                               r.id,
                                               "hari",
-                                              Number(e.target.value)
+                                              Number(e.target.value),
                                             )
                                           }
                                         />
@@ -1648,7 +1744,7 @@ export default function IwklSimple() {
                                             updateCell(
                                               r.id,
                                               "loadFactor",
-                                              Number(e.target.value)
+                                              Number(e.target.value),
                                             )
                                           }
                                         />
@@ -1668,7 +1764,7 @@ export default function IwklSimple() {
                                               (r.rit || 0) *
                                               (r.tarifDasarIwkl || 0) *
                                               (r.hari || 0) *
-                                              ((r.loadFactor || 0) / 100)
+                                              ((r.loadFactor || 0) / 100),
                                           )}
                                         </strong>
                                       </div>
@@ -1685,7 +1781,7 @@ export default function IwklSimple() {
                                         updateCell(
                                           r.id,
                                           "tarifBoronganDisepakati",
-                                          Number(e.target.value)
+                                          Number(e.target.value),
                                         )
                                       }
                                     />
@@ -1703,7 +1799,7 @@ export default function IwklSimple() {
                                         updateCell(
                                           r.id,
                                           "keterangan",
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                     />
@@ -1725,7 +1821,7 @@ export default function IwklSimple() {
                                           updateCell(
                                             r.id,
                                             k,
-                                            Number(e.target.value)
+                                            Number(e.target.value),
                                           )
                                         }
                                       />
@@ -1757,11 +1853,15 @@ export default function IwklSimple() {
           </div>
         </div>
 
-        <Pagination
-          page={page}
-          totalPage={totalPage}
-          setPage={setPage}
-        />
+        <datalist id="loket-list">
+          {LOKET_FILTER_OPTS.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </datalist>
+
+        <Pagination page={page} totalPage={totalPage} setPage={setPage} />
       </div>
 
       {/* MODAL TAMBAH DATA */}
@@ -1786,39 +1886,50 @@ export default function IwklSimple() {
               <label>
                 Loket
                 <input
-                  list="loket-list"
+                  list="loket-list-modal"
+                  type="text"
                   value={newForm.loket}
-                  onChange={(e) =>
-                    setF(
-                      "loket",
-                      addOptionIfMissing(
-                        LOKET_OPTS,
-                        setLoketOpts,
-                        e.target.value
-                      )
-                    )
-                  }
-                  placeholder="Loket"
+                  onChange={(e) => setF("loket", e.target.value)}
+                  onBlur={(e) => {
+                    const val = normalizeLoket(e.target.value);
+                    if (!val) return;
+
+                    updateCell(r.id, "loket", val);
+
+                    setLoketOpts((prev) =>
+                      prev.some((o) => normalizeLoket(o) === val)
+                        ? prev
+                        : [...prev, val]
+                    );
+
+                    setLoketFilterOpts((prev) =>
+                      prev.some((o) => normalizeLoket(o) === val)
+                        ? prev
+                        : [...prev, val]
+                    );
+                  }}
+                  placeholder="Pilih atau ketik loket"
                 />
               </label>
-
+              <datalist id="loket-list-modal">
+                {LOKET_OPTS.map((l) => (
+                  <option key={l} value={l} />
+                ))}
+              </datalist>
+  
               <label>
                 Kelas
-                <input
-                  list="kelas-list"
+                <select
+                  className="input-like"
                   value={newForm.kelas}
-                  onChange={(e) =>
-                    setF(
-                      "kelas",
-                      addOptionIfMissing(
-                        KELAS_OPTS,
-                        setKelasOpts,
-                        e.target.value
-                      )
-                    )
-                  }
-                  placeholder="Kelas"
-                />
+                  onChange={(e) => setF("kelas", e.target.value)}
+                >
+                  {KELAS_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label>
@@ -1917,59 +2028,47 @@ export default function IwklSimple() {
 
               <label>
                 Status PKS
-                <input
-                  list="status-pks-list"
+                <select
+                  className="input-like"
                   value={newForm.statusPKS}
-                  onChange={(e) =>
-                    setF(
-                      "statusPKS",
-                      addOptionIfMissing(
-                        STATUS_PKS_OPTS,
-                        setStatusPksOpts,
-                        e.target.value
-                      )
-                    )
-                  }
-                  placeholder="Status PKS"
-                />
+                  onChange={(e) => setF("statusPKS", e.target.value)}
+                >
+                  {STATUS_PKS_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label>
                 Status Pembayaran
-                <input
-                  list="status-pemb-list"
+                <select
+                  className="input-like"
                   value={newForm.statusPembayaran}
-                  onChange={(e) =>
-                    setF(
-                      "statusPembayaran",
-                      addOptionIfMissing(
-                        STATUS_PEMB_OPTS,
-                        setStatusPembOpts,
-                        e.target.value
-                      )
-                    )
-                  }
-                  placeholder="Status Pembayaran"
-                />
+                  onChange={(e) => setF("statusPembayaran", e.target.value)}
+                >
+                  {STATUS_PEMB_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label>
                 Status Kapal
-                <input
-                  list="status-kapal-list"
+                <select
+                  className="input-like"
                   value={newForm.statusKapal}
-                  onChange={(e) =>
-                    setF(
-                      "statusKapal",
-                      addOptionIfMissing(
-                        STATUS_KAPAL_OPTS,
-                        setStatusKapalOpts,
-                        e.target.value
-                      )
-                    )
-                  }
-                  placeholder="Status Kapal"
-                />
+                  onChange={(e) => setF("statusKapal", e.target.value)}
+                >
+                  {STATUS_KAPAL_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label>
@@ -1989,56 +2088,49 @@ export default function IwklSimple() {
 
               <label>
                 Pas Besar / Kecil
-                <input
-                  list="pas-list"
+                <select
+                  className="input-like"
                   value={newForm.pasBesarKecil}
-                  onChange={(e) =>
-                    setF(
-                      "pasBesarKecil",
-                      addOptionIfMissing(
-                        PAS_OPTS,
-                        setPasOpts,
-                        e.target.value
-                      )
-                    )
-                  }
-                />
+                  onChange={(e) => setF("pasBesarKecil", e.target.value)}
+                >
+                  {PAS_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label>
                 Sertifikat Keselamatan
-                <input
-                  list="sertif-ksl-list"
+                <select
+                  className="input-like"
                   value={newForm.sertifikatKeselamatan}
                   onChange={(e) =>
-                    setF(
-                      "sertifikatKeselamatan",
-                      addOptionIfMissing(
-                        SERTIF_KSL_OPTS,
-                        setSertifKslOpts,
-                        e.target.value
-                      )
-                    )
+                    setF("sertifikatKeselamatan", e.target.value)
                   }
-                />
+                >
+                  {SERTIF_KSL_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label>
                 Izin Trayek
-                <input
-                  list="izin-trayek-list"
+                <select
+                  className="input-like"
                   value={newForm.izinTrayek}
-                  onChange={(e) =>
-                    setF(
-                      "izinTrayek",
-                      addOptionIfMissing(
-                        IZIN_TRAYEK_OPTS,
-                        setIzinTrayekOpts,
-                        e.target.value
-                      )
-                    )
-                  }
-                />
+                  onChange={(e) => setF("izinTrayek", e.target.value)}
+                >
+                  {IZIN_TRAYEK_OPTS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label>
@@ -2073,6 +2165,7 @@ export default function IwklSimple() {
               <label>
                 Sistem Pengutipan IWKL
                 <select
+                  className="input-like"
                   value={newForm.sistemPengutipanIWKL}
                   onChange={(e) => setF("sistemPengutipanIWKL", e.target.value)}
                 >
@@ -2096,6 +2189,7 @@ export default function IwklSimple() {
               <label>
                 Perhitungan Tarif
                 <select
+                  className="input-like"
                   value={newForm.perhitunganTarif}
                   onChange={(e) => setF("perhitunganTarif", e.target.value)}
                 >

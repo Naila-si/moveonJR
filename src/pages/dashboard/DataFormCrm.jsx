@@ -92,27 +92,61 @@ export default function DataFormCrm() {
       const to = from + PAGE_SIZE - 1;
 
       try {
+        let reportIdsFromNopol = [];
+
+        if (query) {
+          const { data: armadaHits, error: armadaErr } = await supabase
+            .from("crm_armada")
+            .select("report_id")
+            .ilike("nopol", `%${query}%`)
+            .limit(200);
+
+          if (!armadaErr && armadaHits) {
+            reportIdsFromNopol = armadaHits.map((x) => x.report_id);
+          }
+        }
+
         let q = supabase
           .from("crm_reports")
           .select(
             `
-    id,
-    report_code,
-    step1,
-    step2,
-    step3,
-    step4
-    `,
-            { count: "exact" },
+              id,
+              report_code,
+              step1,
+              step2,
+              step3,
+              step4
+            `,
+            { count: "exact" }
           )
-          .order("id", { ascending: false });
+          .order("step1->>tanggalWaktu", { ascending: false });
 
+        // 🔎 SEARCH (query)
+        if (query) {
+          const qSafe = query.replace(/[%_,]/g, "\\$&");
+
+          const orParts = [
+            `report_code.ilike.%${qSafe}%`,
+            `step1->>namaPemilik.ilike.%${qSafe}%`,
+            `step1->>loket.ilike.%${qSafe}%`,
+            `step1->>petugasDepan.ilike.%${qSafe}%`,
+            `step1->>petugasBelakang.ilike.%${qSafe}%`,
+          ];
+
+          if (reportIdsFromNopol.length > 0) {
+            orParts.push(`id.in.(${reportIdsFromNopol.join(",")})`);
+          }
+
+          q = q.or(orParts.join(","));
+        }
+
+        // 🔎 FILTER VALIDASI
         if (filterValidasi !== "Semua") {
           q = q.eq("step4->>statusValidasi", filterValidasi);
         }
 
-        // 🔥 PAGINATION SETELAH FILTER
-        const { data, error, count } = await q.range(from, to);
+        // pagination terakhir
+        const { data, count, error } = await q.range(from, to);
 
         if (error) throw error;
 
@@ -142,7 +176,7 @@ export default function DataFormCrm() {
     }
 
     fetchReports();
-  }, [page, filterValidasi]);
+  }, [page, filterValidasi, query]);
 
   const wrapRef = useRef(null);
   const isDown = useRef(false);
@@ -290,55 +324,55 @@ export default function DataFormCrm() {
     return "Menunggu";
   }
 
-  const filtered = useMemo(() => {
-  const q = query.toLowerCase().trim();
+//   const filtered = useMemo(() => {
+//   const q = query.toLowerCase().trim();
 
-  const filteredData = rows.filter((d) => {
-    const s1 = d.step1 || {};
-    const s2 = d.step2 || {};
-    const s4 = d.step4 || {};
+//   const filteredData = rows.filter((d) => {
+//     const s1 = d.step1 || {};
+//     const s2 = d.step2 || {};
+//     const s4 = d.step4 || {};
 
-    // 🔥 gabung nama petugas
-    const namaPetugas = `${s1.petugasDepan || ""} ${s1.petugasBelakang || ""}`.toLowerCase();
-    const semuaNopol = Array.isArray(s2.rincianArmada)
-      ? s2.rincianArmada.map((r) => r.nopol).filter(Boolean)
-      : [];
-    const nopolText = semuaNopol.join(" ");  
+//     // 🔥 gabung nama petugas
+//     const namaPetugas = `${s1.petugasDepan || ""} ${s1.petugasBelakang || ""}`.toLowerCase();
+//     const semuaNopol = Array.isArray(s2.rincianArmada)
+//       ? s2.rincianArmada.map((r) => r.nopol).filter(Boolean)
+//       : [];
+//     const nopolText = semuaNopol.join(" ");  
 
-    const searchableText = [
-      d.id,                    
-      s1.namaPemilik,
-      s1.perusahaan,
-      s1.loket,
-      s1.jenisAngkutan,
-      namaPetugas,   
-      nopolText,          
-      s2.janjiBayar,
-      s4.statusValidasi,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
+//     const searchableText = [
+//       d.id,                    
+//       s1.namaPemilik,
+//       s1.perusahaan,
+//       s1.loket,
+//       s1.jenisAngkutan,
+//       namaPetugas,   
+//       nopolText,          
+//       s2.janjiBayar,
+//       s4.statusValidasi,
+//     ]
+//       .filter(Boolean)
+//       .join(" ")
+//       .toLowerCase();
 
-    const matchText = searchableText.includes(q);
+//     const matchText = searchableText.includes(q);
 
-    const matchJenis =
-      filterJenis === "Semua" || s1.jenisAngkutan === filterJenis;
+//     const matchJenis =
+//       filterJenis === "Semua" || s1.jenisAngkutan === filterJenis;
 
-    const matchValidasi =
-      filterValidasi === "Semua" ||
-      normalizeStatusValidasi(s4.statusValidasi) === filterValidasi;
+//     const matchValidasi =
+//       filterValidasi === "Semua" ||
+//       normalizeStatusValidasi(s4.statusValidasi) === filterValidasi;
 
-    return matchText && matchJenis && matchValidasi;
-  });
+//     return matchText && matchJenis && matchValidasi;
+//   });
 
-  // 🔥 sort terbaru → terlama
-  return filteredData.sort((a, b) => {
-    const ta = new Date(a.step1?.tanggalWaktu || 0).getTime();
-    const tb = new Date(b.step1?.tanggalWaktu || 0).getTime();
-    return tb - ta;
-  });
-}, [rows, query, filterJenis, filterValidasi]);
+//   // 🔥 sort terbaru → terlama
+//   return filteredData.sort((a, b) => {
+//     const ta = new Date(a.step1?.tanggalWaktu || 0).getTime();
+//     const tb = new Date(b.step1?.tanggalWaktu || 0).getTime();
+//     return tb - ta;
+//   });
+// }, [rows, query, filterJenis, filterValidasi]);
 
   // reset ke halaman 1 kalau filter / search berubah
   useEffect(() => {
@@ -1012,8 +1046,8 @@ doc.save(`Laporan_CRM_${perusahaanSafe}.pdf`);
                   Memuat data...
                 </td>
               </tr>
-            ) : filtered.length > 0 ? (
-              filtered.map((d) => {
+            ) : rows.length > 0 ? (
+              rows.map((d) => {
                 // ⬇️ pindahin isi logic row kamu yang tadi ada di map ke sini
                 const s2 = d.step2 || {};
                 const rincian = Array.isArray(s2.rincianArmada)
@@ -1141,7 +1175,7 @@ doc.save(`Laporan_CRM_${perusahaanSafe}.pdf`);
         }}
       >
         <div style={{ fontSize: 12, color: "#475569" }}>
-          Halaman {page} • Menampilkan {filtered.length} dari {totalRows} data
+          Halaman {page} • Menampilkan {rows.length} dari {totalRows} data
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
