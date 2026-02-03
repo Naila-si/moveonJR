@@ -572,3 +572,49 @@ body{ background:var(--bg); font-family: "Poppins","Segoe UI",system-ui,sans-ser
   background: #ffe066;
   border: 2px solid #000;
 }
+
+/* ===== STICKY BASE ===== */
+.kawaii-table th.sticky,
+.kawaii-table td.sticky {
+  position: sticky;
+  background: #fff;
+  z-index: 3;
+}
+
+/* ===== NO ===== */
+.kawaii-table th.no,
+.kawaii-table td.no {
+  left: 0;
+  width: 60px;
+  min-width: 60px;
+  text-align: center;
+  z-index: 6;
+  background: #f8fafc;
+}
+
+/* ===== NOPOL ===== */
+.kawaii-table th.nopol-col,
+.kawaii-table td.nopol-col {
+  left: 60px; /* = lebar kolom No */
+  width: 140px;
+  min-width: 140px;
+  z-index: 5;
+  background: #ffffff;
+}
+
+/* ===== AKSI ===== */
+.kawaii-table th.aksi-col,
+.kawaii-table td.aksi-col {
+  left: 200px; /* 60 + 140 */
+  width: 90px;
+  min-width: 90px;
+  z-index: 4;
+  background: #ffffff;
+}
+
+/* Optional biar ada garis pemisah */
+.kawaii-table td.no,
+.kawaii-table td.nopol-col,
+.kawaii-table td.aksi-col {
+  border-right: 1px solid #e5e7eb;
+}

@@ -1354,6 +1354,7 @@ export default function Iwkbu() {
           <table className="kawaii-table">
             <thead style={{ whiteSpace: "nowrap" }}>
               <tr>
+                <th className="sticky no">No.</th>
                 <th className="sticky nopol-col">Nomor Polisi</th>
                 <th className="sticky aksi-col">Aksi</th>
                 <th>Wilayah</th>
@@ -1398,6 +1399,8 @@ export default function Iwkbu() {
             <tbody>
               {pageData.map((r, i) => (
                 <tr key={r.id}>
+                  {/* No */}
+                  <td className="sticky no">{(page - 1) * pageSize + i + 1}</td>
                   <td className="sticky nopol-col">
                     <span className="nopol-badge">{r.nopol}</span>
                   </td>
