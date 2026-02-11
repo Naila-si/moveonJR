@@ -704,7 +704,7 @@ export default function Iwkbu() {
   const fetchRows = async () => {
     setLoadingRows(true);
     try {
-      let query = buildBaseQuery().order("id", { ascending: false });
+      let query = buildBaseQuery().order("updated_at", { ascending: false });
 
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
