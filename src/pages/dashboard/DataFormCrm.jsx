@@ -832,13 +832,21 @@ export default function DataFormCrm() {
     const ttdPemilik = row.step3?.tandaTanganPemilik;
 
     if (ttdPetugas || ttdPemilik) {
-      doc.setFont("helvetica", "bold");
-      y = checkPage(doc, y, pad, 40);
-      doc.text("Tanda Tangan", pad, y);
-      y += 12;
 
       const maxW = 140;
       const maxH = 90;
+      const sectionHeightNeeded = maxH + 60; // ruang aman
+
+      // ✅ CEK SPACE SEBELUM MASUK SECTION
+      if (y + sectionHeightNeeded > doc.internal.pageSize.height - pad) {
+        doc.addPage();
+        y = pad;
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Tanda Tangan", pad, y);
+      y += 20;
+
       let x = pad;
 
       // === TTD PETUGAS ===
@@ -846,21 +854,27 @@ export default function DataFormCrm() {
         try {
           const imgPetugas = await loadImageAsDataURL(ttdPetugas);
 
+          // cek lagi kalau gambar sendiri tidak muat
+          if (y + maxH > doc.internal.pageSize.height - pad) {
+            doc.addPage();
+            y = pad;
+          }
+
           doc.setFont("helvetica", "normal");
-          doc.text("Petugas", x, y + 12);
+          doc.text("Petugas", x, y);
 
           doc.addImage(
             imgPetugas,
             "PNG",
             x,
-            y + 18,
+            y + 8,
             maxW,
             maxH,
             undefined,
-            "FAST",
+            "FAST"
           );
 
-          x += maxW + 40;
+          x += maxW + 60;
         } catch (e) {
           console.warn("Gagal load TTD Petugas", e);
         }
@@ -871,25 +885,30 @@ export default function DataFormCrm() {
         try {
           const imgPemilik = await loadImageAsDataURL(ttdPemilik);
 
+          if (y + maxH > doc.internal.pageSize.height - pad) {
+            doc.addPage();
+            y = pad;
+          }
+
           doc.setFont("helvetica", "normal");
-          doc.text("Pemilik / Pengelola", x, y + 12);
+          doc.text("Pemilik / Pengelola", x, y);
 
           doc.addImage(
             imgPemilik,
             "PNG",
             x,
-            y + 18,
+            y + 8,
             maxW,
             maxH,
             undefined,
-            "FAST",
+            "FAST"
           );
         } catch (e) {
           console.warn("Gagal load TTD Pemilik", e);
         }
       }
 
-      y += maxH + 30;
+      y += maxH + 40;
     }
     // -----------------------------------------------------------
     // STEP 4 – Validasi
