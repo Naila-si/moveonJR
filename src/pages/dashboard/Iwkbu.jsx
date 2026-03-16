@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
 import "../../views/dashboard/Iwkbu.css";
-import { supabase } from "../../lib/supabaseClient";
 import * as XLSX from "xlsx";
 
 function usePersistentState(key, initialValue) {
@@ -105,45 +104,30 @@ function useEmployees() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    let alive = true;
 
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data, error } = await supabase
-          .from("employees")
-          .select(
-            `
-            id,
-            name,
-            handle,
-            loket,
-            samsat:samsat_id (
-              id,
-              name,
-              loket
-            )
-          `,
-          )
-          .order("name", { ascending: true });
-        if (!alive) return;
-        if (error) throw error;
+    const load = async () => {
+
+      try{
+
+        const res = await fetch("http://127.0.0.1:8000/api/employees");
+        const data = await res.json();
+
         setEmployees(data || []);
-      } catch (e) {
-        if (alive) {
-          console.error("Load employees error:", e);
-          setEmployees([]);
-          setError(e.message || String(e));
-        }
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
 
-    return () => {
-      alive = false;
+      }catch(e){
+
+        console.error("Load employees error:", e);
+        setEmployees([]);
+        setError(e.message || String(e));
+
+      }finally{
+        setLoading(false);
+      }
+
     };
+
+    load();
+
   }, []);
 
   return { employees, loading, error };
@@ -322,295 +306,127 @@ export default function Iwkbu() {
     keterangan: r.keterangan || null,
   });
 
-  const exportToExcel = async () => {
-    try {
-      const PAGE_SIZE = 1000;
-      let page = 0;
-      let isDone = false;
-      let allRows = [];
+const exportToExcel = async () => {
 
-      while (!isDone) {
-        let query = buildBaseQuery()
-          .order("id", { ascending: true })
-          .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+  try{
 
-        // FILTER SAMA PERSIS DENGAN TABEL
-        if (filterWilayah) query = query.eq("wilayah_norm", filterWilayah);
-        if (filterLoket) query = query.eq("loket", filterLoket);
-        if (filterTrayek) query = query.eq("trayek", filterTrayek);
-        if (filterJenis) query = query.eq("jenis", filterJenis);
-        if (filterPIC) query = query.eq("pic", filterPIC);
-        if (filterBadanHukum) query = query.eq("badan_hukum", filterBadanHukum);
-        if (filterNamaPerusahaan)
-          query = query.ilike("nama_perusahaan", `%${filterNamaPerusahaan}%`);
-        if (filterStatusBayar)
-          query = query.ilike("status_bayar", filterStatusBayar);
-        if (filterStatusKendaraan)
-          query = query.ilike("status_kendaraan", filterStatusKendaraan);
-        if (filterKonfirmasi) query = query.eq("konfirmasi", filterKonfirmasi);
+    const res = await fetch("http://127.0.0.1:8000/api/iwkbu-all");
+    const allRows = await res.json();
 
-        const { data, error } = await query;
-        if (error) throw error;
-
-        allRows.push(...(data || []));
-
-        if (!data || data.length < PAGE_SIZE) isDone = true;
-        else page++;
-      }
-
-      if (!allRows.length) {
-        alert("Tidak ada data untuk di-export");
-        return;
-      }
-
-      // ❌ kolom yang TIDAK mau diikutkan
-      const EXCLUDE_KEYS = ["id", "wilayah_norm", "created_at", "updated_at"];
-
-      // helper ubah snake_case → Judul Manusia
-      const prettify = (k) =>
-        k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-
-      const excelData = allRows.map((row, i) => {
-        const out = { No: i + 1 };
-        Object.entries(row).forEach(([key, val]) => {
-          if (EXCLUDE_KEYS.includes(key)) return;
-          out[prettify(key)] = val;
-        });
-        return out;
-      });
-
-      const ws = XLSX.utils.json_to_sheet(excelData);
-
-      /** =======================
-       *  🎨 STYLING EXCEL
-       ======================= */
-
-      const range = XLSX.utils.decode_range(ws["!ref"]);
-
-      // Auto width
-      ws["!cols"] = Object.keys(excelData[0]).map((k) => ({
-        wch: Math.max(12, k.length + 2),
-      }));
-
-      for (let R = range.s.r; R <= range.e.r; ++R) {
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
-          const cell = ws[cellAddress];
-          if (!cell) continue;
-
-          // HEADER
-          if (R === 0) {
-            cell.s = {
-              font: { bold: true },
-              fill: { fgColor: { rgb: "E9EEF3" } },
-              alignment: { vertical: "center", horizontal: "center" },
-              border: {
-                top: { style: "thin" },
-                bottom: { style: "thin" },
-                left: { style: "thin" },
-                right: { style: "thin" },
-              },
-            };
-          } else {
-            // BODY
-            cell.s = {
-              border: {
-                top: { style: "thin" },
-                bottom: { style: "thin" },
-                left: { style: "thin" },
-                right: { style: "thin" },
-              },
-            };
-
-            // Format tanggal
-            if (
-              typeof cell.v === "string" &&
-              /^\d{4}-\d{2}-\d{2}/.test(cell.v)
-            ) {
-              cell.z = "dd/mm/yyyy";
-            }
-
-            // Format rupiah
-            if (
-              [
-                "Nominal",
-                "Tarif",
-                "Outstanding",
-                "Nilai Bayar Os",
-                "Nilai Pemeliharaan Os",
-              ].some((x) => cellAddress.includes(x))
-            ) {
-              cell.z = '"Rp"#,##0';
-            }
-          }
-        }
-      }
-
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Data IWKBU");
-
-      XLSX.writeFile(
-        wb,
-        `Data_IWKBU_${new Date().toISOString().slice(0, 10)}.xlsx`,
-      );
-    } catch (err) {
-      console.error(err);
-      alert("Gagal export Excel");
+    if(!allRows.length){
+      alert("Tidak ada data");
+      return;
     }
-  };
+
+    const excelData = allRows.map((r,i)=>({
+      No:i+1,
+      Nopol:r.nopol,
+      Wilayah:r.wilayah,
+      Trayek:r.trayek,
+      Jenis:r.jenis,
+      PIC:r.pic,
+      Nominal:r.nominal
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(wb, ws, "IWKBU");
+
+    XLSX.writeFile(wb,"IWKBU.xlsx");
+
+  }catch(e){
+    console.error(e);
+  }
+
+};
 
   const fetchTotalNominal = async () => {
-    try {
-      const PAGE_SIZE = 1000; // batas supabase
-      let page = 0;
-      let isDone = false;
-      let grandTotal = 0;
-      let totalRows = 0;
 
-      while (!isDone) {
-        let query = buildBaseQuery()
-          .select("nominal")
-          .order("id", { ascending: true })
-          .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+  try{
 
-        const { data, error } = await query;
-        if (error) throw error;
+    const res = await fetch("http://127.0.0.1:8000/api/iwkbu-total");
+    const json = await res.json();
 
-        const rows = data || [];
+    setTotalNominalAll(json.total || 0);
 
-        // jumlahkan per page
-        for (const r of rows) {
-          grandTotal += Number(r.nominal || 0);
-        }
+  }catch(e){
+    console.error(e);
+  }
 
-        totalRows += rows.length;
-
-        // kalau < 1000 berarti sudah habis
-        if (rows.length < PAGE_SIZE) {
-          isDone = true;
-        } else {
-          page++;
-        }
-      }
-
-      console.log("TOTAL rows (ALL):", totalRows);
-      console.log("TABLE count:", totalCount);
-
-      setTotalNominalAll(grandTotal);
-    } catch (e) {
-      console.error("fetchTotalNominal error:", e);
-      setTotalNominalAll(0);
-    }
-  };
+};
 
   //Hitung Total Nominal
   const totalNominal = rows.reduce((sum, r) => sum + Number(r.nominal || 0), 0);
 
   const fetchFilterOptions = async () => {
-    try {
-      const PAGE_SIZE = 1000;
-      let page = 0;
-      let isDone = false;
-      let allRows = [];
+  try {
 
-      while (!isDone) {
-        const { data, error } = await supabase
-          .from("iwkbu")
-          .select(
-            "wilayah_norm, loket, trayek, jenis, pic, badan_hukum, nama_perusahaan, status_bayar, status_kendaraan, konfirmasi, golongan, dok_perizinan",
-          )
-          .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+    const res = await fetch("http://127.0.0.1:8000/api/iwkbu-filters");
+    const allRows = await res.json();
 
-        if (error) throw error;
-
-        const rows = data || [];
-        allRows.push(...rows);
-
-        if (rows.length < PAGE_SIZE) {
-          isDone = true;
-        } else {
-          page++;
-        }
-      }
-
-      console.log("FILTER SOURCE rows (ALL):", allRows.length);
-
-      // helper uniq aman
-      const safeUniq = (arr, { upper = false } = {}) =>
-        Array.from(
-          new Set(
-            (arr || [])
-              .map((x) => (x == null ? "" : String(x).trim()))
-              .filter(Boolean)
-              .map((x) => (upper ? x.toUpperCase() : x)),
-          ),
-        ).sort((a, b) => a.localeCompare(b));
-
-      // 🔥 SET SEMUA FILTER (FULL DATA)
-      setWilayahFilterOpts(
-        safeUniq(
-          allRows.map((x) => x.wilayah_norm),
-          { upper: true },
+    const safeUniq = (arr, { upper = false } = {}) =>
+      Array.from(
+        new Set(
+          (arr || [])
+            .map((x) => (x == null ? "" : String(x).trim()))
+            .filter(Boolean)
+            .map((x) => (upper ? x.toUpperCase() : x)),
         ),
-      );
+      ).sort((a, b) => a.localeCompare(b));
 
-      setLoketFilterOpts(safeUniq(allRows.map((x) => x.loket)));
+    setWilayahFilterOpts(
+      safeUniq(allRows.map((x) => x.wilayah), { upper: true })
+    );
 
-      setTrayekFilterOpts(
-        safeUniq(
-          allRows.map((x) => x.trayek),
-          { upper: true },
-        ),
-      );
+    setLoketFilterOpts(
+      safeUniq(allRows.map((x) => x.loket))
+    );
 
-      setJenisFilterOpts(
-        safeUniq(
-          allRows.map((x) => x.jenis),
-          { upper: true },
-        ),
-      );
+    setTrayekFilterOpts(
+      safeUniq(allRows.map((x) => x.trayek), { upper: true })
+    );
 
-      const picUniqDB = safeUniq(allRows.map((x) => x.pic));
-      const picUniqEmp = safeUniq((EMP_OPTS || []).map((e) => e.name));
-      setPicFilterOpts(safeUniq([...picUniqDB, ...picUniqEmp]));
+    setJenisFilterOpts(
+      safeUniq(allRows.map((x) => x.jenis), { upper: true })
+    );
 
-      setBadanFilterOpts(safeUniq(allRows.map((x) => x.badan_hukum)));
+    setPicFilterOpts(
+      safeUniq(allRows.map((x) => x.pic))
+    );
 
-      setPerusahaanFilterOpts(safeUniq(allRows.map((x) => x.nama_perusahaan)));
+    setBadanFilterOpts(
+      safeUniq(allRows.map((x) => x.badan_hukum))
+    );
 
-      setStatusBayarFilterOpts(safeUniq(allRows.map((x) => x.status_bayar)));
+    setPerusahaanFilterOpts(
+      safeUniq(allRows.map((x) => x.nama_perusahaan))
+    );
 
-      setStatusKendFilterOpts(safeUniq(allRows.map((x) => x.status_kendaraan)));
+    setStatusBayarFilterOpts(
+      safeUniq(allRows.map((x) => x.status_bayar))
+    );
 
-      setKonfFilterOpts(safeUniq(allRows.map((x) => x.konfirmasi)));
+    setStatusKendFilterOpts(
+      safeUniq(allRows.map((x) => x.status_kendaraan))
+    );
 
-      setGolonganFilterOpts(
-        safeUniq(
-          allRows.map((x) => x.golongan),
-          { upper: true },
-        ),
-      );
+    setKonfFilterOpts(
+      safeUniq(allRows.map((x) => x.konfirmasi))
+    );
 
-      setDokPerizinanFilterOpts(
-        safeUniq(
-          allRows.map((x) => x.dok_perizinan),
-          { upper: true },
-        ),
-      );
-    } catch (e) {
-      console.error("fetchFilterOptions error:", e);
-      setWilayahFilterOpts([]);
-      setLoketFilterOpts([]);
-      setTrayekFilterOpts([]);
-      setJenisFilterOpts([]);
-      setPicFilterOpts([]);
-      setBadanFilterOpts([]);
-      setPerusahaanFilterOpts([]);
-      setStatusBayarFilterOpts([]);
-      setStatusKendFilterOpts([]);
-      setKonfFilterOpts([]);
-    }
-  };
+    setGolonganFilterOpts(
+      safeUniq(allRows.map((x) => x.golongan), { upper: true })
+    );
+
+    setDokPerizinanFilterOpts(
+      safeUniq(allRows.map((x) => x.dok_perizinan), { upper: true })
+    );
+
+  } catch (e) {
+    console.error("fetchFilterOptions error:", e);
+  }
+};
 
   useEffect(() => {
     fetchFilterOptions();
@@ -635,95 +451,23 @@ export default function Iwkbu() {
     };
   };
 
-  const buildBaseQuery = () => {
-    let query = supabase.from("iwkbu").select("*", { count: "exact" });
-
-    const sRaw = (q || "").trim();
-    const s = normalizeSearch(sRaw);
-
-    if (s) {
-      const looksLikeNopol =
-        /^\w{0,3}\s?\d{1,4}\s?[A-Z]{1,3}$/.test(s) ||
-        /^\d{1,4}\s?[A-Z]{1,3}$/.test(s);
-
-      if (looksLikeNopol) {
-        query = query.or([`nopol.ilike.%${s}%`].join(","));
-      } else {
-        query = query.or(
-          [
-            `nopol.ilike.%${s}%`,
-            `wilayah_norm.ilike.%${s}%`,
-            `kota.ilike.%${s}%`,
-            `trayek.ilike.%${s}%`,
-            `nama_perusahaan.ilike.%${s}%`,
-            `pic.ilike.%${s}%`,
-          ].join(","),
-        );
-      }
-    }
-
-    // 🎯 filters
-    if (filterWilayah) query = query.eq("wilayah_norm", filterWilayah);
-    if (filterLoket) query = query.eq("loket", filterLoket);
-    if (filterTrayek) query = query.eq("trayek", filterTrayek);
-    if (filterJenis) query = query.eq("jenis", filterJenis);
-    if (filterPIC) query = query.eq("pic", filterPIC);
-    if (filterBadanHukum) query = query.eq("badan_hukum", filterBadanHukum);
-
-    if (filterNamaPerusahaan)
-      query = query.ilike("nama_perusahaan", `%${filterNamaPerusahaan}%`);
-
-    if (filterStatusBayar)
-      query = query.ilike("status_bayar", filterStatusBayar);
-
-    if (filterStatusKendaraan)
-      query = query.ilike("status_kendaraan", filterStatusKendaraan);
-
-    if (filterKonfirmasi) query = query.eq("konfirmasi", filterKonfirmasi);
-
-    const tglTransRange = buildDateRange(
-      filterTglTransYear,
-      filterTglTransMonth,
-    );
-    if (tglTransRange) {
-      query = query
-        .gte("tgl_transaksi", tglTransRange.from)
-        .lte("tgl_transaksi", tglTransRange.to);
-    }
-
-    const masaRange = buildDateRange(filterMasaYear, filterMasaMonth);
-    if (masaRange) {
-      query = query
-        .gte("masa_berlaku", masaRange.from)
-        .lte("masa_berlaku", masaRange.to);
-    }
-
-    return query;
-  };
-
   const fetchRows = async () => {
-    setLoadingRows(true);
-    try {
-      let query = buildBaseQuery().order("updated_at", { ascending: false });
+  setLoadingRows(true);
 
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
+  try {
+    const res = await fetch(`http://127.0.0.1:8000/api/iwkbu?page=${page}`);
+    const json = await res.json();
 
-      query = query.range(from, to);
+    setRows((json.data || []).map(fromDB));
+    setTotalCount(json.total || 0);
 
-      const { data, count, error } = await query;
-      if (error) throw error;
-
-      setRows((data || []).map(fromDB));
-      setTotalCount(count || 0);
-    } catch (e) {
-      console.error(e);
-      setRows([]);
-      setTotalCount(0);
-    } finally {
-      setLoadingRows(false);
-    }
-  };
+  } catch (e) {
+    console.error(e);
+    setRows([]);
+  } finally {
+    setLoadingRows(false);
+  }
+};
 
   // helper bikin key aman dari label
   const makeKeyFromLabel = (label) =>
@@ -945,11 +689,18 @@ export default function Iwkbu() {
     };
 
     const payload = toDB(next);
-    const { error } = await supabase.from("iwkbu").insert(payload);
-    if (error) {
-      alert("Gagal tambah data: " + error.message);
-      return;
-    }
+    const res = await fetch("http://127.0.0.1:8000/api/iwkbu",{
+  method:"POST",
+  headers:{
+    "Content-Type":"application/json"
+  },
+  body: JSON.stringify(payload)
+});
+
+if(!res.ok){
+  alert("Gagal tambah data");
+  return;
+}
 
     setShowNopolModal(false);
     setNewForm(emptyForm);
@@ -1000,14 +751,17 @@ export default function Iwkbu() {
 
     if (value === "") dbValue = null;
 
-    const { error } = await supabase
-      .from("iwkbu")
-      .update({ [dbField]: dbValue })
-      .eq("id", id);
+    const res = await fetch(`http://127.0.0.1:8000/api/iwkbu/${id}`,{
+  method:"PUT",
+  headers:{
+    "Content-Type":"application/json"
+  },
+  body: JSON.stringify({[dbField]:dbValue})
+});
 
-    if (error) {
-      alert("Gagal menyimpan: " + error.message);
-      fetchRows();
+if(!res.ok){
+  alert("Gagal menyimpan");
+  fetchRows();
     } else {
       fetchFilterOptions();
     }
@@ -1031,11 +785,14 @@ export default function Iwkbu() {
 
   const deleteRow = async (id) => {
     if (!window.confirm("Hapus baris ini?")) return;
-    const { error } = await supabase.from("iwkbu").delete().eq("id", id);
-    if (error) {
-      alert("Gagal hapus: " + error.message);
-      return;
-    }
+    const res = await fetch(`http://127.0.0.1:8000/api/iwkbu/${id}`,{
+  method:"DELETE"
+});
+
+if(!res.ok){
+  alert("Gagal hapus");
+  return;
+}
     fetchRows();
     fetchFilterOptions();
   };
@@ -1977,7 +1734,6 @@ export default function Iwkbu() {
                         onChange={(e) =>
                           updateRow(r.id, { [c.key]: e.target.value })
                         }
-                        // kalau mau disimpan ke Supabase juga, perlu kolom di DB & mapping sendiri
                         placeholder={c.label}
                       />
                     </td>

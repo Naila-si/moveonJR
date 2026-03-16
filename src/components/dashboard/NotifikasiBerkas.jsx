@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { supabase } from "../../lib/supabaseClient";
 
 /* ===========================
    FORMAT RUPIAH
@@ -67,23 +66,22 @@ function setFontBold(doc, size = 12) {
   doc.setFontSize(size);
 }
 
-/* ===========================
-   FETCH REPORT FULL (From Supabase)
-   =========================== */
-
 async function fetchReportFull(reportId) {
-  const { data: report, error: repErr } = await supabase
-    .from("crm_reports")
-    .select("*")
-    .eq("id", reportId)
-    .maybeSingle();
+  const res = await fetch(`http://127.0.0.1:8000/api/crm-reports/${reportId}`);
+  const report = await res.json();
 
-  if (repErr || !report) throw repErr || new Error("Report tidak ditemukan");
+  if (!report) throw new Error("Report tidak ditemukan");
 
-  const { data: armadaRows } = await supabase
-    .from("crm_armada")
-    .select("*")
-    .eq("report_id", report.id);
+  const resArmada = await fetch(
+    `http://127.0.0.1:8000/api/crm-armada/${reportId}`
+  );
+  const armadaRows = await resArmada.json();
+
+  // parse JSON dari database MySQL
+  report.step1 = JSON.parse(report.step1 || "{}");
+  report.step2 = JSON.parse(report.step2 || "{}");
+  report.step3 = JSON.parse(report.step3 || "{}");
+  report.step4 = JSON.parse(report.step4 || "{}");
 
   const rincianArmada = (armadaRows || []).map((a) => ({
     nopol: a.nopol ?? "",
@@ -93,7 +91,7 @@ async function fetchReportFull(reportId) {
     bayarOs: a.bayar_os ?? 0,
     rekomendasi: a.rekomendasi ?? "",
     tindakLanjut: a.rekomendasi ?? "",
-    bukti: a.bukti || [],
+    bukti: a.bukti ? JSON.parse(a.bukti) : [],
   }));
 
   const totalOsHarusDibayar = rincianArmada.reduce((s, a) => {
@@ -596,15 +594,22 @@ function getPetugasName(it, petugasMap) {
 }
 
 async function fetchPetugasByReportId(reportId) {
-  const { data, error } = await supabase
-    .from("crm_reports")
-    .select("step1")
-    .eq("id", reportId)
-    .maybeSingle();
+  const res = await fetch(`http://127.0.0.1:8000/api/crm-reports/${reportId}`);
+  const data = await res.json();
 
-  if (error || !data?.step1) return "-";
+  if (!data?.step1) return "-";
 
-  const s1 = data.step1;
+  let s1 = data.step1;
+
+  // kalau masih string → parse
+  if (typeof s1 === "string") {
+    try {
+      s1 = JSON.parse(s1);
+    } catch {
+      s1 = {};
+    }
+  }
+
   return [s1.petugasDepan, s1.petugasBelakang]
     .filter(Boolean)
     .join(" ");
@@ -618,21 +623,13 @@ export default function NotifikasiBerkas() {
   const [sortKey, setSortKey] = useState("ts");
   const [sortDir, setSortDir] = useState("desc");
 
-  // === FETCH NOTIFIKASI DARI SUPABASE ===
   const fetchNotif = async () => {
-    const { data, error } = await supabase
-      .from("crm_notifikasi")
-      .select("*")
-      .order("ts", { ascending: false });
-
-    if (error) {
-      console.error("fetchNotif error:", error);
-      return;
-    }
+  try {
+    const res = await fetch("http://127.0.0.1:8000/api/crm-notifikasi");
+    const data = await res.json();
 
     setItems(data || []);
 
-    // ===== FETCH PETUGAS PER REPORT (SEKALI) =====
     const uniqueReports = [
       ...new Set((data || []).map(d => d.report_uuid).filter(Boolean))
     ];
@@ -646,22 +643,17 @@ export default function NotifikasiBerkas() {
     );
 
     setPetugasMap(map);
-  };
+
+  } catch (err) {
+    console.error("fetchNotif error:", err);
+  }
+};
 
   // === LOAD AWAL + REALTIME ===
   useEffect(() => {
     fetchNotif();
-
-    const channel = supabase
-      .channel("crm_notifikasi_changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "crm_notifikasi" },
-        () => fetchNotif()
-      )
-      .subscribe();
-
-    return () => supabase.removeChannel(channel);
+    const interval = setInterval(fetchNotif, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   /* ====== FILTERING ====== */
@@ -724,10 +716,9 @@ export default function NotifikasiBerkas() {
   async function handleDelete(id) {
     if (!confirm("Hapus notifikasi ini?")) return;
 
-    const { error } = await supabase
-      .from("crm_notifikasi")
-      .delete()
-      .eq("id", id);
+    const { error } = await fetch(`http://127.0.0.1:8000/api/crm-notifikasi/${id}`, {
+      method: "DELETE",
+    });
 
     if (error) {
       alert("Gagal menghapus notifikasi.");
@@ -738,20 +729,14 @@ export default function NotifikasiBerkas() {
   }
 
   async function clearAll() {
-    if (!confirm("Hapus SEMUA notifikasi?")) return;
+  if (!confirm("Hapus SEMUA notifikasi?")) return;
 
-    const { error } = await supabase
-      .from("crm_notifikasi")
-      .delete()
-      .neq("id", "");
+  await fetch("http://127.0.0.1:8000/api/crm-notifikasi", {
+    method: "DELETE",
+  });
 
-    if (error) {
-      alert("Gagal menghapus semua notifikasi.");
-      return;
-    }
-
-    fetchNotif();
-  }
+  fetchNotif();
+}
 
   return (
     <div className="notif-page">

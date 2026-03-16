@@ -5,7 +5,6 @@ import React, {
   useRef,
   useCallback,
 } from "react";
-import { supabase } from "../../lib/supabaseClient";
 
 const idr = (n) =>
   (Number(n) || 0).toLocaleString("id-ID", {
@@ -168,10 +167,11 @@ function buildCrmRowFromForm(form) {
 
     // ===== STEP 3 di tabel =====
     step3: {
-      // Untuk sekarang, foto & file tidak dipakai di list → isi array kosong dulu
-      fotoKunjungan: [],
-      suratPernyataan: [],
-      evidence: [],
+      fotoKunjungan: form.fotoKunjunganUrl
+    ? [form.fotoKunjunganUrl]
+    : [],
+  suratPernyataan: form.evidenceUrls || [],
+  evidence: form.evidenceUrls || [],
       responPemilik: form.nilaiKebersihan ?? 3,
       ketertibanOperasional: form.nilaiKebersihan ?? 3,
       ketaatanPerizinan: form.nilaiPelayanan ?? 3,
@@ -200,153 +200,39 @@ function buildCrmRowFromForm(form) {
   };
 }
 
-async function saveCrmToSupabase(form) {
-  // 1) Build row dengan struktur lama
+async function uploadFile(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+
+  const res = await fetch("http://localhost:8000/api/crm/upload", {
+    method: "POST",
+    body: fd
+  });
+
+  if (!res.ok) {
+    throw new Error("Upload gagal");
+  }
+
+  const data = await res.json();
+  return data.url;
+}
+
+async function saveCrmToServer(form) {
   const baseRow = buildCrmRowFromForm(form);
-  const reportCode = baseRow.id; // contoh "CRM-2025-123"
 
-  // 2) Upload file ke Storage (pakai reportCode sebagai folder)
-  // 2a) Foto kunjungan (single)
-  let fotoUrls = [];
-  if (form.fotoKunjungan) {
-    const up = await uploadToCrmStorage(
-      form.fotoKunjungan,
-      reportCode,
-      "foto_kunjungan",
-    );
-    if (up?.url) {
-      // DataFormCrm pakai array string untuk fotoKunjungan
-      fotoUrls = [up.url];
-    }
+  const res = await fetch("http://localhost:8000/api/crm/save", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(baseRow),
+  });
+
+  if (!res.ok) {
+    throw new Error("Gagal menyimpan CRM");
   }
 
-  // 2b) Surat/evidence (multiple)
-  const suratUploads = await uploadMany(
-    form.suratPernyataanEvidence || [],
-    reportCode,
-    "surat",
-  );
-  // DataFormCrm pakai bentuk { name, url }
-  const suratJson = suratUploads.map((f) => ({
-    name: f.name,
-    url: f.url,
-  }));
-
-  // 3) Gabungkan hasil upload ke step3
-  const step3 = {
-    ...baseRow.step3,
-    fotoKunjungan: fotoUrls, // ["https://..."]
-    suratPernyataan: suratJson,
-    evidence: [], // kalau mau dipisah lagi, bisa diatur
-  };
-
-  // 4) Insert ke crm_reports
-  const { data: reportInserted, error: reportError } = await supabase
-    .from("crm_reports")
-    .insert([
-      {
-        report_code: reportCode,
-        step1: baseRow.step1,
-        step2: baseRow.step2,
-        step3, // pakai yang sudah include URL upload
-        step4: baseRow.step4,
-        step5: baseRow.step5,
-      },
-    ])
-    .select("id")
-    .single();
-
-  if (reportError) {
-    console.error("Gagal insert crm_reports:", reportError);
-    throw reportError;
-  }
-
-  const reportId = reportInserted.id;
-
-  // 5) Insert ke crm_armada + upload buktiFiles per armada
-  const armadaFromForm = Array.isArray(form.armadaList) ? form.armadaList : [];
-  const armadaRows = [];
-
-  for (let i = 0; i < armadaFromForm.length; i++) {
-    const a = armadaFromForm[i];
-
-    // upload buktiFiles (jika ada)
-    let buktiUploads = [];
-    if (a.buktiFiles && a.buktiFiles.length > 0) {
-      buktiUploads = await uploadMany(
-        a.buktiFiles,
-        reportCode,
-        `armada_${i + 1}`,
-      );
-    }
-
-    armadaRows.push({
-      report_id: reportId,
-      nopol: a.nopol || null,
-      status: a.status || null,
-      tipe_armada: a.tipeArmada || null,
-      tahun: a.tahun ? Number(a.tahun) : null,
-      bayar_os: a.bayarOs ? Number(a.bayarOs) : 0,
-      rekomendasi: a.rekomendasi || null,
-
-      // kolom baru jsonb bukti
-      bukti: buktiUploads.map((f) => ({
-        name: f.name,
-        url: f.url,
-      })),
-    });
-  }
-
-  if (armadaRows.length > 0) {
-    const { error: armadaError } = await supabase
-      .from("crm_armada")
-      .insert(armadaRows);
-
-    if (armadaError) {
-      console.error("Gagal insert crm_armada:", armadaError);
-      throw armadaError;
-    }
-  }
-
-  return { reportId, reportCode };
-}
-
-async function uploadToCrmStorage(file, folder, prefix = "file") {
-  if (!file) return null;
-
-  const ext = file.name.split(".").pop() || "bin";
-  const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, "_");
-  const path = `${safeFolder}/${prefix}_${Date.now()}.${ext}`;
-
-  const { data, error } = await supabase.storage
-    .from("crm_uploads")
-    .upload(path, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
-
-  if (error) throw error;
-
-  // ambil public URL
-  const { data: publicData } = supabase.storage
-    .from("crm_uploads")
-    .getPublicUrl(data.path);
-
-  return {
-    path: data.path,
-    url: publicData.publicUrl,
-    name: file.name,
-  };
-}
-
-async function uploadMany(files, folder, prefix) {
-  const arr = Array.from(files || []);
-  const result = [];
-  for (let i = 0; i < arr.length; i++) {
-    const up = await uploadToCrmStorage(arr[i], folder, `${prefix}_${i + 1}`);
-    if (up) result.push(up);
-  }
-  return result;
+  return await res.json();
 }
 
 export default function FormCrm() {
@@ -434,13 +320,11 @@ export default function FormCrm() {
     (async () => {
       try {
         // 1) Master PIC + Loket (distinct)
-        const { data: picData, error: picErr } = await supabase
-          .from("iwkbu")
-          .select("pic,loket")
-          .not("pic", "is", null)
-          .neq("pic", "");
+        const res = await fetch("http://localhost:8000/api/iwkbu/pic");
+        const picData = await res.json();
+        setPicMaster(picData);
 
-        if (!picErr && picData) {
+        if (picData) {
           const map = new Map();
           for (const row of picData) {
             const raw = (row.pic || "").trim();
@@ -466,18 +350,18 @@ export default function FormCrm() {
         }
 
         // 2) Master PT/CV + pemilik + HP
-        const { data: compData, error: compErr } = await supabase
-          .from("iwkbu")
-          .select("nama_perusahaan,nama_pemilik,hp")
-          .not("nama_perusahaan", "is", null)
-          .neq("nama_perusahaan", "");
+        const res2 = await fetch("http://localhost:8000/api/perusahaan");
+        const compData = await res2.json();
 
-        if (!compErr && compData) {
+        if (compData) {
           const map2 = new Map();
+
           for (const row of compData) {
             const raw = (row.nama_perusahaan || "").trim();
             if (!raw) continue;
+
             const key = raw.toLowerCase();
+
             if (!map2.has(key)) {
               map2.set(key, {
                 nama_perusahaan: raw,
@@ -486,12 +370,12 @@ export default function FormCrm() {
               });
             }
           }
+
           const arr2 = Array.from(map2.values()).sort((a, b) =>
             a.nama_perusahaan.localeCompare(b.nama_perusahaan, "id"),
           );
+
           setCompanyMaster(arr2);
-        } else if (compErr) {
-          console.error("Gagal load perusahaan:", compErr);
         }
       } catch (e) {
         console.error("Error load master data IWKBU:", e);
@@ -502,24 +386,13 @@ export default function FormCrm() {
   useEffect(() => {
     (async () => {
       try {
-        const { data, error } = await supabase
-          .from("employees")
-          .select(
-            `
-            id,
-            name,
-            loket,
-            samsat_id,
-            samsat:samsat_id (
-              id,
-              name,
-              loket
-            )
-          `,
-          )
-          .order("name", { ascending: true });
+        const res = await fetch("http://localhost:8000/api/employees");
 
-        if (error) throw error;
+        if (!res.ok) {
+          throw new Error("Gagal load employees");
+        }
+
+        const data = await res.json();
         setEmployeeMaster(data || []);
       } catch (e) {
         console.error("Gagal load employees+samsat:", e);
@@ -672,49 +545,71 @@ export default function FormCrm() {
   }, []);
 
   const handleSubmit = async () => {
-    // safety: validasi terakhir
-    if (
-      Object.keys(step1Errors).length ||
-      Object.keys(step2Errors).length ||
-      Object.keys(step3Errors).length
-    ) {
-      alert("Masih ada kolom yang belum lengkap. Cek lagi langkah 1–3 ya 😊");
-      return;
+
+  if (
+    Object.keys(step1Errors).length ||
+    Object.keys(step2Errors).length ||
+    Object.keys(step3Errors).length
+  ) {
+    alert("Masih ada kolom yang belum lengkap. Cek lagi langkah 1–3 ya 😊");
+    return;
+  }
+
+  try {
+
+    let fotoUrl = null;
+    let evidenceUrls = [];
+
+    // upload foto kunjungan
+    if (form.fotoKunjungan) {
+      fotoUrl = await uploadFile(form.fotoKunjungan);
     }
 
-    try {
-      // 1) Simpan ke Supabase
-      const { reportId, reportCode } = await saveCrmToSupabase(form);
-
-      // 2) Simpan ke localStorage (opsional)
-      const newRow = buildCrmRowFromForm(form);
-      newRow.id = reportCode;
-      const existing = loadCrmRows();
-      const next = [newRow, ...existing];
-      saveCrmRows(next);
-
-      // 3) Bersihkan draft & matikan dirty flag
-      setDirty(false);
-      localStorage.removeItem("form_crm_draft_v5");
-
-      // 4) Tampilkan popup sukses
-      setShowSuccessPopup(true);
-
-      // 5) Bersihkan draft & matikan dirty flag
-      setDirty(false);
-      localStorage.removeItem("form_crm_draft_v5");
-
-      // 6) Redirect setelah 2.5 detik
-      setTimeout(() => {
-        window.location.replace("/");
-      }, 2500);
-    } catch (e) {
-      console.error("Gagal menyimpan data CRM:", e);
-      alert(
-        "Terjadi kesalahan saat menyimpan ke server. Coba lagi sebentar ya 🙏",
-      );
+    // upload evidence
+    if (form.suratPernyataanEvidence?.length) {
+      for (const f of form.suratPernyataanEvidence) {
+        const url = await uploadFile(f);
+        evidenceUrls.push({
+          name: f.name,
+          url
+        });
+      }
     }
-  };
+
+    // buat payload baru
+    const formWithFiles = {
+      ...form,
+      fotoKunjunganUrl: fotoUrl,
+      evidenceUrls
+    };
+
+    // simpan CRM ke server
+    const { reportId, reportCode } =
+      await saveCrmToServer(formWithFiles);
+
+
+    // simpan ke localStorage juga
+    const newRow = buildCrmRowFromForm(formWithFiles);
+    newRow.id = reportCode;
+
+    const existing = loadCrmRows();
+    const next = [newRow, ...existing];
+    saveCrmRows(next);
+
+    setDirty(false);
+    localStorage.removeItem("form_crm_draft_v5");
+
+    setShowSuccessPopup(true);
+
+    setTimeout(() => {
+      window.location.replace("/");
+    }, 2500);
+
+  } catch (e) {
+    console.error("Gagal menyimpan data CRM:", e);
+    alert("Terjadi kesalahan saat menyimpan ke server.");
+  }
+};
 
   const resetDraft = () => {
     if (confirm("Hapus draft yang tersimpan?")) {
@@ -1259,15 +1154,19 @@ function Step2Armada({
       setLoadingIwkbu(true);
       setErrorIwkbu(null);
       try {
-        const { data, error } = await supabase
-          .from("iwkbu")
-          .select("nopol,tarif,jenis,tahun,nama_perusahaan")
-          .ilike("nama_perusahaan", nama);
+  const res = await fetch(
+    `http://localhost:8000/api/iwkbu?perusahaan=${encodeURIComponent(nama)}`
+  );
 
-        if (!alive) return;
-        if (error) throw error;
-        setIwkbuRows(data || []);
-      } catch (e) {
+  if (!res.ok) {
+    throw new Error("Gagal load IWKBU");
+  }
+
+  const data = await res.json();
+
+  if (!alive) return;
+  setIwkbuRows(data || []);
+} catch (e) {
         if (!alive) return;
         console.error("Load iwkbu for Step2Armada error:", e);
         setErrorIwkbu(e.message || String(e));

@@ -15,7 +15,6 @@ import ProtectedRoute from "./components/dashboard/ProtectedRoute.jsx";
 import Analitik from "./pages/dashboard/Analitik.jsx";
 import Iwkbu from "./pages/dashboard/Iwkbu.jsx";
 import Iwkl from "./pages/dashboard/Iwkl.jsx";
-import Rekap from "./pages/dashboard/Rekap.jsx";
 import DataForm from "./pages/dashboard/DataFormCrm.jsx";
 import DataFormManifest from "./pages/dashboard/DataFormManifest.jsx";
 import FormManifest from "./pages/home/FormManifest.jsx";
@@ -53,7 +52,6 @@ export default function App() {
             {/* === DATA & INFORMASI === */}
             <Route path="iwkbu" element={<Iwkbu />} />
             <Route path="iwkl" element={<Iwkl />} />
-            <Route path="rkcrm" element={<Rekap />} />
 
             {/* CRM / DTD */}
             <Route path="crm-dtd" element={<DataForm />} />

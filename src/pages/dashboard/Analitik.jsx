@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "../../views/dashboard/Analitik.css";
-import { createClient } from "@supabase/supabase-js";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -16,11 +15,6 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnon = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase =
-  supabaseUrl && supabaseAnon ? createClient(supabaseUrl, supabaseAnon) : null;
 
 // --- helper format ---
 const idr = (n) =>
@@ -78,7 +72,6 @@ export default function Analitik() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [employees, setEmployees] = useState([]);
-  const [rekapOS, setRekapOS] = useState([]);
   const [iwkbu, setIwkbu] = useState([]);
   const [iwkl, setIwkl] = useState([]);
   const [rkj, setRkj] = useState([]);
@@ -96,112 +89,39 @@ export default function Analitik() {
     return years;
   }, []);
 
-  useEffect(() => {
-    const fetchAll = async () => {
-      if (!supabase) {
-        setErr(
-          "Supabase belum dikonfigurasi (cek VITE_SUPABASE_URL & VITE_SUPABASE_ANON_KEY)."
-        );
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setErr("");
+ useEffect(() => {
 
-      try {
-        const now = new Date();
-        const yearStart = new Date(selectedYear, 0, 1)
-          .toISOString()
-          .slice(0, 10);
+  const fetchAll = async () => {
 
-        const yearEnd = new Date(selectedYear + 1, 0, 1)
-          .toISOString()
-          .slice(0, 10);
+    setLoading(true);
+    setErr("");
 
-        const [empRes, rekapRes, iwkbuRes, iwklRes, rkjRes] =
-          await Promise.all([
-            supabase.from("employees").select("id, name, loket, created_at"),
+    try {
 
-            supabase
-              .from("rekap_os")
-              .select(
-                "id, employee_id, os_awal, os_sampai, target_crm, realisasi_po, target_rupiah, nominal_os_bayar"
-              ),
+      const res = await fetch(`http://127.0.0.1:8000/api/dashboard?year=${selectedYear}`)
+      const data = await res.json()
 
-            supabase
-              .from("iwkbu")
-              .select("id, pic, nominal, outstanding, tgl_transaksi, loket, status_bayar, status_kendaraan, masa_berlaku")
-              .gte("tgl_transaksi", yearStart)
-              .lt("tgl_transaksi", yearEnd)
-              .limit(5000),
+      setEmployees(data.employees || [])
+      setIwkbu(data.iwkbu || [])
+      setIwkl(data.iwkl || [])
+      setRkj(data.rkj || [])
 
-            supabase
-              .from("iwkl")
-              .select(
-                "id, potensi_per_bulan, total_perhitungan, status_pks, status_pembayaran, status_kapal, created_at"
-              )
-              .limit(5000),
+    } catch (e) {
 
-            supabase
-              .from("rkj_entries")
-              .select("id, date, status, value")
-              .gte("date", yearStart)
-              .lt("date", yearEnd)
-              .limit(5000),
-          ]);
+      console.error(e)
+      setErr("Gagal memuat data analitik.")
 
-        if (empRes.error) throw empRes.error;
-        if (rekapRes.error) throw rekapRes.error;
-        if (iwkbuRes.error) throw iwkbuRes.error;
-        if (iwklRes.error) throw iwklRes.error;
-        if (rkjRes.error) throw rkjRes.error;
+    } finally {
 
-        setEmployees(empRes.data || []);
+      setLoading(false)
 
-        setRekapOS(
-          (rekapRes.data || []).map((r) => ({
-            ...r,
-            os_awal: number(r.os_awal),
-            os_sampai: number(r.os_sampai),
-            target_crm: number(r.target_crm),
-            realisasi_po: number(r.realisasi_po),
-            target_rupiah: number(r.target_rupiah),
-            nominal_os_bayar: number(r.nominal_os_bayar),
-          }))
-        );
+    }
 
-        setIwkbu(
-          (iwkbuRes.data || []).map((r) => ({
-            ...r,
-            nominal: number(r.nominal),
-            outstanding: number(r.outstanding),
-          }))
-        );
+  }
 
-        setIwkl(
-          (iwklRes.data || []).map((r) => ({
-            ...r,
-            potensi_per_bulan: number(r.potensi_per_bulan),
-            total_perhitungan: number(r.total_perhitungan),
-          }))
-        );
+  fetchAll()
 
-        setRkj(
-          (rkjRes.data || []).map((r) => ({
-            ...r,
-            value: number(r.value),
-          }))
-        );
-      } catch (e) {
-        console.error(e);
-        setErr(e.message || "Gagal memuat data analitik.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAll();
-  }, [selectedYear]);
+}, [selectedYear])
 
   // Pegawai
   const employeeStats = useMemo(() => {
@@ -216,40 +136,6 @@ export default function Analitik() {
     );
     return { total, perLoket };
   }, [employees]);
-
-  // Rekap OS (total keseluruhan)
-  const osSummary = useMemo(() => {
-    let osAwal = 0,
-      osSampai = 0,
-      targetCRM = 0,
-      realisasiPO = 0,
-      targetRupiah = 0,
-      nominalOSBayar = 0;
-
-    rekapOS.forEach((r) => {
-      osAwal += r.os_awal;
-      osSampai += r.os_sampai;
-      targetCRM += r.target_crm;
-      realisasiPO += r.realisasi_po;
-      targetRupiah += r.target_rupiah;
-      nominalOSBayar += r.nominal_os_bayar;
-    });
-
-    const persenOS = osAwal > 0 ? osSampai / osAwal : 0;
-    const persenOSBayar =
-      targetRupiah > 0 ? nominalOSBayar / targetRupiah : 0;
-
-    return {
-      osAwal,
-      osSampai,
-      targetCRM,
-      realisasiPO,
-      targetRupiah,
-      nominalOSBayar,
-      persenOS,
-      persenOSBayar,
-    };
-  }, [rekapOS]);
 
   const iwkbuDueThisMonth = useMemo(() => {
     const now = new Date();
@@ -436,7 +322,7 @@ export default function Analitik() {
       <div>
         <h2>Dasbor Analitik ✨</h2>
         <p>
-          Ringkasan cepat kinerja pegawai, OS, IWKBU/IWKL, dan RK Jadwal.
+          Ringkasan cepat kinerja pegawai, IWKBU/IWKL, dan RK Jadwal.
         </p>
       </div>
 
@@ -470,17 +356,6 @@ export default function Analitik() {
           <div className="stat-sub">
             Kanwil: {employeeStats.perLoket.kanwil || 0} • Dumai:{" "}
             {employeeStats.perLoket.dumai || 0}
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-top">
-            <div className="stat-emoji">💸</div>
-            <div className="stat-label">Total OS Awal</div>
-          </div>
-          <div className="stat-value">{idr(osSummary.osAwal)}</div>
-          <div className="stat-sub">
-            OS Sampai: {idr(osSummary.osSampai)} ({pct(osSummary.persenOS)})
           </div>
         </div>
 

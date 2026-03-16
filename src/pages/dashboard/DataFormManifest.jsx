@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "../../views/dashboard/DataFormManifest.css";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient"; // Pastikan path ini benar
 
 const idr = (n) =>
   (Number(n) || 0).toLocaleString("id-ID", {
@@ -48,82 +47,55 @@ export default function DataFromManifest() {
   const [loading, setLoading] = useState(false);
   const pageSize = 10;
 
-  // Load data dari Supabase
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from("manifest_submissions")
-          .select(`
-            *,
-            iwkl:iwkl_id (
-              nama_perusahaan,
-              nama_kapal
-            )
-          `)
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          console.error("Error loading manifest data:", error);
-          return;
-        }
-
-        console.log("Data loaded from Supabase:", data);
-        setRows(data || []);
-      } catch (error) {
-        console.error("Error in fetchData:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // Refresh data function
-  const refreshData = async () => {
+  const fetchData = async () => {
     setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("manifest_submissions")
-        .select(`
-          *,
-          iwkl:iwkl_id (
-            nama_perusahaan,
-            nama_kapal
-          )
-        `)
-        .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Error refreshing data:", error);
-        return;
-      }
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/manifest-submissions");
+      const data = await res.json();
+
+      console.log("Data dari API:", data);
 
       setRows(data || []);
-    } catch (error) {
-      console.error("Error in refreshData:", error);
+    } catch (err) {
+      console.error("Error load manifest:", err);
     } finally {
       setLoading(false);
     }
   };
+
+  fetchData();
+}, []);
+
+  // Refresh data function
+  const refreshData = async () => {
+  setLoading(true);
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/api/manifest-submissions");
+    const data = await res.json();
+
+    setRows(data || []);
+  } catch (err) {
+    console.error("Error refresh:", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Delete function
   const deleteRecord = async (id) => {
     if (!window.confirm("Hapus data manifest ini?")) return;
 
     try {
-      const { error } = await supabase
-        .from("manifest_submissions")
-        .delete()
-        .eq("id", id);
+      const res = await fetch(`http://127.0.0.1:8000/api/manifest-submissions/${id}`, {
+  method: "DELETE",
+});
 
-      if (error) {
-        console.error("Error deleting record:", error);
-        alert("Gagal menghapus data");
-        return;
-      }
+if (!res.ok) {
+  throw new Error("Gagal menghapus");
+}
 
       // Refresh data setelah delete
       refreshData();

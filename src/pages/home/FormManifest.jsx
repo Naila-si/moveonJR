@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "../../views/home/FormManifest.css";
-import { supabase } from "../../lib/supabaseClient";
-import { updateIwklBulananFromManifest } from "../../lib/integrationService";
 
 const LS_KEY = "manifest_submissions";
 
@@ -82,18 +80,15 @@ export default function FormManifest() {
   // ========= LOAD DATA IWKL =========
   useEffect(() => {
     const fetchIwkl = async () => {
-      const { data, error } = await supabase
-        .from("iwkl")
-        .select("id, nama_kapal, rute_awal, rute_akhir, nama_perusahaan, no_kontak")
-        .order("nama_kapal", { ascending: true });
+      const res = await fetch("/api/iwkl");
 
-      if (error) {
-        console.error("Gagal load IWKL:", error);
-        return;
-      }
+if (!res.ok) {
+  console.error("Gagal load IWKL");
+  return;
+}
 
-      const rows = data || [];
-      setIwklList(rows);
+const rows = await res.json();
+setIwklList(rows || []);
 
       // nama kapal unik
       const kapalSet = new Set();
@@ -364,30 +359,31 @@ export default function FormManifest() {
     };
 
     try {
-      const { data, error } = await supabase
-      .from("manifest_submissions")
-      .insert([
-        {
-          tanggal: record.tanggal,
-          kapal: record.kapal,
-          rute: record.rute,
-          total_penumpang: record.totalPenumpang,
-          jumlah_premi: record.jumlahPremi,
-          agen: record.agen,
-          telp: record.telp,
-          foto_url: record.fotoUrl,
-          sign_url: record.signUrl,
-          iwkl_id: record.iwkl_id
-        }
-      ])
-      .select()
-      .single();
+      const res = await fetch("/api/manifest-submissions", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    tanggal: record.tanggal,
+    kapal: record.kapal,
+    rute: record.rute,
+    total_penumpang: record.totalPenumpang,
+    jumlah_premi: record.jumlahPremi,
+    agen: record.agen,
+    telp: record.telp,
+    foto_url: record.fotoUrl,
+    sign_url: record.signUrl,
+    iwkl_id: record.iwkl_id
+  })
+});
 
-    if (error) {
-      throw error;
-    }
+if (!res.ok) {
+  throw new Error("Gagal menyimpan manifest");
+}
 
-    console.log("✅ Data saved to Supabase:", data);
+const data = await res.json();
+console.log("✅ Data saved:", data);
     
       const raw = localStorage.getItem(LS_KEY);
       const arr = raw ? JSON.parse(raw) : [];

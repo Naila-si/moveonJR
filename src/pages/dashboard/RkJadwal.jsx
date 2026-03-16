@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import { supabase } from "../../lib/supabaseClient";
 
 /* ===== Tema Cinnamoroll + warna status ===== */
 const THEME = {
@@ -31,30 +30,18 @@ const initials = (name) => {
 const ensureSamsat = async (name, loket) => {
   if (!name?.trim()) return null;
 
-  // cek dulu apakah sudah ada
-  const { data: existing } = await supabase
-    .from("samsat")
-    .select("id")
-    .ilike("name", name.trim())
-    .maybeSingle();
-
-  if (existing?.id) return existing.id;
-
-  // kalau belum ada → insert baru
-  const { data, error } = await supabase
-    .from("samsat")
-    .insert({
+  const res = await fetch("http://127.0.0.1:8000/api/samsat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
       name: name.trim(),
-      loket: loket || null,
-    })
-    .select("id")
-    .single();
+      loket: loket || null
+    }),
+  });
 
-  if (error) {
-    console.error("Gagal insert samsat:", error);
-    return null;
-  }
-
+  const data = await res.json();
   return data.id;
 };
 
@@ -79,14 +66,12 @@ export default function RKJadwal() {
     return Array.from({ length: 201 }, (_, i) => start + i);
   }, []);
 
-  // ==== STATE dari Supabase ====
   const [people, setPeople] = useState([]);
   const [entries, setEntries] = useState([]);
   const [samsats, setSamsats] = useState([]);
   const normalizePeople = (rows = []) =>
   rows.map(p => ({
     ...p,
-    loket: p.samsat?.loket || p.loket,
     samsat_name: p.samsat?.name || null,
   }));
 
@@ -173,57 +158,31 @@ export default function RKJadwal() {
 
   const isStatusShown = (status) => (statusFilter === "all" ? true : status === statusFilter);
 
-  /* ====== SUPABASE LOADERS ====== */
   const loadPeople = async () => {
-    const { data, error } = await supabase
-      .from("employees")
-      .select(`
-        id,
-        name,
-        handle,
-        loket,
-        samsat:samsat_id (
-          id,
-          name,
-          loket
-        )
-      `)
-      .order("name", { ascending: true });
-    if (error) {
-      console.error("loadPeople error:", error);
-      return;
-    }
-    setPeople(normalizePeople(data));
-  };
+  const res = await fetch("http://127.0.0.1:8000/api/employees");
+  const data = await res.json();
 
-  const loadEntriesForMonth = async (y, m) => {
-    const startISO = new Date(y, m, 1).toISOString().slice(0,10);
-    const endISO   = new Date(y, m + 1, 1).toISOString().slice(0,10);
-    const { data, error } = await supabase
-      .from("rkj_entries")
-      .select("id,pid,date,status,value,note")
-      .gte("date", startISO)
-      .lt("date", endISO);
-    if (error) {
-      console.error("loadEntries error:", error);
-      return;
-    }
-    setEntries(data || []);
-  };
+  setPeople(normalizePeople(data));
+};
 
-  const loadSamsat = async () => {
-    const { data, error } = await supabase
-      .from("samsat")
-      .select("id,name,loket")
-      .order("name", { ascending: true });
+ const loadEntriesForMonth = async (y, m) => {
 
-    if (error) {
-      console.error("loadSamsat error:", error);
-      return;
-    }
+  const res = await fetch(
+    `http://127.0.0.1:8000/api/rkj-entries?year=${y}&month=${m+1}`
+  );
 
-    setSamsats(data || []);
-  };
+  const data = await res.json();
+
+  setEntries(data || []);
+};
+
+ const loadSamsat = async () => {
+
+  const res = await fetch("http://127.0.0.1:8000/api/samsat");
+  const data = await res.json();
+
+  setSamsats(data || []);
+};
 
   useEffect(() => {
     loadPeople();
@@ -231,7 +190,6 @@ export default function RKJadwal() {
   }, []);
   useEffect(() => { loadEntriesForMonth(year, month); }, [year, month]);
 
-  /* ===== CRUD entry (Supabase) ===== */
   const openCreate = (pid, d) => setEntryModal({ mode:"create", pid, y:year, m:month, d, status:"plan", value:"", note:"" });
   const openEdit   = (pid, d, e) => setEntryModal({ mode:"edit", id:e.id, pid, y:year, m:month, d, status:e.status, value:String(e.value ?? ""), note:e.note ?? "" });
   const closeModal = () => setEntryModal(null);
@@ -245,22 +203,39 @@ export default function RKJadwal() {
 
     if (mode === "create") {
       // upsert by (pid,date)
-      const { error } = await supabase
-        .from("rkj_entries")
-        .upsert({ pid, date: dk, status, value: valueNum, note: entryModal.note }, { onConflict: "pid,date" });
-      if (error) {
-        console.error("upsert entry error:", error);
-      } else {
+      const res = await fetch("http://127.0.0.1:8000/api/rkj-entries", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    pid,
+    date: dk,
+    status,
+    value: valueNum,
+    note: entryModal.note
+  })
+});
+      if (!res.ok) {
+  console.error("Request gagal");
+} else {
         await loadEntriesForMonth(year, month);
       }
     } else {
-      const { error } = await supabase
-        .from("rkj_entries")
-        .update({ status, value: valueNum, note: entryModal.note })
-        .eq("id", id);
-      if (error) {
-        console.error("update entry error:", error);
-      } else {
+      const res = await fetch(`http://127.0.0.1:8000/api/rkj-entries/${id}`, {
+  method: "PUT",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    status,
+    value: valueNum,
+    note: entryModal.note
+  })
+});
+      if (!res.ok) {
+  console.error("Request gagal");
+} else {
         setEntries(prev => prev.map(en => en.id===id ? { ...en, status, value:valueNum, note:entryModal.note } : en));
       }
     }
@@ -269,10 +244,12 @@ export default function RKJadwal() {
 
   const deleteEntry = async () => {
     if (!entryModal?.id) return;
-    const { error } = await supabase.from("rkj_entries").delete().eq("id", entryModal.id);
-    if (error) {
-      console.error("delete entry error:", error);
-    } else {
+const res = await fetch(`http://127.0.0.1:8000/api/rkj-entries/${entryModal.id}`, {
+  method: "DELETE",
+});
+    if (!res.ok) {
+  console.error("Request gagal");
+} else {
       setEntries(prev => prev.filter(en => en.id !== entryModal.id));
     }
     closeModal();
@@ -300,17 +277,21 @@ export default function RKJadwal() {
       loket: newLoket,
     };
 
-    const { data, error } = await supabase
-      .from("employees")
-      .insert(payload)
-      .select();
+   const res = await fetch("http://127.0.0.1:8000/api/employees", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(payload),
+});
 
-    if (error) {
-      console.error("add person error:", error);
-      return;
-    }
+const data = await res.json();
 
-    if (data?.length) setPeople((prev) => [...prev, data[0]]);
+    if (!res.ok) {
+  console.error("Request gagal");
+}
+
+  setPeople(prev => [...prev, data]);
 
     setNewName("");
     setNewSamsatId("");
@@ -353,15 +334,17 @@ export default function RKJadwal() {
       samsat_id: samsatIdFinal || null,
     };
 
-    const { error } = await supabase
-      .from("employees")
-      .update(payload)
-      .eq("id", editId);
+    const res =await fetch(`http://127.0.0.1:8000/api/employees/${editId}`, {
+  method: "PUT",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(payload),
+});
 
-    if (error) {
-      console.error("update person error:", error);
-      return;
-    }
+    if (!res.ok) {
+  console.error("Request gagal");
+}
 
     setPeople((prev) =>
       prev.map((p) =>
@@ -390,15 +373,13 @@ export default function RKJadwal() {
 
     const pid = deleteTarget.id;
 
-    const { error } = await supabase
-      .from("employees")
-      .delete()
-      .eq("id", pid);
+    const res = await fetch(`http://127.0.0.1:8000/api/employees/${pid}`, {
+  method: "DELETE",
+});
 
-    if (error) {
-      console.error("delete person error:", error);
-      return;
-    }
+    if (!res.ok) {
+  console.error("Request gagal");
+}
 
     // update UI
     setPeople(prev => prev.filter(x => x.id !== pid));

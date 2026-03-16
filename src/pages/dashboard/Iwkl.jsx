@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
 import "../../views/dashboard/Iwkl.css";
-import { supabase } from "../../lib/supabaseClient";
 import * as XLSX from "xlsx";
 
 function usePersistentState(key, initialValue) {
@@ -407,136 +406,134 @@ export default function IwklSimple() {
   ];
 
   const exportIwklToExcel = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      // ===============================
-      // 1. AMBIL DATA IWKL (SEMUA, TANPA PAGING)
-      // ===============================
-      let query = supabase
-        .from("iwkl")
-        .select("*")
-        .order("id", { ascending: true });
+    // ===============================
+    // 1. AMBIL DATA IWKL
+    // ===============================
+    const resIwkl = await fetch(
+      "http://127.0.0.1:8000/api/iwkl?tahun=" + tahunAktif
+    );
 
-      if (filterLoket) query = query.eq("loket", filterLoket);
-      if (filterKelas) query = query.eq("kelas", filterKelas);
-      if (filterStatusPKS) query = query.eq("status_pks", filterStatusPKS);
-      if (filterStatusKapal)
-        query = query.eq("status_kapal", filterStatusKapal);
-      if (filterTrayek) query = query.eq("trayek", filterTrayek);
+    if (!resIwkl.ok) throw new Error("Gagal load IWKL");
 
-      const { data: iwklData, error } = await query;
-      if (error) throw error;
+    const iwklData = await resIwkl.json();
 
-      // ===============================
-      // 2. DATA BULANAN (TAHUN AKTIF)
-      // ===============================
-      const { data: bulanData, error: errBulan } = await supabase
-        .from("iwkl_bulanan")
-        .select("*")
-        .eq("tahun", tahunAktif);
+    // ===============================
+    // 2. AMBIL DATA BULANAN
+    // ===============================
+    const resBulan = await fetch(
+      "http://127.0.0.1:8000/api/iwkl-bulanan?tahun=" + tahunAktif
+    );
 
-      if (errBulan) throw errBulan;
+    if (!resBulan.ok) throw new Error("Gagal load iwkl_bulanan");
 
-      const bulanMap = {};
-      (bulanData || []).forEach((b) => {
-        if (!bulanMap[b.iwkl_id]) bulanMap[b.iwkl_id] = {};
-        const k = monthFromIndex[b.bulan];
-        if (k) bulanMap[b.iwkl_id][k] = Number(b.nilai) || 0;
-      });
+    const bulanData = await resBulan.json();
 
-      // ===============================
-      // 3. BENTUK DATA EXCEL (FULL KOLOM)
-      // ===============================
-      const excelData = (iwklData || []).map((r, i) => {
-        const bulan = bulanMap[r.id] || {};
-        const totalJanDes = monthKeys.reduce(
-          (sum, k) => sum + Number(bulan[k] || 0),
-          0,
-        );
+    // ===============================
+    // 3. MAP DATA BULANAN
+    // ===============================
+    const bulanMap = {};
 
-        return {
-          No: i + 1,
-          Loket: r.loket,
-          Kelas: r.kelas,
-          "Nama Kapal": r.nama_kapal,
-          "Nama Perusahaan": r.nama_perusahaan,
-          "Nama Pemilik / Pengelola": r.nama_pemilik,
-          Alamat: r.alamat,
-          "No Kontak": r.no_kontak,
-          "Tanggal Lahir": r.tgl_lahir,
-          "Status PKS": r.status_pks,
-          "Status Pembayaran": r.status_pembayaran,
-          "Status Kapal": r.status_kapal,
-          "Pas Besar / Kecil": r.pas_besar_kecil,
-          "Sertifikat Keselamatan": r.sertifikat_keselamatan,
-          "Izin Trayek": r.izin_trayek,
-          Trayek: r.trayek,
-          "Rute Awal": r.rute_awal,
-          "Rute Akhir": r.rute_akhir,
-          "Tanggal PKS": r.tgl_pks,
-          "Tanggal Berakhir PKS": r.tgl_berakhir_pks,
-          "Tanggal Addendum": r.tgl_addendum,
-          "Tgl Jatuh Tempo Sertifikat":
-            r.tgl_jatuh_tempo_sertifikat_keselamatan,
-          "Sistem Pengutipan IWKL": r.sistem_pengutipan_iwkl,
-          "Perhitungan Tarif": r.perhitungan_tarif,
-          Seat: r.seat,
-          Rit: r.rit,
-          "Tarif Dasar IWKL": r.tarif_dasar_iwkl,
-          Hari: r.hari,
-          "Load Factor (%)": r.load_factor,
-          "Tarif Borongan Disepakati": r.tarif_borongan_disepakati,
-          "Potensi / Bulan": r.potensi_per_bulan,
-          "Total Jan–Des": totalJanDes,
-          "% Akt 24–23": r.persen_akt_24_23,
+    (bulanData || []).forEach((b) => {
+      if (!bulanMap[b.iwkl_id]) bulanMap[b.iwkl_id] = {};
+      const k = monthFromIndex[b.bulan];
+      if (k) bulanMap[b.iwkl_id][k] = Number(b.nilai) || 0;
+    });
 
-          // BULANAN
-          Jan: bulan.jan || 0,
-          Feb: bulan.feb || 0,
-          Mar: bulan.mar || 0,
-          Apr: bulan.apr || 0,
-          Mei: bulan.mei || 0,
-          Jun: bulan.jun || 0,
-          Jul: bulan.jul || 0,
-          Agust: bulan.agust || 0,
-          Sept: bulan.sept || 0,
-          Okt: bulan.okt || 0,
-          Nov: bulan.nov || 0,
-          Des: bulan.des || 0,
+    // ===============================
+    // 4. BENTUK DATA EXCEL
+    // ===============================
+    const excelData = (iwklData || []).map((r, i) => {
+      const bulan = bulanMap[r.id] || {};
 
-          Keterangan: r.keterangan,
-        };
-      });
-
-      // ===============================
-      // 4. BUAT EXCEL
-      // ===============================
-      const ws = XLSX.utils.json_to_sheet(excelData);
-
-      ws["!cols"] = Object.keys(excelData[0] || {}).map((k) => ({
-        wch:
-          Math.max(
-            k.length,
-            ...excelData.map((r) => String(r[k] ?? "").length),
-          ) + 2,
-      }));
-
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, `IWKL_${tahunAktif}`);
-
-      XLSX.writeFile(
-        wb,
-        `IWKL_FULL_${tahunAktif}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      const totalJanDes = monthKeys.reduce(
+        (sum, k) => sum + Number(bulan[k] || 0),
+        0
       );
 
-      setLoading(false);
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-      alert("Gagal export Excel IWKL (Full Data)");
-    }
-  };
+      return {
+        No: i + 1,
+        Loket: r.loket,
+        Kelas: r.kelas,
+        "Nama Kapal": r.nama_kapal,
+        "Nama Perusahaan": r.nama_perusahaan,
+        "Nama Pemilik / Pengelola": r.nama_pemilik,
+        Alamat: r.alamat,
+        "No Kontak": r.no_kontak,
+        "Tanggal Lahir": r.tgl_lahir,
+        "Status PKS": r.status_pks,
+        "Status Pembayaran": r.status_pembayaran,
+        "Status Kapal": r.status_kapal,
+        "Pas Besar / Kecil": r.pas_besar_kecil,
+        "Sertifikat Keselamatan": r.sertifikat_keselamatan,
+        "Izin Trayek": r.izin_trayek,
+        Trayek: r.trayek,
+        "Rute Awal": r.rute_awal,
+        "Rute Akhir": r.rute_akhir,
+        "Tanggal PKS": r.tgl_pks,
+        "Tanggal Berakhir PKS": r.tgl_berakhir_pks,
+        "Tanggal Addendum": r.tgl_addendum,
+        "Tgl Jatuh Tempo Sertifikat":
+          r.tgl_jatuh_tempo_sertifikat_keselamatan,
+        "Sistem Pengutipan IWKL": r.sistem_pengutipan_iwkl,
+        "Perhitungan Tarif": r.perhitungan_tarif,
+        Seat: r.seat,
+        Rit: r.rit,
+        "Tarif Dasar IWKL": r.tarif_dasar_iwkl,
+        Hari: r.hari,
+        "Load Factor (%)": r.load_factor,
+        "Tarif Borongan Disepakati": r.tarif_borongan_disepakati,
+        "Potensi / Bulan": r.potensi_per_bulan,
+        "Total Jan–Des": totalJanDes,
+        "% Akt 24–23": r.persen_akt_24_23,
+
+        Jan: bulan.jan || 0,
+        Feb: bulan.feb || 0,
+        Mar: bulan.mar || 0,
+        Apr: bulan.apr || 0,
+        Mei: bulan.mei || 0,
+        Jun: bulan.jun || 0,
+        Jul: bulan.jul || 0,
+        Agust: bulan.agust || 0,
+        Sept: bulan.sept || 0,
+        Okt: bulan.okt || 0,
+        Nov: bulan.nov || 0,
+        Des: bulan.des || 0,
+
+        Keterangan: r.keterangan,
+      };
+    });
+
+    // ===============================
+    // 5. EXPORT EXCEL
+    // ===============================
+    const ws = XLSX.utils.json_to_sheet(excelData);
+
+    ws["!cols"] = Object.keys(excelData[0] || {}).map((k) => ({
+      wch:
+        Math.max(
+          k.length,
+          ...excelData.map((r) => String(r[k] ?? "").length)
+        ) + 2,
+    }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `IWKL_${tahunAktif}`);
+
+    XLSX.writeFile(
+      wb,
+      `IWKL_FULL_${tahunAktif}_${new Date().toISOString().slice(0, 10)}.xlsx`
+    );
+
+    setLoading(false);
+  } catch (err) {
+    console.error(err);
+    setLoading(false);
+    alert("Gagal export Excel IWKL");
+  }
+};
 
   // ================= FILTERS (persistent) =================
   const [filterLoket, setFilterLoket] = usePersistentState(
@@ -621,13 +618,12 @@ export default function IwklSimple() {
 
   const fetchYearOptions = async () => {
     try {
-      const { data, error } = await supabase
-        .from("iwkl_bulanan")
-        .select("tahun")
-        .order("tahun", { ascending: false })
-        .limit(5000);
+      const res = await fetch("http://127.0.0.1:8000/api/iwkl-years");
+const data = await res.json();
 
-      if (error) throw error;
+      if (!res.ok) {
+        throw new Error("Gagal load tahun")
+      }
 
       const years = Array.from(
         new Set((data || []).map((d) => Number(d.tahun)).filter(Boolean)),
@@ -652,12 +648,12 @@ export default function IwklSimple() {
 
   const fetchFilterOptions = async () => {
     try {
-      const { data, error } = await supabase
-        .from("iwkl")
-        .select("loket, kelas, status_pks, status_kapal, trayek")
-        .limit(10000);
+      const res = await fetch("http://127.0.0.1:8000/api/iwkl-filters");
+const data = await res.json();
 
-      if (error) throw error;
+      if (!res.ok) {
+        throw new Error("Gagal load filter")
+      }
 
       const uniqLoket = (arr) =>
         Array.from(
@@ -667,6 +663,9 @@ export default function IwklSimple() {
               .map((v) => [normalizeLoket(v), v.trim()])
           ).values()
         ).sort((a, b) => a.localeCompare(b));
+
+        const safeUniq = (arr) =>
+  Array.from(new Set((arr || []).filter(Boolean)));
 
       setLoketFilterOpts((prev) =>
         cleanLoketOpts(
@@ -714,23 +713,20 @@ export default function IwklSimple() {
     const fetchData = async () => {
       setLoading(true);
 
-      const { data: iwklData, error: errIwkl } = await supabase
-        .from("iwkl")
-        .select("*")
-        .order("id", { ascending: false });
+      const res = await fetch("http://127.0.0.1:8000/api/iwkl?tahun=" + tahunAktif);
+const iwklData = await res.json();
 
-      if (errIwkl) {
-        console.error("Error load IWKL:", errIwkl);
-        setLoading(false);
-        return;
-      }
+      if (!res.ok) {
+  console.error("Error load IWKL");
+  setLoading(false);
+  return;
+}
 
-      const { data: bulanData, error: errBulan } = await supabase
-        .from("iwkl_bulanan")
-        .select("*")
-        .eq("tahun", tahunAktif);
+      const resBulan = await fetch(
+  "http://127.0.0.1:8000/api/iwkl-bulanan?tahun=" + tahunAktif
+);
+const bulanData = await resBulan.json();
 
-      if (errBulan) console.error("Error load iwkl_bulanan:", errBulan);
 
       const grouped = {};
       (bulanData || []).forEach((row) => {
@@ -824,13 +820,15 @@ export default function IwklSimple() {
   const deleteRow = async (id) => {
     if (!window.confirm("Hapus baris ini?")) return;
     setSaving(true);
-    const { error } = await supabase.from("iwkl").delete().eq("id", id);
+    const res = await fetch(`http://127.0.0.1:8000/api/iwkl/${id}`, {
+  method: "DELETE",
+});
     setSaving(false);
 
-    if (error) {
-      console.error("Error delete:", error);
-      return;
-    }
+    if (!res.ok) {
+  console.error("Error delete");
+  return;
+}
     setRows((prev) => prev.filter((r) => r.id !== id));
     if (openDetailId === id) setOpenDetailId(null);
   };
@@ -900,65 +898,41 @@ export default function IwklSimple() {
     }
 
     setSaving(true);
-    const { error } = await supabase
-      .from("iwkl")
-      .update({ [colName]: value })
-      .eq("id", id);
+    const res = await fetch(`http://127.0.0.1:8000/api/iwkl/${id}`, {
+  method: "PUT",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    [colName]: value,
+  }),
+});
     setSaving(false);
 
-    if (error) {
-      console.error("Error update:", error);
-    }
+    if (!res.ok) {
+  console.error("Error update");
+}
   };
 
   const updateRowOnly = (id, patch) =>
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 
   const updateBulan = async (iwklId, key, value) => {
-    const bulan = monthIndex[key];
-    if (!bulan) return;
+  const bulan = monthIndex[key];
 
-    setSaving(true);
-
-    // cek apakah row bulanan sudah ada
-    const { data: existing, error: selError } = await supabase
-      .from("iwkl_bulanan")
-      .select("id")
-      .eq("iwkl_id", iwklId)
-      .eq("tahun", tahunAktif)
-      .eq("bulan", bulan)
-      .maybeSingle();
-
-    if (selError && selError.code !== "PGRST116") {
-      // PGRST116 = no rows
-      console.error("Error cek iwkl_bulanan:", selError);
-      setSaving(false);
-      return;
-    }
-
-    let error;
-    if (existing) {
-      // update
-      ({ error } = await supabase
-        .from("iwkl_bulanan")
-        .update({ nilai: value })
-        .eq("id", existing.id));
-    } else {
-      // insert baru
-      ({ error } = await supabase.from("iwkl_bulanan").insert({
-        iwkl_id: iwklId,
-        tahun: tahunAktif,
-        bulan,
-        nilai: value,
-      }));
-    }
-
-    setSaving(false);
-
-    if (error) {
-      console.error("Error update/insert iwkl_bulanan:", error);
-    }
-  };
+  await fetch("http://127.0.0.1:8000/api/iwkl-bulanan", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      iwkl_id: iwklId,
+      tahun: tahunAktif,
+      bulan: bulan,
+      nilai: value,
+    }),
+  });
+};
 
   const toggleDetail = (id) => {
     setOpenDetailId((cur) => (cur === id ? null : id));
@@ -990,17 +964,21 @@ export default function IwklSimple() {
     };
 
     setSaving(true);
-    const { data, error } = await supabase
-      .from("iwkl")
-      .insert([mapRowToDbPayload(draft)])
-      .select()
-      .single();
+    const res = await fetch("http://127.0.0.1:8000/api/iwkl", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(mapRowToDbPayload(draft)),
+});
+
+const data = await res.json();
     setSaving(false);
 
-    if (error) {
-      console.error("Error insert:", error);
-      return;
-    }
+    if (!res.ok) {
+  console.error("Error insert");
+  return;
+}
 
     const newRow = mapDbToRow(data);
     setRows((prev) => [newRow, ...prev]);
@@ -1232,7 +1210,7 @@ export default function IwklSimple() {
                               const val = e.target.value.trim();
 
                               if (val === "") {
-                                updateCell(r.id, "loket", null);
+                                setF("loket", val)
                                 return;
                               }
 

@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { supabase } from "../../lib/supabaseClient";
 import { useNavigate } from "react-router-dom";
 
 async function addVerificationNotification({
@@ -28,14 +27,28 @@ async function addVerificationNotification({
   payload: { reportId, status, note, perusahaan },
 };
 
-const { data, error } = await supabase
-  .from("crm_notifikasi")
-  .insert([payload]);
+const res = await fetch("http://127.0.0.1:8000/api/crm-notifikasi", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(payload),
+});
 
-console.log("INSERT NOTIF:", { data, error });
+const text = await res.text();
 
-if (error) {
-  console.error("Gagal insert notif:", error);
+let data = null;
+
+try {
+  data = JSON.parse(text);
+} catch {
+  console.error("Response bukan JSON:", text);
+}
+
+console.log("INSERT NOTIF:", data);
+
+if (!res.ok) {
+  console.error("Gagal insert notif");
 }
 }
 
@@ -54,126 +67,158 @@ export default function DataFormCrm() {
   const [errorMsg, setErrorMsg] = useState("");
   const [totalRows, setTotalRows] = useState(0);
 
-  useEffect(() => {
-    if (!selected?.dbId) return;
+useEffect(() => {
+  if (!selected?.dbId) return;
 
-    (async () => {
-      const { data, error } = await supabase
-        .from("crm_armada")
-        .select("*")
-        .eq("report_id", selected.dbId);
+  (async () => {
+    const BASE = "http://127.0.0.1:8000";
 
-      if (!error && data) {
-        setSelected((prev) => ({
-          ...prev,
-          step2: {
-            ...prev.step2,
-            rincianArmada: data.map((a) => ({
-              nopol: a.nopol,
-              status: a.status,
-              tipeArmada: a.tipe_armada,
-              tahun: a.tahun,
-              bayarOs: a.bayar_os,
-              rekomendasi: a.rekomendasi,
-              bukti: a.bukti || [],
+    const res = await fetch(
+      `http://127.0.0.1:8000/api/crm-armada/${selected.dbId}`
+    );
+
+    const data = await res.json();
+
+    if (data) {
+      setSelected((prev) => ({
+        ...prev,
+        step2: {
+          ...prev.step2,
+          rincianArmada: data.map((a) => ({
+            nopol: a.nopol,
+            status: a.status,
+            tipeArmada: a.tipe_armada,
+            tahun: a.tahun,
+            bayarOs: a.bayar_os,
+            rekomendasi: a.rekomendasi,
+            bukti: (a.bukti || []).map(f => ({
+              ...f,
+              url: f.url?.startsWith("http") ? f.url : BASE + f.url
             })),
-          },
-        }));
-      }
-    })();
-  }, [selected?.dbId]);
+          })),
+        },
+      }));
+    }
+  })();
+}, [selected?.dbId]);
 
   useEffect(() => {
     async function fetchReports() {
-      setLoading(true);
-      setErrorMsg("");
+  setLoading(true);
+  setErrorMsg("");
 
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
+  try {
+    const res = await fetch(
+      `http://127.0.0.1:8000/api/crm-reports?page=${page}&q=${query}&status=${filterValidasi}`
+    );
 
-      try {
-        let reportIdsFromNopol = [];
+    if (!res.ok) {
+  throw new Error("API ERROR");
+}
 
-        if (query) {
-          const { data: armadaHits, error: armadaErr } = await supabase
-            .from("crm_armada")
-            .select("report_id")
-            .ilike("nopol", `%${query}%`)
-            .limit(200);
+    const result = await res.json();
 
-          if (!armadaErr && armadaHits) {
-            reportIdsFromNopol = armadaHits.map((x) => x.report_id);
-          }
-        }
+    console.log("API RESULT:", result);
 
-        let q = supabase
-          .from("crm_reports")
-          .select(
-            `
-              id,
-              report_code,
-              step1,
-              step2,
-              step3,
-              step4
-            `,
-            { count: "exact" }
-          )
-          .order("step1->>tanggalWaktu", { ascending: false });
+    const BASE = "http://127.0.0.1:8000";
 
-        // 🔎 SEARCH (query)
-        if (query) {
-          const qSafe = query.replace(/[%_,]/g, "\\$&");
+const mapped = (result.data || []).map((r, i) => {
 
-          const orParts = [
-            `report_code.ilike.%${qSafe}%`,
-            `step1->>namaPemilik.ilike.%${qSafe}%`,
-            `step1->>loket.ilike.%${qSafe}%`,
-            `step1->>petugasDepan.ilike.%${qSafe}%`,
-            `step1->>petugasBelakang.ilike.%${qSafe}%`,
-          ];
+  const step2 = r.step2 || {};
+  const step3 = r.step3 || {};
 
-          if (reportIdsFromNopol.length > 0) {
-            orParts.push(`id.in.(${reportIdsFromNopol.join(",")})`);
-          }
+  // fix foto
+  if (Array.isArray(step3.fotoKunjungan)) {
+    step3.fotoKunjungan = step3.fotoKunjungan.map(f =>
+      f.startsWith("http") ? f : BASE + f
+    );
+  }
 
-          q = q.or(orParts.join(","));
-        }
+  if (typeof step3.fotoKunjungan === "string") {
+  try {
+    step3.fotoKunjungan = JSON.parse(step3.fotoKunjungan);
+  } catch {
+    step3.fotoKunjungan = [];
+  }
+}
 
-        // 🔎 FILTER VALIDASI
-        if (filterValidasi !== "Semua") {
-          q = q.eq("step4->>statusValidasi", filterValidasi);
-        }
+if (Array.isArray(step3.fotoKunjungan)) {
+  step3.fotoKunjungan = step3.fotoKunjungan.map(f =>
+    f.startsWith("http") ? f : BASE + f
+  );
+}
 
-        // pagination terakhir
-        const { data, count, error } = await q.range(from, to);
+  // fix evidence
+if (typeof step3.evidence === "string") {
+  try {
+    step3.evidence = JSON.parse(step3.evidence);
+  } catch {
+    step3.evidence = [];
+  }
+}
 
-        if (error) throw error;
+if (typeof step3.suratPernyataan === "string") {
+  try {
+    step3.suratPernyataan = JSON.parse(step3.suratPernyataan);
+  } catch {
+    step3.suratPernyataan = [];
+  }
+}
 
-        // update total rows SESUAI FILTER
-        if (typeof count === "number") {
-          setTotalRows(count);
-        }
+if (Array.isArray(step3.evidence)) {
+  step3.evidence = step3.evidence.map(f => {
+    const path = f.url || f.path || "";
+    return {
+      ...f,
+      url: path.startsWith("http") ? path : BASE + path
+    };
+  });
+}
 
-        if (error) throw error;
+if (Array.isArray(step3.suratPernyataan)) {
+  step3.suratPernyataan = step3.suratPernyataan.map(f => {
+    const path = f.url || f.path || "";
+    return {
+      ...f,
+      url: path.startsWith("http") ? path : BASE + path
+    };
+  });
+}
 
-        const mapped = (data || []).map((r) => ({
-          id: r.report_code || r.id,
-          dbId: r.id,
-          step1: r.step1 || {},
-          step2: r.step2 || {},
-          step3: r.step3 || {},
-          step4: r.step4 || {},
+  // FIX BUKTI ARMADA
+  if (Array.isArray(step2.rincianArmada)) {
+    step2.rincianArmada = step2.rincianArmada.map(a => {
+      if (Array.isArray(a.bukti)) {
+        a.bukti = a.bukti.map(f => ({
+          ...f,
+          url: f.url?.startsWith("http") ? f.url : BASE + f.url
         }));
-
-        setRows(mapped);
-      } catch (e) {
-        console.error(e);
-        setErrorMsg("Gagal memuat data.");
-      } finally {
-        setLoading(false);
       }
-    }
+      return a;
+    });
+  }
+
+  return {
+    id: r.report_code || r.id,
+    dbId: r.id,
+    step1: r.step1 || {},
+    step2,
+    step3,
+    step4: r.step4 || {},
+  };
+});
+
+console.log("MAPPED DATA:", mapped);
+
+    setRows(mapped);
+    setTotalRows(result.total || 0);
+  } catch (e) {
+    console.error(e);
+    setErrorMsg("Gagal memuat data.");
+  } finally {
+    setLoading(false);
+  }
+}
 
     fetchReports();
   }, [page, filterValidasi, query]);
@@ -229,7 +274,11 @@ export default function DataFormCrm() {
   }, [selected]);
 
   const handleSaveVerification = async () => {
-    if (!selected || !selected.dbId) return;
+    if (!selected?.dbId) {
+  alert("ID laporan tidak ditemukan dari server");
+  console.log("Selected data:", selected);
+  return;
+}
 
     if (!verifyStatus) {
       alert("Silakan pilih status validasi.");
@@ -251,17 +300,31 @@ export default function DataFormCrm() {
       waktuValidasi: ts,
     };
 
-    const { data: updated, error } = await supabase
-      .from("crm_reports")
-      .update({ step4: newStep4 })
-      .eq("id", selected.dbId)
-      .select("*")
-      .single();
+    const res = await fetch(`http://127.0.0.1:8000/api/crm-reports/${selected.dbId}`, {
+  method: "PUT",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    step4: newStep4,
+  }),
+});
 
-    if (error) {
-      alert("Gagal menyimpan verifikasi.");
-      return;
-    }
+const text = await res.text();   // baca sekali saja
+console.log("RAW SERVER RESPONSE:", text);
+
+let updated = null;
+
+try {
+  updated = JSON.parse(text);
+} catch (e) {
+  console.error("Response bukan JSON:", text);
+}
+
+if (!res.ok) {
+  alert("Server error. Lihat console.");
+  return;
+}
 
     const finalStep4 = updated?.step4 || newStep4;
 
@@ -280,7 +343,7 @@ export default function DataFormCrm() {
       note: finalStep4.catatanValidasi || "",
       waktuValidasi: finalStep4.waktuValidasi,
       perusahaan: selected.step1?.perusahaan || "-",
-      petugas: `${selected.step1?.petugasDepan || ""} ${selected.step1?.petugasBelakang || ""}`.trim(),
+      petugas: `${selected.step1?.petugasDepan || ""}`.trim(),
     });
 
     setVerifyOpen(false);
@@ -289,15 +352,15 @@ export default function DataFormCrm() {
   async function handleDelete(row) {
     if (!window.confirm("Yakin ingin menghapus laporan ini?")) return;
 
-    const { error } = await supabase
-      .from("crm_reports")
-      .delete()
-      .eq("id", row.dbId);
+    const res = await fetch(
+  `http://127.0.0.1:8000/api/crm-reports/${row.dbId}`,
+  { method: "DELETE" }
+);
 
-    if (error) {
-      alert("Gagal menghapus data");
-      return;
-    }
+if (!res.ok) {
+  alert("Gagal menghapus data");
+  return;
+}
 
     setRows((prev) => prev.filter((r) => r.dbId !== row.dbId));
   }
@@ -379,22 +442,29 @@ export default function DataFormCrm() {
     setPage(1);
   }, [query, filterJenis, filterValidasi]);
 
-  async function loadImageAsDataURL(src) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous"; // penting kalau src dari url
-      img.onload = () => {
-        const c = document.createElement("canvas");
-        c.width = img.naturalWidth;
-        c.height = img.naturalHeight;
-        const ctx = c.getContext("2d");
-        ctx.drawImage(img, 0, 0);
-        resolve(c.toDataURL("image/png"));
-      };
-      img.onerror = reject;
-      img.src = src;
+ async function loadImageAsDataURL(src) {
+  try {
+
+    if (!src) return null;
+
+    if (src.startsWith("/storage")) {
+      src = "http://127.0.0.1:8000" + src;
+    }
+
+    const res = await fetch(src);
+    const blob = await res.blob();
+
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
     });
+
+  } catch (err) {
+    console.warn("Image load gagal:", src);
+    return null;
   }
+}
 
   function drawKeyValue(doc, pad, y, label, value) {
     const lineGap = 14;
@@ -486,7 +556,7 @@ export default function DataFormCrm() {
       ["Loket", row.step1.loket],
       [
         "Nama Petugas",
-        `${row.step1.petugasDepan} ${row.step1.petugasBelakang}`,
+        `${row.step1.petugasDepan}`,
       ],
       ["Perusahaan", row.step1.perusahaan],
       ["Jenis Angkutan", row.step1.jenisAngkutan],
@@ -510,7 +580,19 @@ export default function DataFormCrm() {
     doc.text("2. Armada", pad, y);
     y += 16;
 
-    const rincian = row.step2.rincianArmada || [];
+    let rincian = row.step2?.rincianArmada || [];
+
+if (typeof rincian === "string") {
+  try {
+    rincian = JSON.parse(rincian);
+  } catch {
+    rincian = [];
+  }
+}
+
+if (!Array.isArray(rincian)) {
+  rincian = [];
+}
 
     const totalOS = rincian.reduce(
       (sum, a) => sum + (Number(a.bayarOs) || 0),
@@ -518,15 +600,18 @@ export default function DataFormCrm() {
     );
 
     // Build table text (basic)
-    const armadaBody = rincian.map((r, i) => [
-      i + 1,
-      r.nopol || "-",
-      r.status || "-",
-      `${r.tipeArmada || "-"}${r.tahun ? " (" + r.tahun + ")" : ""}`,
-      formatRupiah(Number(r.bayarOs || 0)),
-      r.rekomendasi || r.tindakLanjut || "-",
-      Array.isArray(r.bukti) && r.bukti.length ? "" : "-",
-    ]);
+    const armadaBody =
+  rincian.length === 0
+    ? [["-", "-", "-", "-", "-", "-", "-"]]
+    : rincian.map((r, i) => [
+        i + 1,
+        r.nopol || "-",
+        r.status || "-",
+        `${r.tipeArmada || "-"}${r.tahun ? " (" + r.tahun + ")" : ""}`,
+        formatRupiah(Number(r.bayarOs || 0)),
+        r.rekomendasi || r.tindakLanjut || "-",
+        Array.isArray(r.bukti) && r.bukti.length ? "" : "-",
+      ]);
 
     // ==== PRELOAD BUKTI Gambar untuk ARMADA ====
     const buktiImages = {}; // { "row-file": dataURL }
@@ -688,10 +773,18 @@ export default function DataFormCrm() {
     doc.text("File Terlampir:", pad, y);
     y += 14;
 
-    const files = [
-      ...(row.step3.suratPernyataan || []),
-      ...(row.step3.evidence || []),
-    ];
+    let files = [
+  ...(row.step3?.suratPernyataan || []),
+  ...(row.step3?.evidence || [])
+];
+
+if (typeof files === "string") {
+  try {
+    files = JSON.parse(files);
+  } catch {
+    files = [];
+  }
+}
 
     if (!files.length) {
       doc.setFont("helvetica", "normal");
@@ -704,6 +797,8 @@ export default function DataFormCrm() {
         if (isImageFile(f.name)) {
           // tampilkan gambar
           const dataURL = await loadImageAsDataURL(f.url);
+
+          if (!dataURL) continue;
           const maxW = 140;
           const maxH = 110;
 
@@ -769,13 +864,17 @@ export default function DataFormCrm() {
 
     y += 10;
 
+    const fotoList = Array.isArray(row.step3?.fotoKunjungan)
+  ? row.step3.fotoKunjungan
+  : [];
+
     // -----------------------------------------------------------
     // FOTO KUNJUNGAN
     // -----------------------------------------------------------
     const maxW = 180;
     const maxH = 130;
 
-    if (row.step3.fotoKunjungan?.length) {
+    if (fotoList.length) {
       doc.setFont("helvetica", "bold");
       y = checkPage(doc, y, pad, 20);
       doc.text("Foto Kunjungan:", pad, y);
@@ -783,7 +882,7 @@ export default function DataFormCrm() {
 
       let x = pad;
 
-      for (let src of row.step3.fotoKunjungan) {
+      for (let src of fotoList) {
         try {
           const img = new Image();
           img.crossOrigin = "anonymous";
@@ -1099,7 +1198,7 @@ doc.save(`Laporan_CRM_${perusahaanSafe}.pdf`);
                     : "gray";
 
                 return (
-                  <tr key={d.dbId}>
+                  <tr key={d.dbId ?? d.id}>
                     <td
                       style={{
                         textAlign: "right",
@@ -1110,7 +1209,10 @@ doc.save(`Laporan_CRM_${perusahaanSafe}.pdf`);
                     >
                       <button
                         className="btn btn-soft"
-                        onClick={() => setSelected(d)}
+                        onClick={() => {
+  console.log("ROW DATA:", d);
+  setSelected(d);
+}}
                       >
                         Detail
                       </button>
@@ -1140,7 +1242,7 @@ doc.save(`Laporan_CRM_${perusahaanSafe}.pdf`);
                     <td>{d.step1.tanggalWaktu}</td>
                     <td>{d.step1.loket}</td>
                     <td>
-                      {d.step1.petugasDepan} {d.step1.petugasBelakang}
+                      {d.step1.petugasDepan}
                     </td>
                     <td>{d.step1.jenisAngkutan}</td>
                     <td>{d.step1.namaPemilik}</td>
@@ -1308,7 +1410,7 @@ doc.save(`Laporan_CRM_${perusahaanSafe}.pdf`);
                   <Item label="Loket" value={selected.step1.loket} />
                   <Item
                     label="Nama Petugas"
-                    value={`${selected.step1.petugasDepan} ${selected.step1.petugasBelakang}`}
+                    value={`${selected.step1.petugasDepan}`}
                   />
                   <Item
                     label="Nama Perusahaan (PT/CV)"
@@ -1397,20 +1499,28 @@ doc.save(`Laporan_CRM_${perusahaanSafe}.pdf`);
                                       {a.rekomendasi || a.tindakLanjut || "-"}
                                     </td>
                                     <td>
-                                      {Array.isArray(a.bukti) &&
-                                      a.bukti.length > 0 ? (
-                                        a.bukti.map((f, i) => (
-                                          <div key={i}>
-                                            <a
-                                              href={f.url}
-                                              target="_blank"
-                                              rel="noreferrer"
-                                            >
-                                              {f.name || `Bukti ${i + 1}`}
-                                            </a>
-                                          </div>
-                                        ))
-                                      ) : (
+  {Array.isArray(a.bukti) && a.bukti.length > 0 ? (
+    <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+      {a.bukti.map((f, i) => (
+        <a
+          key={i}
+          href={f.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontSize:11,
+            padding:"4px 6px",
+            borderRadius:8,
+            border:"1px solid #cbd5e1",
+            background:"#f8fafc",
+            textDecoration:"none"
+          }}
+        >
+          📎 {f.name || `Bukti ${i+1}`}
+        </a>
+      ))}
+    </div>
+  ) : (
                                         <span
                                           style={{
                                             fontSize: 11,
@@ -1454,14 +1564,26 @@ doc.save(`Laporan_CRM_${perusahaanSafe}.pdf`);
                 </div>
                 <div className="files">
                   {selected.step3.suratPernyataan?.map((f, i) => (
-                    <a key={i} href={f.url} className="file-pill">
-                      <IconFile /> {f.name}
-                    </a>
+                    <a
+  key={i}
+  href={f.url}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="file-pill"
+>
+  <IconFile /> {f.name}
+</a>
                   ))}
                   {selected.step3.evidence?.map((f, i) => (
-                    <a key={i} href={f.url} className="file-pill">
-                      <IconFile /> {f.name}
-                    </a>
+                    <a
+  key={i}
+  href={f.url}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="file-pill"
+>
+  <IconFile /> {f.name}
+</a>
                   ))}
                 </div>
                 <div className="ratings">
